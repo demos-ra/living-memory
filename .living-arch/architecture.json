@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "project": "living-memory",
+  "config_path": "src/config",
+  "enforcement_mode": "gravitational",
+  "philosophy": "Memory self-organizes. Relevance is buoyancy. Inactivity is gravity.",
+  "f_tags": ["F-memory", "F-compression", "F-retrieval", "F-storage"]
+}

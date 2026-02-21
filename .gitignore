@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*_export.json
+.DS_Store
+*.pyc
+__pycache__/

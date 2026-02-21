@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+
+  "compression": {
+    "ols_multiplier": 1.618,
+    "comment_ols": "Golden ratio φ — compress branch when size > φ × system average",
+    "min_nodes_to_compress": 3,
+    "comment_min": "Never compress a branch with fewer than 3 nodes"
+  },
+
+  "decay": {
+    "lambda": 0.5,
+    "comment_lambda": "Ebbinghaus forgetting curve rate — 0.5 empirically grounded",
+    "backbone_decays": false,
+    "comment_backbone": "Backbone nodes are permanent — zero decay ever"
+  },
+
+  "similarity": {
+    "dedup_threshold": 0.85,
+    "comment_dedup": "Above this — update existing node, don't insert",
+    "retrieval_threshold": 0.35,
+    "comment_retrieval": "Below this — node not surfaced in injection. Lower values suit small corpora; raise toward 0.70 for large production corpora.",
+    "unrelated_threshold": 0.30,
+    "comment_unrelated": "Below this — node is unrelated to query"
+  },
+
+  "injection": {
+    "top_n": 10,
+    "comment_top_n": "Maximum nodes injected into context per query",
+    "budget_chars": 4000,
+    "comment_budget": "Hard cap on total characters injected — never blow context window"
+  },
+
+  "archival": {
+    "cold_branch_access_ratio": 0.1,
+    "comment_cold": "Branch is cold when its access ratio falls below 10% of system mean"
+  }
+}

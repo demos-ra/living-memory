@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "enforcement_mode": "blocking",
+  "layers": {
+    "R0": { "name": "Config",      "directory": "config",   "required": false },
+    "R1": { "name": "Domain",      "directory": "domain",   "required": true  },
+    "R2": { "name": "Application", "directory": "app",      "required": true  },
+    "R3": { "name": "Contract",    "directory": "contract", "required": true  },
+    "R4": { "name": "Execution",   "directory": "exec",     "required": true  }
+  },
+  "dependencies": {
+    "R0": { "allowed": [],                    "forbidden": ["R1","R2","R3","R4"] },
+    "R1": { "allowed": ["R0"],                "forbidden": ["R2","R3","R4"]     },
+    "R2": { "allowed": ["R0","R1","R4"],      "forbidden": ["R3"]               },
+    "R3": { "allowed": ["R0","R1","R2"],      "forbidden": ["R4"]               },
+    "R4": { "allowed": ["R0"],                "forbidden": ["R1","R2","R3"]     }
+  },
+  "commit_format": {
+    "pattern": "^\\[F-[a-z][a-z0-9-]*/R[0-4]/C[1-5]\\]",
+    "example": "[F-memory/R1/C2] Add node decay calculation"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "format": {
+    "pattern": "F-[a-z][a-z0-9-]*",
+    "description": "Kebab-case, starts with lowercase letter"
+  },
+  "completeness": {
+    "required_layers": ["R1", "R3", "R4"],
+    "optional_layers": ["R0", "R2"]
+  },
+  "tags": {
+    "F-memory":      { "description": "Core node structure and backbone permanence" },
+    "F-compression": { "description": "OLS branch-level and root-level compression" },
+    "F-retrieval":   { "description": "TF-IDF vectors, cosine similarity, injection" },
+    "F-storage":     { "description": "SQLite persistence, JSON export, archival" }
+  }
+}
