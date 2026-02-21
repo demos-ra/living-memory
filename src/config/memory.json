@@ -1,11 +1,10 @@
 {
-  "version": "2.0.0",
+  "version": "4.0.0",
 
   "compression": {
     "ols_multiplier": 1.618,
     "comment_ols": "Golden ratio φ — compress branch when size > φ × system average",
-    "min_nodes_to_compress": 3,
-    "comment_min": "Never compress a branch with fewer than 3 nodes"
+    "comment_eligibility": "Compression eligibility is physics-derived at runtime — node must have current_relevance < retrieval_threshold. No hardcoded count."
   },
 
   "decay": {
@@ -15,24 +14,66 @@
     "comment_backbone": "Backbone nodes are permanent — zero decay ever"
   },
 
-  "similarity": {
-    "dedup_threshold": 0.85,
-    "comment_dedup": "Above this — update existing node, don't insert",
-    "retrieval_threshold": 0.35,
-    "comment_retrieval": "Below this — node not surfaced in injection. Lower values suit small corpora; raise toward 0.70 for large production corpora.",
-    "unrelated_threshold": 0.30,
-    "comment_unrelated": "Below this — node is unrelated to query"
+  "thresholds": {
+    "comment": "Signal Detection Theory — threshold = mean_sim + log(β) × std_sim. β is cost asymmetry: cost(false_positive) / cost(false_negative)",
+    "dedup": {
+      "beta": 3.0,
+      "comment": "False alarm (losing distinct info) 3x worse than miss (mild bloat)"
+    },
+    "retrieval": {
+      "beta": 0.3,
+      "comment": "Miss (lost context) 3x worse than false alarm (mild noise)"
+    },
+    "consensus": {
+      "beta": 5.0,
+      "comment": "False alarm (bad permanent memory) 5x worse than miss (slow backbone growth)"
+    },
+    "bootstrap": {
+      "min_corpus_size": 10,
+      "bootstrap_mean": 0.60,
+      "bootstrap_std": 0.10,
+      "comment": "Used when active node count below min_corpus_size — cold start fallback"
+    }
+  },
+
+  "consensus": {
+    "stakes_multiplier": {
+      "high": 1.25,
+      "standard": 1.0
+    },
+    "comment": "Multiplier applied to consensus threshold per branch stakes level",
+    "comment_quorum": "v0.5 — canonicalize quorum_requires into physics block alongside λ, φ, β derivations. R0 as single source of truth for all principled constants."
   },
 
   "injection": {
     "top_n": 10,
-    "comment_top_n": "Maximum nodes injected into context per query",
+    "comment_top_n": "v0.5 — revisit when subject+predicate summary grouping lands. Count-based cap becomes less meaningful when injecting summaries not raw nodes.",
     "budget_chars": 4000,
-    "comment_budget": "Hard cap on total characters injected — never blow context window"
+    "comment_budget": "v0.5 — revisit alongside top_n when summary injection lands."
   },
 
   "archival": {
     "cold_branch_access_ratio": 0.1,
-    "comment_cold": "Branch is cold when its access ratio falls below 10% of system mean"
+    "comment_cold": "v0.5 — replace with physics-derived cold threshold consistent with retrieval drop-off gate. Branch is cold when its retrieval score sinks below retrieval_threshold."
+  },
+
+  "agents": {
+    "comment": "Consensus by convergent signal strength, not head count. Emergent from distribution."
+  },
+
+  "predicates": {
+    "version": 1,
+    "vocabulary": [
+      "prefers", "avoids", "requires", "tolerates",
+      "believes", "knows", "targets", "completed",
+      "blocked-by", "owns", "conflicts-with", "member-of"
+    ],
+    "default_unstructured": "knows",
+    "comment": "Locked predicate vocabulary v1. Unknown predicates are logged not rejected. Free-text fallback uses subject=null, predicate=knows, full string as object."
+  },
+
+  "unknown_predicates": {
+    "promotion_threshold": 5,
+    "comment": "Unknown predicate logged on every unrecognized write. When count reaches promotion_threshold, surfaces as candidate for human review and vocabulary promotion."
   }
 }
