@@ -1,79 +1,83 @@
 {
-  "version": "4.0.0",
+  "version": "5.0.0",
 
-  "compression": {
-    "ols_multiplier": 1.618,
-    "comment_ols": "Golden ratio φ — compress branch when size > φ × system average",
-    "comment_eligibility": "Compression eligibility is physics-derived at runtime — node must have current_relevance < retrieval_threshold. No hardcoded count."
+  "physics": {
+    "comment": "All principled constants with empirical derivation. Code reads from here only. Policy parameters stay in their own blocks below.",
+
+    "phi": {
+      "value": 1.618,
+      "source": "Golden ratio — structural packing ratio at which branching tension reaches critical density. Appears in crystal formation, phyllotaxis, and any branching structure where discrete units accumulate.",
+      "applies_to": "OLS branch compression trigger"
+    },
+
+    "lambda": {
+      "base": 0.5,
+      "source": "Ebbinghaus forgetting curve — empirically measured retention rate. Activity-relative inactivity drives the exponent, not clock time.",
+      "applies_to": "Node decay exponent",
+      "temporality_multiplier": {
+        "permanent":      0.0,
+        "semi-permanent": 0.3,
+        "transient":      1.8,
+        "comment": "Derived from predicate temporality axis. permanent=no decay. semi-permanent=slow decay. transient=fast decay."
+      }
+    },
+
+    "beta": {
+      "comment": "SDT cost asymmetry. beta = cost(false_positive) / cost(false_negative). log(beta) is the correct SDT criterion position.",
+      "dedup":     { "value": 3.0, "source": "SDT — false alarm (losing distinct info) 3x worse than miss (mild bloat)" },
+      "retrieval": { "value": 0.3, "source": "SDT — miss (lost context) 3x worse than false alarm (mild noise)" },
+      "consensus": { "value": 5.0, "source": "SDT — false alarm (bad permanent memory) 5x worse than miss (slow backbone growth)" }
+    },
+
+    "quorum": {
+      "method": "signal",
+      "source": "Quorum sensing — collective action emerges when aggregate signal strength crosses emergent threshold. No head count. No voting round.",
+      "applies_to": "Multi-agent backbone consensus"
+    },
+
+    "bootstrap": {
+      "min_corpus_size": 10,
+      "comment": "Below min_corpus_size, prior is computed from predicate table axis variance at init and stored in meta. Emergency fallback if meta not yet initialized.",
+      "emergency_mean": 0.60,
+      "emergency_std":  0.10
+    }
   },
 
   "decay": {
-    "lambda": 0.5,
-    "comment_lambda": "Ebbinghaus forgetting curve rate — 0.5 empirically grounded",
     "backbone_decays": false,
-    "comment_backbone": "Backbone nodes are permanent — zero decay ever"
-  },
-
-  "thresholds": {
-    "comment": "Signal Detection Theory — threshold = mean_sim + log(β) × std_sim. β is cost asymmetry: cost(false_positive) / cost(false_negative)",
-    "dedup": {
-      "beta": 3.0,
-      "comment": "False alarm (losing distinct info) 3x worse than miss (mild bloat)"
-    },
-    "retrieval": {
-      "beta": 0.3,
-      "comment": "Miss (lost context) 3x worse than false alarm (mild noise)"
-    },
-    "consensus": {
-      "beta": 5.0,
-      "comment": "False alarm (bad permanent memory) 5x worse than miss (slow backbone growth)"
-    },
-    "bootstrap": {
-      "min_corpus_size": 10,
-      "bootstrap_mean": 0.60,
-      "bootstrap_std": 0.10,
-      "comment": "Used when active node count below min_corpus_size — cold start fallback"
-    }
+    "comment": "Backbone nodes permanent — zero decay. All decay constants in physics.lambda."
   },
 
   "consensus": {
     "stakes_multiplier": {
-      "high": 1.25,
-      "standard": 1.0
-    },
-    "comment": "Multiplier applied to consensus threshold per branch stakes level",
-    "comment_quorum": "v0.5 — canonicalize quorum_requires into physics block alongside λ, φ, β derivations. R0 as single source of truth for all principled constants."
+      "high":     1.25,
+      "standard": 1.0,
+      "comment": "Human risk policy — scales consensus threshold for high-stakes decisions. Only non-physics parameter in the consensus pipeline."
+    }
   },
 
   "injection": {
-    "top_n": 10,
-    "comment_top_n": "v0.5 — revisit when subject+predicate summary grouping lands. Count-based cap becomes less meaningful when injecting summaries not raw nodes.",
+    "max_summary_groups": 10,
     "budget_chars": 4000,
-    "comment_budget": "v0.5 — revisit alongside top_n when summary injection lands."
-  },
-
-  "archival": {
-    "cold_branch_access_ratio": 0.1,
-    "comment_cold": "v0.5 — replace with physics-derived cold threshold consistent with retrieval drop-off gate. Branch is cold when its retrieval score sinks below retrieval_threshold."
-  },
-
-  "agents": {
-    "comment": "Consensus by convergent signal strength, not head count. Emergent from distribution."
+    "comment": "max_summary_groups caps rendered subject+predicate summary groups. budget_chars is the hard floor."
   },
 
   "predicates": {
+    "comment": "Seed vocabulary loaded into predicates table at first init. After init the table owns the vocabulary — this block is not read again for validation.",
     "version": 1,
-    "vocabulary": [
-      "prefers", "avoids", "requires", "tolerates",
-      "believes", "knows", "targets", "completed",
-      "blocked-by", "owns", "conflicts-with", "member-of"
-    ],
-    "default_unstructured": "knows",
-    "comment": "Locked predicate vocabulary v1. Unknown predicates are logged not rejected. Free-text fallback uses subject=null, predicate=knows, full string as object."
-  },
-
-  "unknown_predicates": {
-    "promotion_threshold": 5,
-    "comment": "Unknown predicate logged on every unrecognized write. When count reaches promotion_threshold, surfaces as candidate for human review and vocabulary promotion."
+    "seed": [
+      { "predicate": "prefers",       "polarity": "positive", "temporality": "transient",      "directionality": "self",      "certainty": "belief", "agency": "active",  "decay_multiplier": 1.8, "compression": "eligible",     "conflict_sensitivity": "low"    },
+      { "predicate": "avoids",        "polarity": "negative", "temporality": "transient",      "directionality": "self",      "certainty": "belief", "agency": "active",  "decay_multiplier": 1.8, "compression": "eligible",     "conflict_sensitivity": "low"    },
+      { "predicate": "requires",      "polarity": "positive", "temporality": "semi-permanent", "directionality": "self",      "certainty": "fact",   "agency": "active",  "decay_multiplier": 0.3, "compression": "conservative", "conflict_sensitivity": "high"   },
+      { "predicate": "tolerates",     "polarity": "positive", "temporality": "transient",      "directionality": "self",      "certainty": "belief", "agency": "passive", "decay_multiplier": 1.8, "compression": "eligible",     "conflict_sensitivity": "low"    },
+      { "predicate": "believes",      "polarity": "positive", "temporality": "transient",      "directionality": "self",      "certainty": "belief", "agency": "active",  "decay_multiplier": 1.8, "compression": "eligible",     "conflict_sensitivity": "medium" },
+      { "predicate": "knows",         "polarity": "neutral",  "temporality": "permanent",      "directionality": "self",      "certainty": "fact",   "agency": "passive", "decay_multiplier": 0.0, "compression": "conservative", "conflict_sensitivity": "low"    },
+      { "predicate": "targets",       "polarity": "positive", "temporality": "transient",      "directionality": "self",      "certainty": "belief", "agency": "active",  "decay_multiplier": 1.0, "compression": "eligible",     "conflict_sensitivity": "medium" },
+      { "predicate": "completed",     "polarity": "positive", "temporality": "permanent",      "directionality": "self",      "certainty": "fact",   "agency": "active",  "decay_multiplier": 0.0, "compression": "never",        "conflict_sensitivity": "none"   },
+      { "predicate": "blocked-by",    "polarity": "negative", "temporality": "transient",      "directionality": "relational","certainty": "fact",   "agency": "passive", "decay_multiplier": 1.0, "compression": "conservative", "conflict_sensitivity": "high"   },
+      { "predicate": "owns",          "polarity": "neutral",  "temporality": "permanent",      "directionality": "relational","certainty": "fact",   "agency": "active",  "decay_multiplier": 0.0, "compression": "conservative", "conflict_sensitivity": "low"    },
+      { "predicate": "conflicts-with","polarity": "negative", "temporality": "transient",      "directionality": "relational","certainty": "belief", "agency": "active",  "decay_multiplier": 1.0, "compression": "never",        "conflict_sensitivity": "high"   },
+      { "predicate": "member-of",     "polarity": "neutral",  "temporality": "permanent",      "directionality": "relational","certainty": "fact",   "agency": "passive", "decay_multiplier": 0.0, "compression": "conservative", "conflict_sensitivity": "low"    }
+    ]
   }
 }

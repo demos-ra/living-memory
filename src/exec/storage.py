@@ -1,6 +1,7 @@
-# [F-storage/R4/C4] SQLite persistence, atomic transactions, JSON export, archival
+# [F-storage/R4/C4] SQLite persistence, atomic transactions, JSON export
 # R4 — Execution. Depends: R0 config only. No domain imports. Pure I/O.
-# v0.4 — triple fields on nodes, unknown_predicates table
+# v0.5 — predicates table, predicate_synonyms, content_vector rename,
+#         bootstrap prior in meta, cold branch via physics gate
 
 from __future__ import annotations
 import sqlite3
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     system_access_snapshot INTEGER NOT NULL DEFAULT 0,
     tags                   TEXT NOT NULL DEFAULT '[]',
     compressed_from        TEXT NOT NULL DEFAULT '[]',
-    tfidf_vector           TEXT NOT NULL DEFAULT '{}',
+    content_vector         TEXT NOT NULL DEFAULT '{}',
     archived               INTEGER NOT NULL DEFAULT 0,
     agent_id               TEXT,
     subject                TEXT,
@@ -58,6 +59,12 @@ CREATE TABLE IF NOT EXISTS nodes (
     FOREIGN KEY (branch_name) REFERENCES branches(branch_name)
 );
 
+CREATE INDEX IF NOT EXISTS idx_nodes_branch     ON nodes(branch_name);
+CREATE INDEX IF NOT EXISTS idx_nodes_archived   ON nodes(archived);
+CREATE INDEX IF NOT EXISTS idx_nodes_backbone   ON nodes(is_backbone);
+CREATE INDEX IF NOT EXISTS idx_nodes_predicate  ON nodes(predicate);
+CREATE INDEX IF NOT EXISTS idx_nodes_subject    ON nodes(subject);
+
 CREATE TABLE IF NOT EXISTS compression_log (
     log_id          TEXT PRIMARY KEY,
     compressed_node TEXT NOT NULL,
@@ -66,10 +73,6 @@ CREATE TABLE IF NOT EXISTS compression_log (
     level           TEXT NOT NULL,
     timestamp       INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
-
-CREATE INDEX IF NOT EXISTS idx_nodes_branch     ON nodes(branch_name);
-CREATE INDEX IF NOT EXISTS idx_nodes_archived   ON nodes(archived);
-CREATE INDEX IF NOT EXISTS idx_nodes_backbone   ON nodes(is_backbone);
 
 CREATE TABLE IF NOT EXISTS co_access_log (
     node_a    TEXT NOT NULL,
@@ -84,14 +87,18 @@ CREATE INDEX IF NOT EXISTS idx_co_access_b     ON co_access_log(node_b);
 CREATE INDEX IF NOT EXISTS idx_co_access_agent ON co_access_log(agent_id);
 
 CREATE TABLE IF NOT EXISTS pending_consensus (
-    pending_id   TEXT PRIMARY KEY,
-    concept_key  TEXT NOT NULL,
-    agent_id     TEXT NOT NULL,
-    content      TEXT NOT NULL,
-    branch_name  TEXT NOT NULL,
-    tfidf_vector TEXT NOT NULL DEFAULT '{}',
-    tags         TEXT NOT NULL DEFAULT '[]',
-    created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    pending_id      TEXT PRIMARY KEY,
+    concept_key     TEXT NOT NULL,
+    agent_id        TEXT NOT NULL,
+    content         TEXT NOT NULL,
+    branch_name     TEXT NOT NULL,
+    content_vector  TEXT NOT NULL DEFAULT '{}',
+    subject         TEXT,
+    predicate       TEXT NOT NULL DEFAULT 'knows',
+    object_text     TEXT NOT NULL DEFAULT '',
+    obj_vector      TEXT NOT NULL DEFAULT '{}',
+    tags            TEXT NOT NULL DEFAULT '[]',
+    created_at      INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_concept ON pending_consensus(concept_key);
@@ -110,20 +117,34 @@ CREATE TABLE IF NOT EXISTS conflicts (
 
 CREATE INDEX IF NOT EXISTS idx_conflicts_resolved ON conflicts(resolved);
 
-CREATE TABLE IF NOT EXISTS unknown_predicates (
-    predicate  TEXT PRIMARY KEY,
-    count      INTEGER NOT NULL DEFAULT 1,
-    first_seen INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-    last_seen  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+CREATE TABLE IF NOT EXISTS predicates (
+    predicate            TEXT PRIMARY KEY,
+    polarity             TEXT NOT NULL,
+    temporality          TEXT NOT NULL,
+    directionality       TEXT NOT NULL,
+    certainty            TEXT NOT NULL,
+    agency               TEXT NOT NULL,
+    decay_multiplier     REAL NOT NULL DEFAULT 1.0,
+    compression          TEXT NOT NULL DEFAULT 'eligible',
+    conflict_sensitivity TEXT NOT NULL DEFAULT 'medium',
+    version              INTEGER NOT NULL DEFAULT 1,
+    source               TEXT NOT NULL DEFAULT 'seed'
+);
+
+CREATE TABLE IF NOT EXISTS predicate_synonyms (
+    unknown_predicate TEXT PRIMARY KEY,
+    mapped_to         TEXT NOT NULL,
+    axis_signature    TEXT NOT NULL,
+    created_at        INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 """
 
 
-# ── Connection ────────────────────────────────────────────────────────────────
+# ── Storage ───────────────────────────────────────────────────────────────────
 
 class Storage:
     """
-    All SQLite I/O lives here. Every write operation is atomic.
+    All SQLite I/O. Every write is atomic.
     R4 — pure I/O. Receives and returns plain dicts, not Node objects.
     Node objects live in R1. Storage works with serialized dicts only.
     """
@@ -140,43 +161,87 @@ class Storage:
             cur.execute(
                 "INSERT OR IGNORE INTO meta VALUES ('system_total_accesses', '0')"
             )
-        # Migrate existing databases — add new columns if absent
         self._migrate()
+        self._seed_predicates()
 
     def _migrate(self) -> None:
         """
-        Safe migration for existing v0.3 databases.
-        Adds new columns if they don't exist. Idempotent.
+        Idempotent migration. Handles v0.3 → v0.5 column additions.
+        content_vector replaces tfidf_vector. Both kept during transition.
         """
         cur = self._conn.execute("PRAGMA table_info(nodes)")
-        existing_columns = {row["name"] for row in cur.fetchall()}
+        existing = {row["name"] for row in cur.fetchall()}
 
         migrations = []
-        if "subject"     not in existing_columns:
+
+        # v0.4 fields
+        if "subject"     not in existing:
             migrations.append("ALTER TABLE nodes ADD COLUMN subject TEXT")
-        if "predicate"   not in existing_columns:
+        if "predicate"   not in existing:
             migrations.append("ALTER TABLE nodes ADD COLUMN predicate TEXT NOT NULL DEFAULT 'knows'")
-        if "object_text" not in existing_columns:
+        if "object_text" not in existing:
             migrations.append("ALTER TABLE nodes ADD COLUMN object_text TEXT NOT NULL DEFAULT ''")
-        if "obj_vector"  not in existing_columns:
+        if "obj_vector"  not in existing:
             migrations.append("ALTER TABLE nodes ADD COLUMN obj_vector TEXT NOT NULL DEFAULT '{}'")
+
+        # v0.5 — content_vector (was tfidf_vector)
+        # SQLite doesn't support RENAME COLUMN before 3.25 — add new column, copy data
+        if "content_vector" not in existing and "tfidf_vector" in existing:
+            migrations.append(
+                "ALTER TABLE nodes ADD COLUMN content_vector TEXT NOT NULL DEFAULT '{}'"
+            )
+            migrations.append(
+                "UPDATE nodes SET content_vector = tfidf_vector"
+            )
+        elif "content_vector" not in existing:
+            migrations.append(
+                "ALTER TABLE nodes ADD COLUMN content_vector TEXT NOT NULL DEFAULT '{}'"
+            )
+
+        # pending_consensus: add triple fields if absent
+        cur2 = self._conn.execute("PRAGMA table_info(pending_consensus)")
+        pc_existing = {row["name"] for row in cur2.fetchall()}
+        if "subject"    not in pc_existing:
+            migrations.append("ALTER TABLE pending_consensus ADD COLUMN subject TEXT")
+        if "predicate"  not in pc_existing:
+            migrations.append("ALTER TABLE pending_consensus ADD COLUMN predicate TEXT NOT NULL DEFAULT 'knows'")
+        if "object_text" not in pc_existing:
+            migrations.append("ALTER TABLE pending_consensus ADD COLUMN object_text TEXT NOT NULL DEFAULT ''")
+        if "obj_vector" not in pc_existing:
+            migrations.append("ALTER TABLE pending_consensus ADD COLUMN obj_vector TEXT NOT NULL DEFAULT '{}'")
+        if "content_vector" not in pc_existing:
+            migrations.append("ALTER TABLE pending_consensus ADD COLUMN content_vector TEXT NOT NULL DEFAULT '{}'")
 
         if migrations:
             with self._transaction() as cur:
                 for sql in migrations:
                     cur.execute(sql)
 
-        # Ensure indexes on new columns exist — safe to run after migration
+    def _seed_predicates(self) -> None:
+        """
+        Load seed predicates from config into predicates table on first init.
+        Idempotent — INSERT OR IGNORE, never overwrites discovered predicates.
+        """
+        seed = _CFG["predicates"]["seed"]
         with self._transaction() as cur:
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_nodes_predicate ON nodes(predicate)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_nodes_subject   ON nodes(subject)")
+            for p in seed:
+                cur.execute("""
+                    INSERT OR IGNORE INTO predicates
+                        (predicate, polarity, temporality, directionality,
+                         certainty, agency, decay_multiplier, compression,
+                         conflict_sensitivity, version, source)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    p["predicate"], p["polarity"], p["temporality"],
+                    p["directionality"], p["certainty"], p["agency"],
+                    p["decay_multiplier"], p["compression"],
+                    p["conflict_sensitivity"],
+                    _CFG["predicates"]["version"], "seed"
+                ))
 
     @contextmanager
     def _transaction(self):
-        """
-        Atomic transaction context manager.
-        All writes inside this block commit together or rollback entirely.
-        """
+        """Atomic transaction — all writes commit together or rollback entirely."""
         cur = self._conn.cursor()
         try:
             yield cur
@@ -201,6 +266,75 @@ class Storage:
                 (by,)
             )
         return self.get_system_accesses()
+
+    def get_meta(self, key: str) -> Optional[str]:
+        cur = self._conn.execute("SELECT value FROM meta WHERE key=?", (key,))
+        row = cur.fetchone()
+        return row["value"] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self._transaction() as cur:
+            cur.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?,?)",
+                (key, value)
+            )
+
+
+    # ── Predicates ────────────────────────────────────────────────────────────
+
+    def get_predicate(self, predicate: str) -> Optional[dict]:
+        """Return predicate row or None if not in vocabulary."""
+        cur = self._conn.execute(
+            "SELECT * FROM predicates WHERE predicate = ?", (predicate,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_all_predicates(self) -> list[dict]:
+        cur = self._conn.execute("SELECT * FROM predicates ORDER BY predicate")
+        return [dict(row) for row in cur.fetchall()]
+
+    def insert_predicate(self, predicate_dict: dict) -> None:
+        """Insert a newly discovered predicate. Atomic."""
+        with self._transaction() as cur:
+            cur.execute("""
+                INSERT OR IGNORE INTO predicates
+                    (predicate, polarity, temporality, directionality,
+                     certainty, agency, decay_multiplier, compression,
+                     conflict_sensitivity, version, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            """, (
+                predicate_dict["predicate"],
+                predicate_dict["polarity"],
+                predicate_dict["temporality"],
+                predicate_dict["directionality"],
+                predicate_dict["certainty"],
+                predicate_dict["agency"],
+                predicate_dict["decay_multiplier"],
+                predicate_dict["compression"],
+                predicate_dict["conflict_sensitivity"],
+                predicate_dict.get("version", 1),
+                predicate_dict.get("source", "discovered"),
+            ))
+
+    def log_synonym(self, unknown: str, mapped_to: str,
+                    axis_signature: str) -> None:
+        """Log a predicate that was classified as a synonym of an existing one."""
+        with self._transaction() as cur:
+            cur.execute("""
+                INSERT OR REPLACE INTO predicate_synonyms
+                    (unknown_predicate, mapped_to, axis_signature)
+                VALUES (?,?,?)
+            """, (unknown, mapped_to, axis_signature))
+
+    def get_synonym_mapping(self, predicate: str) -> Optional[str]:
+        """Return what an unknown predicate was mapped to, or None."""
+        cur = self._conn.execute(
+            "SELECT mapped_to FROM predicate_synonyms WHERE unknown_predicate=?",
+            (predicate,)
+        )
+        row = cur.fetchone()
+        return row["mapped_to"] if row else None
 
 
     # ── Branches ──────────────────────────────────────────────────────────────
@@ -256,32 +390,31 @@ class Storage:
 
     # ── Nodes — writes (all atomic) ───────────────────────────────────────────
 
+    def _node_insert_params(self, nd: dict) -> tuple:
+        return (
+            nd["node_id"], nd["content"], nd["branch_name"],
+            int(nd["is_backbone"]), nd["base_score"],
+            nd["access_count"], nd["system_access_snapshot"],
+            json.dumps(nd["tags"]),
+            json.dumps(nd["compressed_from"]),
+            json.dumps(nd.get("content_vector", {})),
+            nd.get("agent_id"),
+            nd.get("subject"),
+            nd.get("predicate", "knows"),
+            nd.get("object_text", ""),
+            json.dumps(nd.get("obj_vector", {})),
+        )
+
     def insert_node(self, node_dict: dict) -> None:
         with self._transaction() as cur:
             cur.execute("""
                 INSERT INTO nodes
                     (node_id, content, branch_name, is_backbone, base_score,
                      access_count, system_access_snapshot, tags,
-                     compressed_from, tfidf_vector, archived, agent_id,
+                     compressed_from, content_vector, archived, agent_id,
                      subject, predicate, object_text, obj_vector)
                 VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)
-            """, (
-                node_dict["node_id"],
-                node_dict["content"],
-                node_dict["branch_name"],
-                int(node_dict["is_backbone"]),
-                node_dict["base_score"],
-                node_dict["access_count"],
-                node_dict["system_access_snapshot"],
-                json.dumps(node_dict["tags"]),
-                json.dumps(node_dict["compressed_from"]),
-                json.dumps(node_dict["tfidf_vector"]),
-                node_dict.get("agent_id"),
-                node_dict.get("subject"),
-                node_dict.get("predicate", "knows"),
-                node_dict.get("object_text", ""),
-                json.dumps(node_dict.get("obj_vector", {})),
-            ))
+            """, self._node_insert_params(node_dict))
 
     def update_node(self, node_dict: dict) -> None:
         with self._transaction() as cur:
@@ -292,7 +425,7 @@ class Storage:
                     access_count           = ?,
                     system_access_snapshot = ?,
                     tags                   = ?,
-                    tfidf_vector           = ?,
+                    content_vector         = ?,
                     object_text            = ?,
                     obj_vector             = ?
                 WHERE node_id = ?
@@ -302,7 +435,7 @@ class Storage:
                 node_dict["access_count"],
                 node_dict["system_access_snapshot"],
                 json.dumps(node_dict["tags"]),
-                json.dumps(node_dict["tfidf_vector"]),
+                json.dumps(node_dict.get("content_vector", {})),
                 node_dict.get("object_text", ""),
                 json.dumps(node_dict.get("obj_vector", {})),
                 node_dict["node_id"],
@@ -317,14 +450,13 @@ class Storage:
                 (access_count, system_snapshot, node_id)
             )
 
-    def compress_nodes_atomic(self,
-                               consumed_ids: list[str],
+    def compress_nodes_atomic(self, consumed_ids: list[str],
                                compressed_node_dict: dict,
                                log_entry: dict) -> None:
         """
         OLS compression — single atomic transaction:
           1. Insert compressed node
-          2. Archive source nodes (never delete — audit trail)
+          2. Archive source nodes (never delete — full audit trail)
           3. Write compression log entry
         """
         with self._transaction() as cur:
@@ -332,26 +464,10 @@ class Storage:
                 INSERT INTO nodes
                     (node_id, content, branch_name, is_backbone, base_score,
                      access_count, system_access_snapshot, tags,
-                     compressed_from, tfidf_vector, archived, agent_id,
+                     compressed_from, content_vector, archived, agent_id,
                      subject, predicate, object_text, obj_vector)
                 VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)
-            """, (
-                compressed_node_dict["node_id"],
-                compressed_node_dict["content"],
-                compressed_node_dict["branch_name"],
-                int(compressed_node_dict["is_backbone"]),
-                compressed_node_dict["base_score"],
-                compressed_node_dict["access_count"],
-                compressed_node_dict["system_access_snapshot"],
-                json.dumps(compressed_node_dict["tags"]),
-                json.dumps(compressed_node_dict["compressed_from"]),
-                json.dumps(compressed_node_dict["tfidf_vector"]),
-                compressed_node_dict.get("agent_id"),
-                compressed_node_dict.get("subject"),
-                compressed_node_dict.get("predicate", "knows"),
-                compressed_node_dict.get("object_text", ""),
-                json.dumps(compressed_node_dict.get("obj_vector", {})),
-            ))
+            """, self._node_insert_params(compressed_node_dict))
 
             cur.execute(
                 f"UPDATE nodes SET archived=1 WHERE node_id IN "
@@ -371,24 +487,28 @@ class Storage:
                 log_entry["level"],
             ))
 
-    def archive_branch_nodes(self, branch_name: str) -> None:
-        with self._transaction() as cur:
-            cur.execute(
-                "UPDATE nodes SET archived=1 WHERE branch_name=? AND archived=0",
-                (branch_name,)
-            )
 
-
-    # ── Serialization helpers ─────────────────────────────────────────────────
+    # ── Serialization ─────────────────────────────────────────────────────────
 
     @staticmethod
     def _deserialize_node(row: dict) -> dict:
-        """JSON fields come back as strings from SQLite — parse them."""
-        for field in ("tags", "compressed_from", "tfidf_vector", "obj_vector"):
+        """Parse JSON fields. Normalize nullable fields. Handle legacy tfidf_vector."""
+        for field in ("tags", "compressed_from", "obj_vector"):
             if isinstance(row.get(field), str):
                 row[field] = json.loads(row[field])
             elif row.get(field) is None:
                 row[field] = {}
+
+        # content_vector — handle both new column and legacy tfidf_vector
+        if "content_vector" in row and row["content_vector"]:
+            if isinstance(row["content_vector"], str):
+                row["content_vector"] = json.loads(row["content_vector"])
+        elif "tfidf_vector" in row and row["tfidf_vector"]:
+            cv = row["tfidf_vector"]
+            row["content_vector"] = json.loads(cv) if isinstance(cv, str) else cv
+        else:
+            row["content_vector"] = {}
+
         row["is_backbone"] = bool(row["is_backbone"])
         row.setdefault("agent_id",    None)
         row.setdefault("subject",     None)
@@ -398,78 +518,7 @@ class Storage:
         return row
 
 
-    # ── Unknown predicates ────────────────────────────────────────────────────
-
-    def log_unknown_predicate(self, predicate: str) -> int:
-        """
-        Log an unrecognized predicate attempt. Upsert — atomic.
-        Returns current count after increment.
-        """
-        with self._transaction() as cur:
-            cur.execute("""
-                INSERT INTO unknown_predicates (predicate, count)
-                VALUES (?, 1)
-                ON CONFLICT(predicate) DO UPDATE SET
-                    count     = count + 1,
-                    last_seen = strftime('%s','now')
-            """, (predicate,))
-        cur2 = self._conn.execute(
-            "SELECT count FROM unknown_predicates WHERE predicate = ?", (predicate,)
-        )
-        row = cur2.fetchone()
-        return row["count"] if row else 1
-
-    def get_unknown_predicates(self) -> list[dict]:
-        """Return all logged unknown predicates ordered by count descending."""
-        cur = self._conn.execute(
-            "SELECT * FROM unknown_predicates ORDER BY count DESC"
-        )
-        return [dict(row) for row in cur.fetchall()]
-
-    def get_promotion_candidates(self, threshold: int) -> list[dict]:
-        """Return unknown predicates that have reached the promotion threshold."""
-        cur = self._conn.execute(
-            "SELECT * FROM unknown_predicates WHERE count >= ? ORDER BY count DESC",
-            (threshold,)
-        )
-        return [dict(row) for row in cur.fetchall()]
-
-
-    # ── JSON export ───────────────────────────────────────────────────────────
-
-    def export_json(self, path: str = "living_memory_export.json") -> str:
-        branches   = self.get_all_branches()
-        all_nodes  = self.get_all_active_nodes()
-        cur        = self._conn.execute("SELECT * FROM compression_log ORDER BY timestamp")
-        comp_log   = [dict(r) for r in cur.fetchall()]
-        meta_cur   = self._conn.execute("SELECT * FROM meta")
-        meta       = {r["key"]: r["value"] for r in meta_cur.fetchall()}
-        unk_cur    = self._conn.execute("SELECT * FROM unknown_predicates ORDER BY count DESC")
-        unknown    = [dict(r) for r in unk_cur.fetchall()]
-
-        by_branch: dict[str, list] = {}
-        for node in all_nodes:
-            bn = node["branch_name"]
-            by_branch.setdefault(bn, []).append(node)
-
-        export = {
-            "meta":                meta,
-            "branches":            branches,
-            "nodes_by_branch":     by_branch,
-            "compression_log":     comp_log,
-            "unknown_predicates":  unknown,
-        }
-
-        with open(path, "w") as f:
-            json.dump(export, f, indent=2)
-
-        return path
-
-    def close(self) -> None:
-        self._conn.close()
-
-
-    # ── Co-access (relational activation) ────────────────────────────────────
+    # ── Co-access (Hebbian activation) ────────────────────────────────────────
 
     def log_co_access(self, node_ids: list[str], agent_id: str = None) -> None:
         if len(node_ids) < 2:
@@ -494,9 +543,7 @@ class Storage:
                        SUM(count) as total
                 FROM co_access_log
                 WHERE (node_a = ? OR node_b = ?) AND agent_id = ?
-                GROUP BY partner
-                ORDER BY total DESC
-                LIMIT ?
+                GROUP BY partner ORDER BY total DESC LIMIT ?
             """, (node_id, node_id, node_id, agent_id, top_n))
         else:
             cur = self._conn.execute("""
@@ -504,9 +551,7 @@ class Storage:
                        SUM(count) as total
                 FROM co_access_log
                 WHERE node_a = ? OR node_b = ?
-                GROUP BY partner
-                ORDER BY total DESC
-                LIMIT ?
+                GROUP BY partner ORDER BY total DESC LIMIT ?
             """, (node_id, node_id, node_id, top_n))
         return [row["partner"] for row in cur.fetchall()]
 
@@ -517,20 +562,28 @@ class Storage:
         with self._transaction() as cur:
             cur.execute("""
                 INSERT INTO pending_consensus
-                    (pending_id, concept_key, agent_id, content,
-                     branch_name, tfidf_vector, tags)
-                VALUES (?,?,?,?,?,?,?)
+                    (pending_id, concept_key, agent_id, content, branch_name,
+                     content_vector, subject, predicate, object_text, obj_vector, tags)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(pending_id) DO UPDATE SET
-                    content      = excluded.content,
-                    tfidf_vector = excluded.tfidf_vector,
-                    tags         = excluded.tags
+                    content        = excluded.content,
+                    content_vector = excluded.content_vector,
+                    subject        = excluded.subject,
+                    predicate      = excluded.predicate,
+                    object_text    = excluded.object_text,
+                    obj_vector     = excluded.obj_vector,
+                    tags           = excluded.tags
             """, (
                 pending_dict["pending_id"],
                 pending_dict["concept_key"],
                 pending_dict["agent_id"],
                 pending_dict["content"],
                 pending_dict["branch_name"],
-                json.dumps(pending_dict.get("tfidf_vector", {})),
+                json.dumps(pending_dict.get("content_vector", {})),
+                pending_dict.get("subject"),
+                pending_dict.get("predicate", "knows"),
+                pending_dict.get("object_text", ""),
+                json.dumps(pending_dict.get("obj_vector", {})),
                 json.dumps(pending_dict.get("tags", [])),
             ))
 
@@ -542,38 +595,24 @@ class Storage:
         rows = []
         for row in cur.fetchall():
             r = dict(row)
-            r["tfidf_vector"] = json.loads(r["tfidf_vector"])
-            r["tags"]         = json.loads(r["tags"])
+            for field in ("content_vector", "obj_vector", "tags"):
+                if isinstance(r.get(field), str):
+                    r[field] = json.loads(r[field])
             rows.append(r)
         return rows
 
     def commit_pending_to_backbone(self, concept_key: str,
                                    node_dict: dict) -> None:
+        """Atomic: insert backbone node + clear pending. All or nothing."""
         with self._transaction() as cur:
             cur.execute("""
                 INSERT INTO nodes
                     (node_id, content, branch_name, is_backbone, base_score,
                      access_count, system_access_snapshot, tags,
-                     compressed_from, tfidf_vector, archived, agent_id,
+                     compressed_from, content_vector, archived, agent_id,
                      subject, predicate, object_text, obj_vector)
                 VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)
-            """, (
-                node_dict["node_id"],
-                node_dict["content"],
-                node_dict["branch_name"],
-                1,
-                node_dict.get("base_score", 1.0),
-                node_dict.get("access_count", 0),
-                node_dict.get("system_access_snapshot", 0),
-                json.dumps(node_dict.get("tags", [])),
-                json.dumps(node_dict.get("compressed_from", [])),
-                json.dumps(node_dict.get("tfidf_vector", {})),
-                node_dict.get("agent_id"),
-                node_dict.get("subject"),
-                node_dict.get("predicate", "knows"),
-                node_dict.get("object_text", ""),
-                json.dumps(node_dict.get("obj_vector", {})),
-            ))
+            """, self._node_insert_params({**node_dict, "is_backbone": True}))
             cur.execute(
                 "DELETE FROM pending_consensus WHERE concept_key = ?",
                 (concept_key,)
@@ -612,3 +651,41 @@ class Storage:
                 "UPDATE conflicts SET resolved = 1 WHERE conflict_id = ?",
                 (conflict_id,)
             )
+
+
+    # ── JSON export ───────────────────────────────────────────────────────────
+
+    def export_json(self, path: str = "living_memory_export.json") -> str:
+        branches  = self.get_all_branches()
+        all_nodes = self.get_all_active_nodes()
+        comp_log  = [dict(r) for r in self._conn.execute(
+            "SELECT * FROM compression_log ORDER BY timestamp"
+        ).fetchall()]
+        meta      = {r["key"]: r["value"] for r in self._conn.execute(
+            "SELECT * FROM meta"
+        ).fetchall()}
+        predicates = self.get_all_predicates()
+        synonyms   = [dict(r) for r in self._conn.execute(
+            "SELECT * FROM predicate_synonyms"
+        ).fetchall()]
+
+        by_branch: dict[str, list] = {}
+        for node in all_nodes:
+            by_branch.setdefault(node["branch_name"], []).append(node)
+
+        export = {
+            "meta":              meta,
+            "branches":          branches,
+            "nodes_by_branch":   by_branch,
+            "compression_log":   comp_log,
+            "predicates":        predicates,
+            "predicate_synonyms": synonyms,
+        }
+
+        with open(path, "w") as f:
+            json.dump(export, f, indent=2)
+
+        return path
+
+    def close(self) -> None:
+        self._conn.close()

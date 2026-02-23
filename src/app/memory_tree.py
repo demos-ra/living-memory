@@ -1,6 +1,9 @@
-# [F-memory/R2/C4] Memory tree orchestration — backbone, branches, OLS triggers
+# [F-memory/R2/C4] Memory tree orchestration — all pipeline wiring
 # R2 — Application. Depends: R0 config, R1 domain, R4 storage. No contract imports.
-# v0.4 — predicate-aware writes, unknown predicate routing, embedding_fn hook
+# v0.5 — predicate table as vocabulary source, predicate-aware decay/compression,
+#         bootstrap prior from table, cold branch via physics gate,
+#         summary injection, consensus preserves predicate structure,
+#         classify_predicate with axis-based gap/synonym detection
 
 from __future__ import annotations
 import uuid
@@ -9,19 +12,19 @@ import os
 from typing import Optional, Callable
 
 from src.domain.nodes import (
-    Node, compute_decay, is_duplicate, is_compression_eligible,
-    is_known_predicate, DEFAULT_PREDICATE,
-    record_access, current_relevance
+    Node, is_duplicate, is_compression_eligible,
+    record_access, current_relevance,
+    derive_predicate_props,
 )
 from src.domain.retrieval import (
     compute_tfidf, compute_tf, tokenize, update_corpus_idf,
     conditional_injection, format_injection, build_query_vector,
     activate_relational, compute_distribution, get_threshold,
-    compute_signal_strength
+    compute_signal_strength, compute_bootstrap_prior, is_cold_branch,
 )
 from src.domain.compression import (
     should_compress_branch, compress_branch,
-    compress_cold_branch, is_cold_branch
+    compress_cold_branch, compute_mean_relevance,
 )
 from src.exec.storage import Storage
 
@@ -34,36 +37,78 @@ def _load_config() -> dict:
         return json.load(f)
 
 _CFG = _load_config()
-_PROMOTION_THRESHOLD = _CFG["unknown_predicates"]["promotion_threshold"]
 
 
 # ── MemoryTree ────────────────────────────────────────────────────────────────
 
 class MemoryTree:
     """
-    Orchestrates the three-dimensional memory space:
+    Orchestrates the three-dimensional memory space.
 
       D1 — Permanence axis:   backbone (permanent) → active → cold → archive
       D2 — Domain manifolds:  dynamic branches, created at runtime
-      D3 — Relevance space:   cosine similarity × decay buoyancy
+      D3 — Relevance space:   cosine similarity × predicate-aware decay buoyancy
 
     All writes go through Storage (R4) atomically.
     All domain logic lives in R1.
-    This layer wires them together and manages system state.
+    This layer wires them together, manages system state, and holds the
+    predicate props cache — the single runtime lookup table for predicate physics.
     """
 
     def __init__(self, db_path: str = "living_memory.db"):
-        self.storage      = Storage(db_path)
-        self._corpus_idf: dict[str, float] = {}
+        self.storage         = Storage(db_path)
+        self._corpus_idf:    dict[str, float]        = {}
+        self._predicate_map: dict[str, dict]         = {}  # predicate → props dict
+        self._bootstrap_prior: tuple[float, float]   = None
+        self._init()
+
+    def _init(self) -> None:
+        """Load predicate table, compute bootstrap prior, rebuild IDF."""
+        self._reload_predicate_map()
+        self._init_bootstrap_prior()
         self._rebuild_idf()
 
+    def _reload_predicate_map(self) -> None:
+        """Load all predicates from table into memory cache."""
+        rows = self.storage.get_all_predicates()
+        self._predicate_map = {r["predicate"]: r for r in rows}
+
+    def _init_bootstrap_prior(self) -> None:
+        """
+        Load bootstrap prior from meta if already computed.
+        Compute from predicate table if not yet stored.
+        Store in meta for future sessions.
+        """
+        stored_mean = self.storage.get_meta("bootstrap_mean")
+        stored_std  = self.storage.get_meta("bootstrap_std")
+
+        if stored_mean and stored_std:
+            self._bootstrap_prior = (float(stored_mean), float(stored_std))
+            return
+
+        predicates = list(self._predicate_map.values())
+        mean, std  = compute_bootstrap_prior(predicates)
+        self.storage.set_meta("bootstrap_mean", str(mean))
+        self.storage.set_meta("bootstrap_std",  str(std))
+        self._bootstrap_prior = (mean, std)
+
     def _rebuild_idf(self) -> None:
-        raw_nodes  = self.storage.get_all_active_nodes()
-        nodes      = [Node.from_dict(n) for n in raw_nodes]
+        raw_nodes        = self.storage.get_all_active_nodes()
+        nodes            = [self._node_from_dict(n) for n in raw_nodes]
         self._corpus_idf = update_corpus_idf(nodes)
 
     def _system_accesses(self) -> int:
         return self.storage.get_system_accesses()
+
+    def _node_from_dict(self, d: dict) -> Node:
+        """Deserialize node dict and inject predicate props from cache."""
+        node = Node.from_dict(d)
+        node._predicate_props = self._predicate_map.get(node.predicate, {})
+        return node
+
+    def _get_props(self, predicate: str) -> dict:
+        """Return predicate physics props from cache. Empty dict if unknown."""
+        return self._predicate_map.get(predicate, {})
 
 
     # ── Branch management ─────────────────────────────────────────────────────
@@ -75,105 +120,196 @@ class MemoryTree:
         self.storage.upsert_branch("backbone", is_backbone=True)
 
 
-    # ── Predicate routing ─────────────────────────────────────────────────────
+    # ── Predicate classification ──────────────────────────────────────────────
 
-    def _resolve_predicate(self, predicate: Optional[str]) -> str:
+    def classify_predicate(self, predicate: str,
+                            axes: dict = None) -> dict:
         """
-        Validate predicate against locked vocabulary.
-        Known predicate → pass through.
-        Unknown predicate → log to unknown_predicates, return DEFAULT_PREDICATE.
-        None → return DEFAULT_PREDICATE (free-text fallback).
+        Classify an unknown predicate against the predicate table.
+
+        If axes provided: compare axis signature against all known predicates.
+            Exact match on all 5 axes → synonym, map to existing.
+            Unique signature → gap confirmed, derive props, insert new predicate.
+            Equidistant (ties across 2+ predicates) → ambiguous, quarantine.
+
+        If axes not provided: quarantine. Caller must supply axes for
+        auto-classification. v0.6 will add embedding-based axis inference.
+
+        Returns:
+            {"action": "known",     "predicate": str}
+            {"action": "synonym",   "mapped_to": str, "original": str}
+            {"action": "inserted",  "predicate": str, "props": dict}
+            {"action": "quarantine","predicate": str, "reason": str}
+        """
+        # Already known
+        if predicate in self._predicate_map:
+            return {"action": "known", "predicate": predicate}
+
+        # Check synonym table
+        mapped = self.storage.get_synonym_mapping(predicate)
+        if mapped:
+            return {"action": "synonym", "mapped_to": mapped, "original": predicate}
+
+        # No axes provided — quarantine
+        if not axes:
+            return {
+                "action": "quarantine",
+                "predicate": predicate,
+                "reason": "no axis signature provided — supply polarity, temporality, "
+                          "directionality, certainty, agency to classify"
+            }
+
+        AXES = ["polarity", "temporality", "directionality", "certainty", "agency"]
+
+        # Compute axis agreement score against each known predicate
+        matches: list[tuple[int, str]] = []
+        for known_pred, known_props in self._predicate_map.items():
+            score = sum(1 for ax in AXES if axes.get(ax) == known_props.get(ax))
+            matches.append((score, known_pred))
+
+        matches.sort(key=lambda x: x[0], reverse=True)
+        top_score    = matches[0][0] if matches else 0
+        top_matches  = [m for m in matches if m[0] == top_score]
+
+        # Exact match on all 5 axes — synonym
+        if top_score == 5:
+            mapped_to = top_matches[0][1]
+            sig = json.dumps({ax: axes[ax] for ax in AXES if ax in axes})
+            self.storage.log_synonym(predicate, mapped_to, sig)
+            return {"action": "synonym", "mapped_to": mapped_to, "original": predicate}
+
+        # Ambiguous — tied across 2+ predicates at high agreement
+        if len(top_matches) > 1 and top_score >= 4:
+            return {
+                "action": "quarantine",
+                "predicate": predicate,
+                "reason": f"ambiguous — tied between {[m[1] for m in top_matches]}"
+            }
+
+        # Gap confirmed — derive props and insert
+        props = derive_predicate_props(
+            axes.get("polarity", "neutral"),
+            axes.get("temporality", "transient"),
+            axes.get("directionality", "self"),
+            axes.get("certainty", "belief"),
+            axes.get("agency", "active"),
+        )
+        props["predicate"] = predicate
+        props["source"]    = "discovered"
+        props["version"]   = _CFG["predicates"]["version"]
+
+        self.storage.insert_predicate(props)
+        self._reload_predicate_map()
+
+        return {"action": "inserted", "predicate": predicate, "props": props}
+
+    def _resolve_predicate(self, predicate: Optional[str],
+                            axes: dict = None) -> tuple[str, dict]:
+        """
+        Resolve predicate to a known term and its physics props.
+
+        Returns (resolved_predicate, props_dict).
+
+        None → default 'knows' (free-text fallback).
+        Known → pass through with props.
+        Unknown with axes → classify (synonym/gap/quarantine).
+        Unknown without axes → quarantine, fall back to 'knows'.
         """
         if predicate is None:
-            return DEFAULT_PREDICATE
-        if is_known_predicate(predicate):
-            return predicate
-        # Unknown — log and fall back
-        count = self.storage.log_unknown_predicate(predicate)
-        if count >= _PROMOTION_THRESHOLD:
-            # Surface to caller via tag on the node — external review required
-            pass  # promotion surfacing is handled at API layer
-        return DEFAULT_PREDICATE
+            props = self._get_props("knows")
+            return "knows", props
 
-    def _check_promotion_candidates(self) -> list[dict]:
-        """Return unknown predicates that have reached promotion threshold."""
-        return self.storage.get_promotion_candidates(_PROMOTION_THRESHOLD)
+        if predicate in self._predicate_map:
+            return predicate, self._predicate_map[predicate]
+
+        # Check synonym table first
+        mapped = self.storage.get_synonym_mapping(predicate)
+        if mapped:
+            return mapped, self._predicate_map.get(mapped, {})
+
+        # Attempt classification
+        result = self.classify_predicate(predicate, axes)
+
+        if result["action"] == "synonym":
+            mapped_to = result["mapped_to"]
+            return mapped_to, self._predicate_map.get(mapped_to, {})
+
+        if result["action"] == "inserted":
+            return predicate, result["props"]
+
+        # quarantine — fall back to 'knows', preserve memory
+        return "knows", self._get_props("knows")
 
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
     def add_node(self,
-                 content:      Optional[str]   = None,
-                 branch_name:  str             = "backbone",
-                 tags:         Optional[list]  = None,
+                 content:      Optional[str]      = None,
+                 branch_name:  str                = "backbone",
+                 tags:         Optional[list]     = None,
                  normalize_fn: Optional[Callable] = None,
-                 agent_id:     Optional[str]   = None,
-                 subject:      Optional[str]   = None,
-                 predicate:    Optional[str]   = None,
-                 object_text:  Optional[str]   = None,
-                 embedding_fn: Optional[Callable] = None) -> Node:
+                 agent_id:     Optional[str]      = None,
+                 subject:      Optional[str]      = None,
+                 predicate:    Optional[str]      = None,
+                 object_text:  Optional[str]      = None,
+                 embedding_fn: Optional[Callable] = None,
+                 axes:         Optional[dict]     = None) -> Node:
         """
-        Add a node to a branch. Full write pipeline (v0.4):
+        Full write pipeline (v0.5).
 
-        Structured write:  subject + predicate + object_text provided
-        Free-text fallback: content provided, subject=None, predicate=knows
+        Structured write:  subject + predicate + object_text
+        Free-text fallback: content only, subject=None, predicate='knows'
 
-        1. Resolve predicate (validate or log-and-fallback)
+        1. Resolve predicate — validate against table or classify via axes
         2. Build object_text and content
-        3. Vectorize: obj_vector from object_text, tfidf_vector from content
-        4. Dedup check — subject+predicate+obj_vector cosine
+        3. Vectorize — obj_vector from object_text, content_vector from content
+        4. Dedup check — subject + predicate + obj_vector cosine
         5. Insert or update
         6. Rebuild IDF
-        7. OLS check
+        7. φ-triggered OLS check
         """
         tags = tags or []
 
-        # ── Structured vs free-text resolution ───────────────────────────────
+        # ── Resolve predicate ─────────────────────────────────────────────────
+        resolved_predicate, pred_props = self._resolve_predicate(predicate, axes)
+
+        # ── Structured vs free-text ───────────────────────────────────────────
         if object_text is not None:
-            # Structured write
-            resolved_predicate = self._resolve_predicate(predicate)
-            resolved_subject   = subject
-            resolved_object    = object_text
-            if normalize_fn is not None:
-                resolved_object = normalize_fn(resolved_object)
+            resolved_subject = subject
+            resolved_object  = normalize_fn(object_text) if normalize_fn else object_text
             resolved_content = (
                 f"{resolved_subject} {resolved_predicate} {resolved_object}"
                 if resolved_subject is not None
                 else resolved_object
             )
         else:
-            # Free-text fallback — full content string becomes object_text
-            resolved_predicate = DEFAULT_PREDICATE
-            resolved_subject   = None
-            resolved_content   = content or ""
-            if normalize_fn is not None:
-                resolved_content = normalize_fn(resolved_content)
-            resolved_object = resolved_content
+            resolved_subject = None
+            resolved_content = normalize_fn(content or "") if normalize_fn else (content or "")
+            resolved_object  = resolved_content
 
         self.storage.upsert_branch(branch_name, is_backbone=(branch_name == "backbone"))
 
         # ── Vectorize ─────────────────────────────────────────────────────────
-        # obj_vector: object only — TF default, pluggable via embedding_fn
-        if embedding_fn is not None:
-            obj_vec = embedding_fn(resolved_object)
-        else:
-            obj_vec = compute_tf(tokenize(resolved_object))
-
-        # tfidf_vector: full content — corpus-independent TF for retrieval
-        tf_vector    = compute_tf(tokenize(resolved_content))
-        tfidf_vector = compute_tfidf(resolved_content, self._corpus_idf)
+        obj_vec = (
+            embedding_fn(resolved_object)
+            if embedding_fn
+            else compute_tf(tokenize(resolved_object))
+        )
+        content_vector = compute_tf(tokenize(resolved_content))
 
         sys_accesses = self._system_accesses()
 
         # ── Load branch nodes for dedup ───────────────────────────────────────
         raw_branch   = self.storage.get_nodes_for_branch(branch_name)
-        branch_nodes = [Node.from_dict(n) for n in raw_branch]
+        branch_nodes = [self._node_from_dict(n) for n in raw_branch]
 
         # ── Compute live dedup threshold ──────────────────────────────────────
         all_raw   = self.storage.get_all_active_nodes()
-        all_nodes = [Node.from_dict(n) for n in all_raw]
-        mean, std = compute_distribution(all_nodes)
-        dedup_thresh = get_threshold(_CFG["thresholds"]["dedup"]["beta"], mean, std)
+        all_nodes = [self._node_from_dict(n) for n in all_raw]
+        mean, std = compute_distribution(all_nodes, self._bootstrap_prior)
+        dedup_thresh = get_threshold(
+            _CFG["physics"]["beta"]["dedup"]["value"], mean, std
+        )
 
         # ── Dedup check ───────────────────────────────────────────────────────
         existing = is_duplicate(
@@ -182,11 +318,11 @@ class MemoryTree:
         )
 
         if existing:
-            existing.content      = resolved_content
-            existing.object_text  = resolved_object
-            existing.obj_vector   = obj_vec
-            existing.tfidf_vector = tf_vector
-            existing.access_count += 1
+            existing.content        = resolved_content
+            existing.object_text    = resolved_object
+            existing.obj_vector     = obj_vec
+            existing.content_vector = content_vector
+            existing.access_count  += 1
             existing.system_access_snapshot = sys_accesses
             for tag in tags:
                 if tag not in existing.tags:
@@ -205,13 +341,14 @@ class MemoryTree:
             access_count            = 0,
             system_access_snapshot  = sys_accesses,
             tags                    = tags,
-            tfidf_vector            = tf_vector,
+            content_vector          = content_vector,
             agent_id                = agent_id,
             subject                 = resolved_subject,
             predicate               = resolved_predicate,
             object_text             = resolved_object,
             obj_vector              = obj_vec,
         )
+        node._predicate_props = pred_props
         self.storage.insert_node(node.to_dict())
         self._rebuild_idf()
 
@@ -227,13 +364,14 @@ class MemoryTree:
                           subject:      Optional[str]      = None,
                           predicate:    Optional[str]      = None,
                           object_text:  Optional[str]      = None,
-                          embedding_fn: Optional[Callable] = None) -> Node:
+                          embedding_fn: Optional[Callable] = None,
+                          axes:         Optional[dict]     = None) -> Node:
         self.ensure_backbone()
         return self.add_node(
             content=content, branch_name="backbone", tags=tags,
             normalize_fn=normalize_fn, agent_id=agent_id,
             subject=subject, predicate=predicate,
-            object_text=object_text, embedding_fn=embedding_fn
+            object_text=object_text, embedding_fn=embedding_fn, axes=axes,
         )
 
 
@@ -242,25 +380,25 @@ class MemoryTree:
     def _check_and_compress(self, branch_name: str) -> bool:
         """
         φ-triggered branch-level OLS.
-        Fires automatically after every write to a non-backbone branch.
-        Neutral buoyancy gate — nodes sinking below system mean are eligible.
+        Fires automatically after every non-backbone write.
         Returns True if compression occurred.
         """
         branch_sizes = self.storage.get_branch_sizes()
         all_sizes    = list(branch_sizes.values())
         raw_nodes    = self.storage.get_nodes_for_branch(branch_name)
-        branch_nodes = [Node.from_dict(n) for n in raw_nodes]
+        branch_nodes = [self._node_from_dict(n) for n in raw_nodes]
 
         if not should_compress_branch(branch_nodes, all_sizes):
             return False
 
-        sys_accesses  = self._system_accesses()
-        all_raw       = self.storage.get_all_active_nodes()
-        all_nodes     = [Node.from_dict(n) for n in all_raw]
+        sys_accesses = self._system_accesses()
+        all_raw      = self.storage.get_all_active_nodes()
+        all_nodes    = [self._node_from_dict(n) for n in all_raw]
 
         try:
             compressed, consumed_ids = compress_branch(
-                branch_nodes, branch_name, sys_accesses, all_nodes
+                branch_nodes, branch_name, sys_accesses,
+                all_nodes, self._predicate_map
             )
         except ValueError:
             return False
@@ -272,7 +410,6 @@ class MemoryTree:
             "branch_name":     branch_name,
             "level":           "branch",
         }
-
         self.storage.compress_nodes_atomic(consumed_ids, compressed.to_dict(), log_entry)
         self._rebuild_idf()
         return True
@@ -280,32 +417,43 @@ class MemoryTree:
     def run_root_ols(self) -> list[str]:
         """
         Root-level OLS — compress cold branches into archive nodes.
+        Cold = mean node relevance below retrieval threshold (physics gate).
         Call at session boundaries.
         Returns list of branch names compressed.
         """
-        branch_accesses = self.storage.get_branch_access_counts()
-        all_counts      = [v for k, v in branch_accesses.items() if k != "backbone"]
-        sys_accesses    = self._system_accesses()
-        all_raw         = self.storage.get_all_active_nodes()
-        all_nodes       = [Node.from_dict(n) for n in all_raw]
+        sys_accesses = self._system_accesses()
+        all_raw      = self.storage.get_all_active_nodes()
+        all_nodes    = [self._node_from_dict(n) for n in all_raw]
+
+        # Compute retrieval threshold for cold gate
+        mean, std = compute_distribution(all_nodes, self._bootstrap_prior)
+        retrieval_threshold = get_threshold(
+            _CFG["physics"]["beta"]["retrieval"]["value"], mean, std
+        )
+
+        branch_names = [
+            b["branch_name"] for b in self.storage.get_all_branches()
+            if not b["is_backbone"]
+        ]
 
         compressed_branches = []
 
-        for branch_name, access_count in branch_accesses.items():
-            if branch_name == "backbone":
-                continue
-            if not is_cold_branch(access_count, all_counts):
-                continue
-
-            raw_nodes = self.storage.get_nodes_for_branch(branch_name)
+        for branch_name in branch_names:
+            raw_nodes    = self.storage.get_nodes_for_branch(branch_name)
             if not raw_nodes:
                 continue
+            branch_nodes = [self._node_from_dict(n) for n in raw_nodes]
 
-            branch_nodes = [Node.from_dict(n) for n in raw_nodes]
+            if not is_cold_branch(
+                branch_nodes, sys_accesses,
+                retrieval_threshold, self._predicate_map
+            ):
+                continue
 
             try:
                 compressed, consumed_ids = compress_cold_branch(
-                    branch_name, branch_nodes, sys_accesses, all_nodes
+                    branch_name, branch_nodes, sys_accesses,
+                    all_nodes, self._predicate_map
                 )
             except ValueError:
                 continue
@@ -317,7 +465,6 @@ class MemoryTree:
                 "branch_name":     branch_name,
                 "level":           "root",
             }
-
             self.storage.compress_nodes_atomic(consumed_ids, compressed.to_dict(), log_entry)
             compressed_branches.append(branch_name)
 
@@ -330,25 +477,29 @@ class MemoryTree:
     # ── Query / retrieval ─────────────────────────────────────────────────────
 
     def query(self, prompt: str, formatted: bool = True,
-              agent_id: Optional[str] = None) -> str | list[Node]:
+              agent_id: Optional[str] = None) -> "str | list[Node]":
         """
         Conditional injection — D3 slice.
-        Scores all active nodes against prompt. Returns top-N within budget.
+        Scores all active nodes against prompt using predicate-aware decay.
+        Returns summary-grouped formatted string or raw node list.
         """
         sys_accesses = self._system_accesses()
         raw_nodes    = self.storage.get_all_active_nodes()
-        all_nodes    = [Node.from_dict(n) for n in raw_nodes]
+        all_nodes    = [self._node_from_dict(n) for n in raw_nodes]
 
-        mean, std        = compute_distribution(all_nodes)
+        mean, std = compute_distribution(all_nodes, self._bootstrap_prior)
         retrieval_thresh = get_threshold(
-            _CFG["thresholds"]["retrieval"]["beta"], mean, std
+            _CFG["physics"]["beta"]["retrieval"]["value"], mean, std
         )
 
         injected = conditional_injection(
             prompt, all_nodes, self._corpus_idf, sys_accesses,
-            retrieval_threshold=retrieval_thresh
+            retrieval_threshold=retrieval_thresh,
+            predicate_props_map=self._predicate_map,
+            bootstrap_prior=self._bootstrap_prior,
         )
 
+        # Relational activation — Hebbian co-access partners
         co_access_partners = {}
         for node in injected:
             partners = self.storage.get_co_access_partners(
@@ -364,6 +515,7 @@ class MemoryTree:
         )
         injected = injected + activated
 
+        # Record accesses
         new_total = self.storage.increment_system_accesses(by=len(injected))
         for node in injected:
             record_access(node, new_total)
@@ -373,7 +525,9 @@ class MemoryTree:
             self.storage.increment_branch_access(node.branch_name)
 
         if len(injected) > 1:
-            self.storage.log_co_access([n.node_id for n in injected], agent_id=agent_id)
+            self.storage.log_co_access(
+                [n.node_id for n in injected], agent_id=agent_id
+            )
 
         if formatted:
             return format_injection(injected)
@@ -383,30 +537,23 @@ class MemoryTree:
     # ── Decay scan ────────────────────────────────────────────────────────────
 
     def decay_scan(self) -> dict[str, float]:
+        """Current predicate-aware relevance scores for all active non-backbone nodes."""
         sys_accesses = self._system_accesses()
         raw_nodes    = self.storage.get_all_active_nodes()
         scores       = {}
-
         for raw in raw_nodes:
-            node = Node.from_dict(raw)
+            node = self._node_from_dict(raw)
             if not node.is_backbone:
-                scores[node.node_id] = current_relevance(node, sys_accesses)
-
+                scores[node.node_id] = current_relevance(
+                    node, sys_accesses, self._predicate_map.get(node.predicate)
+                )
         return scores
-
-
-    # ── Export ────────────────────────────────────────────────────────────────
-
-    def export_json(self, path: str = "living_memory_export.json") -> str:
-        return self.storage.export_json(path)
-
-    def close(self) -> None:
-        self.storage.close()
 
 
     # ── Multi-agent consensus pipeline ────────────────────────────────────────
 
-    def add_agent_node(self, content: str, branch_name: str,
+    def add_agent_node(self, content: str,
+                       branch_name:  str,
                        agent_id:     str,
                        concept_key:  str,
                        tags:         Optional[list]     = None,
@@ -415,44 +562,53 @@ class MemoryTree:
                        subject:      Optional[str]      = None,
                        predicate:    Optional[str]      = None,
                        object_text:  Optional[str]      = None,
-                       embedding_fn: Optional[Callable] = None) -> dict:
+                       embedding_fn: Optional[Callable] = None,
+                       axes:         Optional[dict]     = None) -> dict:
         """
         Multi-agent write pipeline. Routes backbone content through consensus.
         Non-backbone writes directly with agent_id provenance.
         """
         tags = tags or []
-
-        if normalize_fn is not None:
+        if normalize_fn:
             content = normalize_fn(content)
 
         if branch_name != "backbone":
             node = self.add_node(
                 content=content, branch_name=branch_name, tags=tags,
                 agent_id=agent_id, subject=subject, predicate=predicate,
-                object_text=object_text, embedding_fn=embedding_fn
+                object_text=object_text, embedding_fn=embedding_fn, axes=axes,
             )
             return {"status": "written", "node_id": node.node_id}
 
         # Backbone — resolve predicate and route through consensus
-        resolved_predicate = self._resolve_predicate(predicate)
-        resolved_subject   = subject
-        resolved_object    = object_text if object_text is not None else content
-        resolved_content   = (
+        resolved_predicate, pred_props = self._resolve_predicate(predicate, axes)
+        resolved_subject = subject
+        resolved_object  = object_text if object_text is not None else content
+        resolved_content = (
             f"{resolved_subject} {resolved_predicate} {resolved_object}"
             if resolved_subject is not None else resolved_object
         )
 
-        tf_vector = compute_tf(tokenize(resolved_content))
-        sys_acc   = self._system_accesses()
+        content_vector = compute_tf(tokenize(resolved_content))
+        obj_vec = (
+            embedding_fn(resolved_object)
+            if embedding_fn
+            else compute_tf(tokenize(resolved_object))
+        )
+        sys_acc = self._system_accesses()
 
         pending = {
-            "pending_id":   f"{concept_key}:{agent_id}",
-            "concept_key":  concept_key,
-            "agent_id":     agent_id,
-            "content":      resolved_content,
-            "branch_name":  branch_name,
-            "tfidf_vector": tf_vector,
-            "tags":         tags,
+            "pending_id":      f"{concept_key}:{agent_id}",
+            "concept_key":     concept_key,
+            "agent_id":        agent_id,
+            "content":         resolved_content,
+            "branch_name":     branch_name,
+            "content_vector":  content_vector,
+            "subject":         resolved_subject,
+            "predicate":       resolved_predicate,
+            "object_text":     resolved_object,
+            "obj_vector":      obj_vec,
+            "tags":            tags,
         }
         self.storage.write_pending(pending)
 
@@ -460,18 +616,56 @@ class MemoryTree:
 
     def _check_consensus(self, concept_key: str, branch_name: str,
                          sys_accesses: int, stakes: str = "standard") -> dict:
+        """
+        Evaluate signal strength across pending agent versions.
+
+        Signal = mean pairwise cosine similarity across content_vectors.
+        Threshold = SDT-grounded, emergent from live tree distribution.
+
+        On commit: merged backbone node inherits subject+predicate from agents.
+        Predicate divergence across agents → structural conflict regardless of signal.
+        """
         pending_raw = self.storage.get_pending_by_concept(concept_key)
 
         if len(pending_raw) < 2:
-            return {"status": "pending", "signal": 0.0, "threshold": None,
-                    "agents": len(pending_raw)}
+            return {
+                "status": "pending", "signal": 0.0,
+                "threshold": None, "agents": len(pending_raw)
+            }
 
+        # ── Predicate divergence check — structural conflict ──────────────────
+        predicates = {p.get("predicate", "knows") for p in pending_raw}
+        subjects   = {p.get("subject") for p in pending_raw}
+
+        if len(predicates) > 1:
+            # Agents disagree on predicate — structural conflict, skip signal check
+            conflict = {
+                "conflict_id": str(uuid.uuid4()),
+                "concept_key": concept_key,
+                "branch_name": branch_name,
+                "agent_ids":   [p["agent_id"] for p in pending_raw],
+                "signal":      0.0,
+                "threshold":   0.0,
+            }
+            self.storage.flag_conflict(conflict)
+            return {
+                "status": "conflict",
+                "reason": "predicate_divergence",
+                "predicates": list(predicates),
+                "agents": conflict["agent_ids"],
+            }
+
+        # ── Signal evaluation ─────────────────────────────────────────────────
         pending_nodes = [
             Node(
-                content      = p["content"],
-                tfidf_vector = p["tfidf_vector"],
-                agent_id     = p["agent_id"],
-                branch_name  = branch_name,
+                content        = p["content"],
+                content_vector = p.get("content_vector", {}),
+                agent_id       = p["agent_id"],
+                branch_name    = branch_name,
+                subject        = p.get("subject"),
+                predicate      = p.get("predicate", "knows"),
+                object_text    = p.get("object_text", ""),
+                obj_vector     = p.get("obj_vector", {}),
             )
             for p in pending_raw
         ]
@@ -479,20 +673,30 @@ class MemoryTree:
         signal = compute_signal_strength(pending_nodes)
 
         all_raw   = self.storage.get_all_active_nodes()
-        all_nodes = [Node.from_dict(n) for n in all_raw]
-        mean, std = compute_distribution(all_nodes)
+        all_nodes = [self._node_from_dict(n) for n in all_raw]
+        mean, std = compute_distribution(all_nodes, self._bootstrap_prior)
 
         stakes_mult = _CFG["consensus"]["stakes_multiplier"].get(stakes, 1.0)
         threshold   = get_threshold(
-            _CFG["thresholds"]["consensus"]["beta"],
+            _CFG["physics"]["beta"]["consensus"]["value"],
             mean, std, stakes_multiplier=stakes_mult
         )
 
         if signal >= threshold:
-            from src.domain.compression import _merge_content, _merge_vectors
-            merged_content = _merge_content(pending_nodes)
-            merged_vector  = _merge_vectors(pending_nodes)
-            agent_ids      = [p["agent_id"] for p in pending_raw]
+            # ── Commit — inherit subject+predicate from agents ────────────────
+            from src.domain.compression import _merge_content, _merge_vectors, _merge_obj_vectors
+            merged_content    = _merge_content(pending_nodes)
+            merged_cv         = _merge_vectors(pending_nodes)
+            merged_obj_vector = _merge_obj_vectors(pending_nodes)
+
+            # All agents agreed on predicate — safe to inherit
+            consensus_predicate = predicates.pop()
+            consensus_subject   = subjects.pop() if len(subjects) == 1 else None
+
+            object_text = (
+                merged_content if consensus_subject is None
+                else " | ".join(p["object_text"] for p in pending_raw if p.get("object_text"))
+            )
 
             node_dict = {
                 "node_id":                str(uuid.uuid4()),
@@ -502,22 +706,28 @@ class MemoryTree:
                 "base_score":             1.0,
                 "access_count":           0,
                 "system_access_snapshot": sys_accesses,
-                "tags":                   list({t for p in pending_raw for t in p["tags"]}),
+                "tags":                   list({t for p in pending_raw for t in p.get("tags", [])}),
                 "compressed_from":        [p["pending_id"] for p in pending_raw],
-                "tfidf_vector":           merged_vector,
+                "content_vector":         merged_cv,
                 "agent_id":               None,
-                "subject":                None,
-                "predicate":              DEFAULT_PREDICATE,
-                "object_text":            merged_content,
-                "obj_vector":             merged_vector,
+                "subject":                consensus_subject,
+                "predicate":              consensus_predicate,
+                "object_text":            object_text,
+                "obj_vector":             merged_obj_vector,
             }
 
             self.storage.upsert_branch("backbone", is_backbone=True)
             self.storage.commit_pending_to_backbone(concept_key, node_dict)
             self._rebuild_idf()
 
-            return {"status": "committed", "signal": signal,
-                    "threshold": threshold, "agents": agent_ids}
+            return {
+                "status":    "committed",
+                "signal":    signal,
+                "threshold": threshold,
+                "agents":    [p["agent_id"] for p in pending_raw],
+                "predicate": consensus_predicate,
+                "subject":   consensus_subject,
+            }
 
         else:
             conflict = {
@@ -529,10 +739,12 @@ class MemoryTree:
                 "threshold":   threshold,
             }
             self.storage.flag_conflict(conflict)
-
-            return {"status": "conflict", "signal": signal,
-                    "threshold": threshold,
-                    "agents": conflict["agent_ids"]}
+            return {
+                "status":    "conflict",
+                "signal":    signal,
+                "threshold": threshold,
+                "agents":    conflict["agent_ids"],
+            }
 
     def pending_conflicts(self) -> list[dict]:
         return self.storage.get_pending_conflicts()
@@ -540,13 +752,30 @@ class MemoryTree:
     def resolve_conflict(self, conflict_id: str,
                          resolved_content: str,
                          concept_key: str,
-                         branch_name: str = "backbone") -> None:
-        sys_acc   = self._system_accesses()
-        tf_vector = compute_tf(tokenize(resolved_content))
+                         subject:     Optional[str] = None,
+                         predicate:   Optional[str] = None,
+                         object_text: Optional[str] = None,
+                         axes:        Optional[dict] = None) -> None:
+        """
+        Write externally resolved content to backbone. Atomic.
+        Preserves triple structure — caller supplies subject+predicate if known.
+        """
+        sys_acc = self._system_accesses()
+
+        resolved_predicate, pred_props = self._resolve_predicate(predicate, axes)
+        resolved_subject = subject
+        resolved_object  = object_text if object_text is not None else resolved_content
+        final_content    = (
+            f"{resolved_subject} {resolved_predicate} {resolved_object}"
+            if resolved_subject is not None else resolved_content
+        )
+
+        content_vector = compute_tf(tokenize(final_content))
+        obj_vec        = compute_tf(tokenize(resolved_object))
 
         node_dict = {
             "node_id":                str(uuid.uuid4()),
-            "content":                resolved_content,
+            "content":                final_content,
             "branch_name":            "backbone",
             "is_backbone":            True,
             "base_score":             1.0,
@@ -554,47 +783,36 @@ class MemoryTree:
             "system_access_snapshot": sys_acc,
             "tags":                   ["resolved"],
             "compressed_from":        [],
-            "tfidf_vector":           tf_vector,
+            "content_vector":         content_vector,
             "agent_id":               "resolved",
-            "subject":                None,
-            "predicate":              DEFAULT_PREDICATE,
-            "object_text":            resolved_content,
-            "obj_vector":             tf_vector,
+            "subject":                resolved_subject,
+            "predicate":              resolved_predicate,
+            "object_text":            resolved_object,
+            "obj_vector":             obj_vec,
         }
 
         self.storage.upsert_branch("backbone", is_backbone=True)
-
-        with self.storage._transaction() as cur:
-            cur.execute("""
-                INSERT INTO nodes
-                    (node_id, content, branch_name, is_backbone, base_score,
-                     access_count, system_access_snapshot, tags,
-                     compressed_from, tfidf_vector, archived, agent_id,
-                     subject, predicate, object_text, obj_vector)
-                VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)
-            """, (
-                node_dict["node_id"], node_dict["content"],
-                "backbone", 1, 1.0, 0, sys_acc,
-                json.dumps(["resolved"]),
-                json.dumps([]),
-                json.dumps(tf_vector),
-                "resolved",
-                None,
-                DEFAULT_PREDICATE,
-                resolved_content,
-                json.dumps(tf_vector),
-            ))
-            cur.execute(
-                "UPDATE conflicts SET resolved=1 WHERE conflict_id=?",
-                (conflict_id,)
-            )
-            cur.execute(
-                "DELETE FROM pending_consensus WHERE concept_key=?",
-                (concept_key,)
-            )
-
+        self.storage.commit_pending_to_backbone(concept_key, node_dict)
+        self.storage.resolve_conflict(conflict_id)
         self._rebuild_idf()
 
-    def promotion_candidates(self) -> list[dict]:
-        """Return unknown predicates at or above promotion threshold."""
-        return self._check_promotion_candidates()
+
+    # ── Predicate table ───────────────────────────────────────────────────────
+
+    def predicates(self) -> list[dict]:
+        """Return full predicate table — vocabulary + axis properties."""
+        return self.storage.get_all_predicates()
+
+    def predicate_synonyms(self) -> list[dict]:
+        """Return all logged synonym mappings."""
+        cur = self.storage._conn.execute("SELECT * FROM predicate_synonyms")
+        return [dict(r) for r in cur.fetchall()]
+
+
+    # ── Export ────────────────────────────────────────────────────────────────
+
+    def export_json(self, path: str = "living_memory_export.json") -> str:
+        return self.storage.export_json(path)
+
+    def close(self) -> None:
+        self.storage.close()
