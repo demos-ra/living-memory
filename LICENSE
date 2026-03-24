@@ -1,6 +1,6 @@
-MIT License
+MIT License (Modified)
 
-Copyright (c) 2026 Demos Ra
+Copyright (c) 2026 Demos Ra — Living Memory
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -11,6 +11,30 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
+COMMERCIAL THRESHOLD CLAUSE
+
+If any product, service, or platform that uses, incorporates, or distributes
+the Software or derivative works thereof exceeds either:
+
+  (a) one hundred million (100,000,000) monthly active users, or
+  (b) twenty million United States dollars ($20,000,000 USD) in monthly revenue,
+
+the licensee must:
+
+  1. Prominently display the name "Living Memory" in all user-facing products
+     and services that use the Software or derivative works thereof.
+
+  2. Contact the licensor to negotiate commercial licensing terms.
+
+For the purposes of this clause, "derivative works" includes but is not limited
+to modifications, forks, fine-tuning, reimplementation based on the
+specification, or adaptation of the architecture described in the repository's
+SPEC.md and AXIOMS.md documents, where such reimplementation or adaptation
+incorporates or is based upon the Software.
+
+Below both thresholds, this license is standard MIT — free for commercial and
+non-commercial use with the attribution requirement above.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
