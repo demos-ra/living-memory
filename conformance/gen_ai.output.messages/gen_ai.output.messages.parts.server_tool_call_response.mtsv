@@ -39,12 +39,16 @@ traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call
 traceId	spanId	pointer	id	name
 gen_ai.input.messages.parts.server_tool_call.server_tool_call
+traceId	spanId	pointer	type
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call_response
 traceId	spanId	pointer	id
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response
+traceId	spanId	pointer	type
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
@@ -96,6 +100,8 @@ traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call
 traceId	spanId	pointer	id	name
 gen_ai.output.messages.parts.server_tool_call.server_tool_call
+traceId	spanId	pointer	type
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
@@ -103,9 +109,10 @@ traceId	spanId	pointer	type	value
 traceId	spanId	pointer	id
 5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0/parts/0	s1
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response
+traceId	spanId	pointer	type
+5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0/parts/0/server_tool_call_response	web_search
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
-5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0/parts/0/server_tool_call_response	object	
-5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0/parts/0/server_tool_call_response/type	string	web_search
 gen_ai.output.messages.parts.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.blob

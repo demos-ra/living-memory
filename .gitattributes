@@ -1,3 +1,2 @@
 *.mtsv -text
-*.json -text
 *.jsonl -text

@@ -4,7 +4,7 @@ M1	derived	integrations/otlp_json
 M2	derived	integrations/otlp_json	
 M3	derived	integrations/otlp_json	
 M4	derived	integrations/otlp_json	
-M5	derived	integrations/otlp_json	
+M5	open	integrations/otlp_json	no register row states how the OTLP attribute value types (string, bool, int, double, array, key-value list, bytes) map to the JSON value kinds; bytes has none
 M6	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
 M7	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
 M8	derived	_relations	
@@ -18,7 +18,7 @@ M15	derived	_relations
 M16	open	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	no register row states how a relation made from a nonsimple domain is named
 M17	derived	_relations	
 M18	derived	_relations	
-M19	open	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	no register row states that the optional fields of the eight default to null
+M19	open	_relations	no register row states that the optional fields of the eight default to null
 Derivation
 Id	Sheet	Group	Artefact	Rule
 M1	Content	Integrations	OTLP file	JSON Lines: UTF-8, one JSON value per line, LF between lines
@@ -97,13 +97,13 @@ M15	spec/living-memory.mtsv › Rules › M15	conformance/gen_ai.system_instruct
 M16	spec/living-memory.mtsv › Rules › M16	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
 M17	spec/living-memory.mtsv › Rules › M17	conformance/otlp/	_relations	python/tests/test_relations.py
 M18	spec/living-memory.mtsv › Rules › M18	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M19	spec/living-memory.mtsv › Rules › M19	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M19	spec/living-memory.mtsv › Rules › M19	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
 Sheet modules
 Sheet	Module
-gen_ai.system_instructions.text	_system_instructions
-gen_ai.system_instructions.text.additionalProperties	_system_instructions
-gen_ai.system_instructions.generic	_system_instructions
-gen_ai.system_instructions.generic.additionalProperties	_system_instructions
+gen_ai.system_instructions.text	_parts
+gen_ai.system_instructions.text.additionalProperties	_parts
+gen_ai.system_instructions.generic	_parts
+gen_ai.system_instructions.generic.additionalProperties	_parts
 gen_ai.tool.definitions.function	_tool_definitions
 gen_ai.tool.definitions.function.parameters	_tool_definitions
 gen_ai.tool.definitions.function.additionalProperties	_tool_definitions
@@ -121,9 +121,11 @@ gen_ai.input.messages.parts.tool_call_response.response	_parts
 gen_ai.input.messages.parts.tool_call_response.additionalProperties	_parts
 gen_ai.input.messages.parts.server_tool_call	_parts
 gen_ai.input.messages.parts.server_tool_call.server_tool_call	_parts
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	_parts
 gen_ai.input.messages.parts.server_tool_call.additionalProperties	_parts
 gen_ai.input.messages.parts.server_tool_call_response	_parts
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	_parts
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	_parts
 gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	_parts
 gen_ai.input.messages.parts.blob	_parts
 gen_ai.input.messages.parts.blob.additionalProperties	_parts
@@ -149,9 +151,11 @@ gen_ai.output.messages.parts.tool_call_response.response	_parts
 gen_ai.output.messages.parts.tool_call_response.additionalProperties	_parts
 gen_ai.output.messages.parts.server_tool_call	_parts
 gen_ai.output.messages.parts.server_tool_call.server_tool_call	_parts
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	_parts
 gen_ai.output.messages.parts.server_tool_call.additionalProperties	_parts
 gen_ai.output.messages.parts.server_tool_call_response	_parts
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	_parts
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	_parts
 gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	_parts
 gen_ai.output.messages.parts.blob	_parts
 gen_ai.output.messages.parts.blob.additionalProperties	_parts
@@ -198,9 +202,11 @@ conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.additionalProperties	gen_ai.input.messages.parts.tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call	gen_ai.input.messages.parts.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call	gen_ai.input.messages.parts.server_tool_call.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob	gen_ai.input.messages.parts.blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.additionalProperties	gen_ai.input.messages.parts.blob.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
@@ -226,9 +232,11 @@ conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_respon
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.additionalProperties	gen_ai.output.messages.parts.tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call	gen_ai.output.messages.parts.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call	gen_ai.output.messages.parts.server_tool_call.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob	gen_ai.output.messages.parts.blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.additionalProperties	gen_ai.output.messages.parts.blob.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
@@ -252,7 +260,7 @@ conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents	gen_ai.retriev
 conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents.additionalProperties	gen_ai.retrieval.documents.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 Modules
 Module	Level	Secret	Uses	Mapping
-_relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17
+_relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17; M18; M19
 _parts	2	the message part types, shared by the schemas that repeat them	_relations	M6; M7; M12; M16
 _system_instructions	3	the system instructions schema	_parts; _relations	M6; M7; M12; M16
 _tool_definitions	3	the tool definitions schema	_relations	M6; M7; M12; M16
@@ -274,7 +282,7 @@ Path	Kind	Holds	Register
 README.md	file	what it is, how to install and use it, where to get help	Project › Documentation › README; root README Help section
 LICENSE	file	the MIT licence text	Project › Licensing › LICENSE
 SECURITY.md	file	how to report a vulnerability	Project › Documentation › SECURITY
-.gitattributes	file	line endings of .mtsv, .json and .jsonl	Project › Repository › .gitattributes
+.gitattributes	file	line endings of .mtsv and .jsonl	Project › Repository › .gitattributes
 .gitignore	file	the entries	Project › Repository › .gitignore
 WORKING-RECORD.mtsv	file	this record: structure and mapping	Architecture › Map
 spec/	folder	stating the mapping	Architecture › Concerns; Project › Repository › mtsv top-level layout
@@ -343,7 +351,8 @@ register check	that every register citation resolves, nothing more	register READ
 Item	Follows	From
 library interface and command	as the Interfaces rows lay out	Content › Interfaces
 pyproject values	as the Build, Metadata and Versioning rows lay out; depends on mtsv	Project
-.jsonl line endings	as .mtsv and .json	Project › Repository › .gitattributes
+.jsonl line endings	as .mtsv	Project › Repository › .gitattributes
 Open
 Item	What is undecided
 register	three rows cite code blocks; a converter that splits .proto, .json and .yaml would let them point exactly
+malformed input	a line that is not valid JSON, or not OTLP: the sources define a valid line, and none says what a reader does with an invalid one

@@ -35,7 +35,7 @@ src/living_memory/
   _retrieval_documents   the retrieval documents schema
   integrations/
     __init__             which reader reads which input
-    otlp_json            how an OTLP JSON Lines file is read
+    otlp_json            how an OTLP JSON Lines file is read, and where the eight are on its spans and events
     providers/__init__   which provider formats exist
   _command               how a person runs a conversion
   __main__               the command's entry point

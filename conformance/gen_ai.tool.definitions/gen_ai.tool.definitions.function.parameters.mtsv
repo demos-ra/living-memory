@@ -44,12 +44,16 @@ traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call
 traceId	spanId	pointer	id	name
 gen_ai.input.messages.parts.server_tool_call.server_tool_call
+traceId	spanId	pointer	type
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call_response
 traceId	spanId	pointer	id
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response
+traceId	spanId	pointer	type
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.input.messages.parts.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
@@ -100,12 +104,16 @@ traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call
 traceId	spanId	pointer	id	name
 gen_ai.output.messages.parts.server_tool_call.server_tool_call
+traceId	spanId	pointer	type
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call_response
 traceId	spanId	pointer	id
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response
+traceId	spanId	pointer	type
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
 gen_ai.output.messages.parts.server_tool_call_response.additionalProperties
 traceId	spanId	pointer	type	value
