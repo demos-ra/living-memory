@@ -55,7 +55,9 @@ messages are kept apart, each with its own sheets.
 Every row of a relation draws on the same domains ([CODD1970], Section
 1.3). A schema definition with fields of its own ([OTEL-GENAI],
 model/gen-ai) is therefore a sheet of its own: each part type, each tool
-type and each record type.
+type and each record type. A part or tool belongs to the definition its
+`type` value names; one whose `type` names no definition is generic, as
+the schemas' GenericPart and GenericToolDefinition are.
 
 ## M8. Nested fields
 
@@ -77,7 +79,11 @@ message, `/0/parts/2` for its third part.
 
 A value of any shape is one sheet with a row per node: its `pointer`, its
 `type`, one of `object`, `array`, `string`, `number`, `true`, `false`
-and `null` ([RFC8259], Section 3), and its `value`.
+and `null` ([RFC8259], Section 3), and its `value`. The value of a
+string is its text, of a number its text as written (M14); an object, an
+array, `true`, `false` and `null` have an empty value. Rows are in the
+value's own order: a node before the nodes within it, and members and
+elements as written, as nothing is sorted (M2).
 
 ## M11. Order
 
@@ -95,8 +101,9 @@ value ([CODD1970], Section 1.3), so it is a column.
 ## M13. Further properties
 
 Every object of the eight allows further properties ([OTEL-GENAI],
-model/gen-ai). A property beyond its schema goes to its object's value
-sheet (M10).
+model/gen-ai). A property beyond its schema goes to its object's
+`additionalProperties` sheet, a node sheet (M10), named with the
+schemas' own keyword.
 
 ## M14. Numbers
 
@@ -107,19 +114,31 @@ An implementation may limit the range and precision of numbers
 
 A field that holds HT, LF, FF or CR cannot be represented, and a
 generator does not write it ([MTSV], Generators). Such a value is not
-written.
+written: its field is left empty.
 
 ## M16. Names
 
 Names are the sources' own: `traceId` and `spanId` as OTLP JSON writes
 them ([OTLP], JSON Protobuf Encoding), `pointer` for the JSON Pointer
 ([RFC6901]), `type` and `value` for a JSON value ([RFC8259], Section 3),
-and each schema's own field names ([OTEL-GENAI], model/gen-ai).
+and each schema's own field names and definitions ([OTEL-GENAI],
+model/gen-ai).
+
+A sheet's name is its parent's name, `.`, and the field or definition it
+comes from: a child relation is named after the domain it comes from, and
+a name is qualified by its relation's name ([CODD1970], Section 1.4). A
+definition is named by the `type` value its data carries. So the text
+parts of input messages are `gen_ai.input.messages.parts.text`, and the
+arguments of their tool calls
+`gen_ai.input.messages.parts.tool_call.arguments`.
 
 ## M17. Log records without ids
 
-Open. A log record carries a trace id and span id only optionally
-([OTLP], logs.proto); the key of one without them is not yet set.
+A log record carries a trace id and span id only optionally, and one
+without them is not associated with a trace ([OTLP], logs.proto). Its
+`traceId` and `spanId` are empty. A relation normally has a primary key
+([CODD1970], Section 1.3), and such rows have none but their order in
+the file (M2).
 
 ## M18. The output
 
@@ -131,13 +150,20 @@ the input holds none.
 
 ## M19. Null, empty and absent
 
-Open. A field is text ([MTSV], Data Model), so an empty field does not
-tell a null, an empty string and an absent field apart.
+A field is text ([MTSV], Data Model). The optional fields of the eight
+default to null ([OTEL-GENAI], model/gen-ai), so an absent field is null.
+Null is written as an empty field, and so is the empty string: by
+default a cell whose text is empty is null, and the tabular model does
+not tell an empty value from a quoted empty one ([CSVW], Section 4.5).
+An empty field reads as null.
 
 ## References
 
 [CODD1970] Codd, E., "A Relational Model of Data for Large Shared Data
 Banks", Communications of the ACM 13(6), 377-387, June 1970.
+
+[CSVW] Tennison, J. and G. Kellogg, "Model for Tabular Data and Metadata
+on the Web", W3C Recommendation, 17 December 2015.
 
 [MTSV] Ra, D., "Multi-Sheet Tab-Separated Values (MTSV)", Work in
 Progress, Internet-Draft, draft-demosra-mtsv-01.
