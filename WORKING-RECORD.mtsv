@@ -99,6 +99,7 @@ GenAI memory records	the attribute gen_ai.memory.records	covered	spec › GenAI 
 GenAI retrieval documents	the attribute gen_ai.retrieval.documents	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
 GenAI retrieval documents	each document's id and score	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
 relations	a relation whose values are all simple is a two-dimensional array: a sheet	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
+relations	a schema definition with fields of its own is a relation of its own: its own sheet	open	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
 relations	each row carries its parent's key: a row of the eight carries its span's trace id and span id	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
 relations	a log record without trace and span ids has no key but its position in the file	open	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
 nonsimple values	each gets a sheet of its own, the parent's key copied into it, and is struck from the parent	covered	spec › nonsimple values	conformance/nonsimple-values/	relations	python/tests/test_relations.py
