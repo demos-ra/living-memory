@@ -19,25 +19,31 @@ python/README.md	file	install, use, and the Layout section: the module guide	Arc
 python/src/living_memory/	folder	the package, src layout	Project › Build › python/src
 python/src/living_memory/py.typed	file	marks a typed package	Code › Definitions › py.typed
 python/src/living_memory/relations.py	file	level 1: how a value becomes keyed sheets: normalization, positions, values of any shape, numbers as written	Architecture › Parts
-python/src/living_memory/messages.py	file	level 2: the input and output message schema: messages and their parts	Architecture › Parts
-python/src/living_memory/system_instructions.py	file	level 2: the system instructions schema	Architecture › Parts
-python/src/living_memory/tool_definitions.py	file	level 2: the tool definitions schema	Architecture › Parts
-python/src/living_memory/tool_calls.py	file	level 2: tool call arguments and tool call result	Architecture › Parts
-python/src/living_memory/memory_records.py	file	level 2: the memory records schema	Architecture › Parts
-python/src/living_memory/retrieval_documents.py	file	level 2: the retrieval documents schema	Architecture › Parts
-python/src/living_memory/integrations/__init__.py	file	level 3: which reader reads which input	Architecture › Parts
-python/src/living_memory/integrations/otlp_json.py	file	level 3: how an OTLP JSON Lines file is read, and where the eight are on its spans and events	Architecture › Parts
-python/src/living_memory/integrations/providers/__init__.py	file	level 3: which provider formats exist	Architecture › Parts
-python/src/living_memory/_command.py	file	level 4: how a person runs a conversion	Architecture › Parts
-python/src/living_memory/__main__.py	file	level 4: the command's entry point	Architecture › Parts
+python/src/living_memory/parts.py	file	level 2: the message part types, shared by the schemas that repeat them	Architecture › Parts
+python/src/living_memory/system_instructions.py	file	level 3: the system instructions schema	Architecture › Parts
+python/src/living_memory/tool_definitions.py	file	level 3: the tool definitions schema	Architecture › Parts
+python/src/living_memory/input_messages.py	file	level 3: the input messages schema	Architecture › Parts
+python/src/living_memory/output_messages.py	file	level 3: the output messages schema	Architecture › Parts
+python/src/living_memory/tool_call_arguments.py	file	level 3: the tool call arguments schema	Architecture › Parts
+python/src/living_memory/tool_call_result.py	file	level 3: the tool call result schema	Architecture › Parts
+python/src/living_memory/memory_records.py	file	level 3: the memory records schema	Architecture › Parts
+python/src/living_memory/retrieval_documents.py	file	level 3: the retrieval documents schema	Architecture › Parts
+python/src/living_memory/integrations/__init__.py	file	level 4: which reader reads which input	Architecture › Parts
+python/src/living_memory/integrations/otlp_json.py	file	level 4: how an OTLP JSON Lines file is read, and where the eight are on its spans and events	Architecture › Parts
+python/src/living_memory/integrations/providers/__init__.py	file	level 4: which provider formats exist	Architecture › Parts
+python/src/living_memory/_command.py	file	level 5: how a person runs a conversion	Architecture › Parts
+python/src/living_memory/__main__.py	file	level 5: the command's entry point	Architecture › Parts
 python/src/living_memory/__init__.py	file	the public interface	Architecture › Parts
 python/src/living_memory/integrations/providers/<provider>.py	file	one per provider format	Architecture › Extension › a new integration
 python/tests/	folder	one test file per module, and the conformance runner	Architecture › Tests; Code › Tests
 python/tests/test_relations.py	file	tests of relations	Code › Tests
-python/tests/test_messages.py	file	tests of messages	Code › Tests
+python/tests/test_parts.py	file	tests of parts	Code › Tests
 python/tests/test_system_instructions.py	file	tests of system_instructions	Code › Tests
 python/tests/test_tool_definitions.py	file	tests of tool_definitions	Code › Tests
-python/tests/test_tool_calls.py	file	tests of tool_calls	Code › Tests
+python/tests/test_input_messages.py	file	tests of input_messages	Code › Tests
+python/tests/test_output_messages.py	file	tests of output_messages	Code › Tests
+python/tests/test_tool_call_arguments.py	file	tests of tool_call_arguments	Code › Tests
+python/tests/test_tool_call_result.py	file	tests of tool_call_result	Code › Tests
 python/tests/test_memory_records.py	file	tests of memory_records	Code › Tests
 python/tests/test_retrieval_documents.py	file	tests of retrieval_documents	Code › Tests
 python/tests/test_integrations.py	file	tests of integrations/__init__	Code › Tests
@@ -50,17 +56,20 @@ python/tests/test_conformance.py	file	runs every conformance case	Code › Tests
 Modules
 Module	Level	Secret	Uses	Integrations artefacts
 relations	1	how a value becomes keyed sheets: normalization, positions, values of any shape, numbers as written	mtsv	relations; nonsimple values; order; numbers; sheet and column names
-messages	2	the input and output message schema: messages and their parts	relations	GenAI structured attributes; GenAI input messages; GenAI output messages
-system_instructions	2	the system instructions schema	relations	GenAI structured attributes
-tool_definitions	2	the tool definitions schema	relations	GenAI structured attributes
-tool_calls	2	tool call arguments and tool call result	relations	GenAI structured attributes
-memory_records	2	the memory records schema	relations	GenAI structured attributes
-retrieval_documents	2	the retrieval documents schema	relations	GenAI structured attributes
-integrations/__init__	3	which reader reads which input	integrations/otlp_json; integrations/providers/__init__	
-integrations/otlp_json	3	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 2	OTLP file; OTLP JSON; OTLP records; OTLP attributes; GenAI structured attributes
-integrations/providers/__init__	3	which provider formats exist	level 2	
-_command	4	how a person runs a conversion	integrations/__init__	Interfaces
-__main__	4	the command's entry point	_command	Interfaces
+parts	2	the message part types, shared by the schemas that repeat them	relations	GenAI structured attributes
+system_instructions	3	the system instructions schema	parts; relations	GenAI structured attributes; GenAI system instructions
+tool_definitions	3	the tool definitions schema	relations	GenAI structured attributes; GenAI tool definitions
+input_messages	3	the input messages schema	parts; relations	GenAI structured attributes; GenAI input messages
+output_messages	3	the output messages schema	parts; relations	GenAI structured attributes; GenAI output messages
+tool_call_arguments	3	the tool call arguments schema	relations	GenAI structured attributes; GenAI tool call arguments
+tool_call_result	3	the tool call result schema	relations	GenAI structured attributes; GenAI tool call result
+memory_records	3	the memory records schema	relations	GenAI structured attributes; GenAI memory records
+retrieval_documents	3	the retrieval documents schema	relations	GenAI structured attributes; GenAI retrieval documents
+integrations/__init__	4	which reader reads which input	integrations/otlp_json; integrations/providers/__init__	
+integrations/otlp_json	4	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 3	OTLP file; OTLP JSON; OTLP records; OTLP attributes; GenAI structured attributes
+integrations/providers/__init__	4	which provider formats exist	level 3	
+_command	5	how a person runs a conversion	integrations/__init__	Interfaces
+__main__	5	the command's entry point	_command	Interfaces
 __init__		the public interface	integrations/__init__	Interfaces
 Symmetry
 Artefact	Rule	Status	Spec section	Conformance folder	Module	Test file
@@ -76,11 +85,19 @@ OTLP JSON	64-bit integers and timestamps are decimal strings	covered	spec › OT
 OTLP JSON	hex ids compared without regard to case	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
 OTLP records	a span is identified by trace id and span id; a log record carries them only optionally	open	spec › OTLP records	conformance/otlp-records/	integrations/otlp_json	python/tests/test_otlp_json.py
 OTLP attributes	value types: string, bool, int, double, array, key-value list, bytes	open	spec › OTLP attributes	conformance/otlp-attributes/	integrations/otlp_json	python/tests/test_otlp_json.py
-GenAI structured attributes	the eight: system instructions, tool definitions, input messages, output messages	covered	spec › GenAI structured attributes	conformance/genai-structured-attributes/	integrations/otlp_json	python/tests/test_otlp_json.py
 GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported	covered	spec › GenAI structured attributes	conformance/genai-structured-attributes/	integrations/otlp_json	python/tests/test_otlp_json.py
-GenAI structured attributes	the fields of the eight	open	spec › GenAI structured attributes	conformance/genai-structured-attributes/	messages; system_instructions; tool_definitions; tool_calls; memory_records; retrieval_documents	python/tests/test_messages.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_tool_calls.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py
-GenAI input messages	in the order sent to the model	covered	spec › GenAI input messages	conformance/genai-input-messages/	messages	python/tests/test_messages.py
-GenAI output messages	one message per choice	covered	spec › GenAI output messages	conformance/genai-output-messages/	messages	python/tests/test_messages.py
+GenAI structured attributes	the fields of the eight	open	spec › GenAI structured attributes	conformance/genai-structured-attributes/	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+GenAI system instructions	the attribute gen_ai.system_instructions	covered	spec › GenAI system instructions	conformance/genai-system-instructions/	system_instructions	python/tests/test_system_instructions.py
+GenAI tool definitions	the attribute gen_ai.tool.definitions	covered	spec › GenAI tool definitions	conformance/genai-tool-definitions/	tool_definitions	python/tests/test_tool_definitions.py
+GenAI input messages	the attribute gen_ai.input.messages	covered	spec › GenAI input messages	conformance/genai-input-messages/	input_messages	python/tests/test_input_messages.py
+GenAI input messages	in the order sent to the model	covered	spec › GenAI input messages	conformance/genai-input-messages/	input_messages	python/tests/test_input_messages.py
+GenAI output messages	the attribute gen_ai.output.messages	covered	spec › GenAI output messages	conformance/genai-output-messages/	output_messages	python/tests/test_output_messages.py
+GenAI output messages	one message per choice	covered	spec › GenAI output messages	conformance/genai-output-messages/	output_messages	python/tests/test_output_messages.py
+GenAI tool call arguments	the attribute gen_ai.tool.call.arguments	covered	spec › GenAI tool call arguments	conformance/genai-tool-call-arguments/	tool_call_arguments	python/tests/test_tool_call_arguments.py
+GenAI tool call result	the attribute gen_ai.tool.call.result	covered	spec › GenAI tool call result	conformance/genai-tool-call-result/	tool_call_result	python/tests/test_tool_call_result.py
+GenAI memory records	the attribute gen_ai.memory.records	covered	spec › GenAI memory records	conformance/genai-memory-records/	memory_records	python/tests/test_memory_records.py
+GenAI retrieval documents	the attribute gen_ai.retrieval.documents	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
+GenAI retrieval documents	each document's id and score	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
 relations	a relation whose values are all simple is a two-dimensional array: a sheet	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
 relations	each row carries its parent's key: a row of the eight carries its span's trace id and span id	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
 relations	a log record without trace and span ids has no key but its position in the file	open	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
@@ -91,21 +108,55 @@ order	array items keep their positions	covered	spec › order	conformance/order/
 order	a position column, part of the key, keeps the source's order	open	spec › order	conformance/order/	relations	python/tests/test_relations.py
 text values	a value holding HT, LF, FF or CR	open	spec › text values	conformance/text-values/	none: open at the MTSV level	none
 numbers	kept as written	open	spec › numbers	conformance/numbers/	relations	python/tests/test_relations.py
-sheet and column names	as the sources write them	open	spec › sheet and column names	conformance/sheet-and-column-names/	relations; messages; system_instructions; tool_definitions; tool_calls; memory_records; retrieval_documents	python/tests/test_relations.py; python/tests/test_messages.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_tool_calls.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py
+sheet and column names	as the sources write them	open	spec › sheet and column names	conformance/sheet-and-column-names/	relations; system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
 Sheets
 Sheet	One row per	Columns	Module
-gen_ai.system_instructions	part	traceId, spanId, position, type, content	system_instructions
-gen_ai.tool.definitions	tool	traceId, spanId, position, type, name, description	tool_definitions
-gen_ai.tool.definitions parameters	node of a tool's parameters	traceId, spanId, tool position, node, parent node, name, value	tool_definitions
-gen_ai.input.messages	message	traceId, spanId, position, role, name	messages
-gen_ai.input.messages parts	part	traceId, spanId, message position, position, type, content, id, name, mime_type, modality, file_id, uri	messages
-gen_ai.output.messages	message	traceId, spanId, position, role, name, finish_reason	messages
-gen_ai.output.messages parts	part	traceId, spanId, message position, position, type, content, id, name, mime_type, modality, file_id, uri	messages
-part values	node of a part's arguments, response or server tool call	traceId, spanId, message position, part position, node, parent node, name, value	messages
-gen_ai.tool.call.arguments	node	traceId, spanId, node, parent node, name, value	tool_calls
-gen_ai.tool.call.result	node	traceId, spanId, node, parent node, name, value	tool_calls
+gen_ai.system_instructions text	text part	traceId, spanId, position, content	system_instructions
+gen_ai.system_instructions generic	generic part	traceId, spanId, position, type	system_instructions
+gen_ai.system_instructions generic properties	node of a generic part's properties	traceId, spanId, part position, node, parent node, name, value	system_instructions
+gen_ai.tool.definitions function	function tool	traceId, spanId, position, name, description	tool_definitions
+gen_ai.tool.definitions function parameters	node of a function tool's parameters	traceId, spanId, tool position, node, parent node, name, value	tool_definitions
+gen_ai.tool.definitions generic	generic tool	traceId, spanId, position, type, name	tool_definitions
+gen_ai.tool.definitions generic properties	node of a generic tool's properties	traceId, spanId, tool position, node, parent node, name, value	tool_definitions
+gen_ai.input.messages	message	traceId, spanId, position, role, name	input_messages
+gen_ai.input.messages parts text	text part	traceId, spanId, message position, position, content	parts
+gen_ai.input.messages parts tool_call	tool_call part	traceId, spanId, message position, position, id, name	parts
+gen_ai.input.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.input.messages parts tool_call_response	tool_call_response part	traceId, spanId, message position, position, id	parts
+gen_ai.input.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.input.messages parts server_tool_call	server_tool_call part	traceId, spanId, message position, position, id, name	parts
+gen_ai.input.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.input.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, message position, position, id	parts
+gen_ai.input.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.input.messages parts blob	blob part	traceId, spanId, message position, position, mime_type, modality, content	parts
+gen_ai.input.messages parts file	file part	traceId, spanId, message position, position, mime_type, modality, file_id	parts
+gen_ai.input.messages parts uri	uri part	traceId, spanId, message position, position, mime_type, modality, uri	parts
+gen_ai.input.messages parts reasoning	reasoning part	traceId, spanId, message position, position, content	parts
+gen_ai.input.messages parts compaction	compaction part	traceId, spanId, message position, position, id, content	parts
+gen_ai.input.messages parts generic	generic part	traceId, spanId, message position, position, type	parts
+gen_ai.input.messages parts generic properties	node of a generic part's properties	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.output.messages	message	traceId, spanId, position, role, name, finish_reason	output_messages
+gen_ai.output.messages parts text	text part	traceId, spanId, message position, position, content	parts
+gen_ai.output.messages parts tool_call	tool_call part	traceId, spanId, message position, position, id, name	parts
+gen_ai.output.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.output.messages parts tool_call_response	tool_call_response part	traceId, spanId, message position, position, id	parts
+gen_ai.output.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.output.messages parts server_tool_call	server_tool_call part	traceId, spanId, message position, position, id, name	parts
+gen_ai.output.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.output.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, message position, position, id	parts
+gen_ai.output.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.output.messages parts blob	blob part	traceId, spanId, message position, position, mime_type, modality, content	parts
+gen_ai.output.messages parts file	file part	traceId, spanId, message position, position, mime_type, modality, file_id	parts
+gen_ai.output.messages parts uri	uri part	traceId, spanId, message position, position, mime_type, modality, uri	parts
+gen_ai.output.messages parts reasoning	reasoning part	traceId, spanId, message position, position, content	parts
+gen_ai.output.messages parts compaction	compaction part	traceId, spanId, message position, position, id, content	parts
+gen_ai.output.messages parts generic	generic part	traceId, spanId, message position, position, type	parts
+gen_ai.output.messages parts generic properties	node of a generic part's properties	traceId, spanId, message position, part position, node, parent node, name, value	parts
+gen_ai.tool.call.arguments	node	traceId, spanId, node, parent node, name, value	tool_call_arguments
+gen_ai.tool.call.result	node	traceId, spanId, node, parent node, name, value	tool_call_result
 gen_ai.memory.records	memory record	traceId, spanId, position, id, score	memory_records
-gen_ai.memory.records values	node of a record's content or metadata	traceId, spanId, record position, node, parent node, name, value	memory_records
+gen_ai.memory.records content	node of a record's content	traceId, spanId, record position, node, parent node, name, value	memory_records
+gen_ai.memory.records metadata	node of a record's metadata	traceId, spanId, record position, node, parent node, name, value	memory_records
 gen_ai.retrieval.documents	document	traceId, spanId, position, id, score	retrieval_documents
 Open
 Item	What is undecided	Where
