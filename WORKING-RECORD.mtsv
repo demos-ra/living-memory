@@ -17,25 +17,29 @@ M14	numbers are written as the source writes them	derived	Content › Integratio
 M15	values MTSV cannot represent are not written	derived	Content › Format › fields and sheet names	_relations
 M16	names are the sources' own: traceId and spanId from OTLP JSON, pointer from JSON Pointer, type and value from JSON, the fields from the schemas	derived	Content › Integrations › OTLP JSON (keys); Content › Integrations › JSON Pointer; Content › Integrations › JSON (value kinds); Content › Integrations › GenAI structured attributes (fields)	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
 M17	a log record without trace and span ids is keyed by its position in the file	open	Content › Integrations › OTLP records (ids optional); no source keys it	_relations
+M18	the output is one MTSV file: every sheet of the Sheets order, each with its header, and no records where the input has none	derived	Content › Format › sheets	_relations
+M19	null, the empty string and an absent field in a schema sheet	open	Content › Format › fields (a field is text); no source tells the three apart in text	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
 Symmetry
-Id	Spec section	Conformance folder	Module	Test file
-M1	spec › M1	conformance/m1/	integrations/otlp_json	python/tests/test_otlp_json.py
-M2	spec › M2	conformance/m2/	integrations/otlp_json	python/tests/test_otlp_json.py
-M3	spec › M3	conformance/m3/	integrations/otlp_json	python/tests/test_otlp_json.py
-M4	spec › M4	conformance/m4/	integrations/otlp_json	python/tests/test_otlp_json.py
-M5	spec › M5	conformance/m5/	integrations/otlp_json	python/tests/test_otlp_json.py
-M6	spec › M6	conformance/m6/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M7	spec › M7	conformance/m7/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M8	spec › M8	conformance/m8/	_relations	python/tests/test_relations.py
-M9	spec › M9	conformance/m9/	_relations	python/tests/test_relations.py
-M10	spec › M10	conformance/m10/	_relations	python/tests/test_relations.py
-M11	spec › M11	conformance/m11/	_relations	python/tests/test_relations.py
-M12	spec › M12	conformance/m12/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M13	spec › M13	conformance/m13/	_relations	python/tests/test_relations.py
-M14	spec › M14	conformance/m14/	_relations	python/tests/test_relations.py
-M15	spec › M15	conformance/m15/	_relations	python/tests/test_relations.py
-M16	spec › M16	conformance/m16/	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M17	spec › M17	conformance/m17/	_relations	python/tests/test_relations.py
+Id	Spec section	Conformance	Module	Test file
+M1	spec › M1	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+M2	spec › M2	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+M3	spec › M3	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+M4	spec › M4	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+M5	spec › M5	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+M6	spec › M6	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M7	spec › M7	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M8	spec › M8	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M9	spec › M9	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M10	spec › M10	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M11	spec › M11	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M12	spec › M12	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M13	spec › M13	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M14	spec › M14	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M15	spec › M15	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M16	spec › M16	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M17	spec › M17	conformance/otlp/	_relations	python/tests/test_relations.py
+M18	spec › M18	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_relations	python/tests/test_relations.py
+M19	spec › M19	conformance/system-instructions/; conformance/tool-definitions/; conformance/input-messages/; conformance/output-messages/; conformance/tool-call-arguments/; conformance/tool-call-result/; conformance/memory-records/; conformance/retrieval-documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
 Sheets
 Sheet	One row per	Columns	Module
 gen_ai.system_instructions text	text part	traceId, spanId, pointer, content	_system_instructions
@@ -85,6 +89,61 @@ gen_ai.memory.records	memory record	traceId, spanId, pointer, id, score	_memory_
 gen_ai.memory.records content	node of a record's content	traceId, spanId, pointer, type, value	_memory_records
 gen_ai.memory.records metadata	node of a record's metadata	traceId, spanId, pointer, type, value	_memory_records
 gen_ai.retrieval.documents	document	traceId, spanId, pointer, id, score	_retrieval_documents
+Cases
+Case	Checks	Rules
+conformance/otlp/m1	the whole file	M1
+conformance/otlp/m2	the whole file	M2
+conformance/otlp/m3	the whole file	M3
+conformance/otlp/m4	the whole file	M4
+conformance/otlp/m5	the whole file	M5
+conformance/otlp/m17	the whole file	M17
+conformance/system-instructions/text	gen_ai.system_instructions text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/system-instructions/generic	gen_ai.system_instructions generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/system-instructions/generic-properties	gen_ai.system_instructions generic properties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-definitions/function	gen_ai.tool.definitions function	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-definitions/function-parameters	gen_ai.tool.definitions function parameters	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-definitions/generic	gen_ai.tool.definitions generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-definitions/generic-properties	gen_ai.tool.definitions generic properties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/message	gen_ai.input.messages	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-text	gen_ai.input.messages parts text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-tool_call	gen_ai.input.messages parts tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-tool_call-arguments	gen_ai.input.messages parts tool_call arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-tool_call_response	gen_ai.input.messages parts tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-tool_call_response-response	gen_ai.input.messages parts tool_call_response response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-server_tool_call	gen_ai.input.messages parts server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-server_tool_call-server_tool_call	gen_ai.input.messages parts server_tool_call server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-server_tool_call_response	gen_ai.input.messages parts server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-server_tool_call_response-server_tool_call_response	gen_ai.input.messages parts server_tool_call_response server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-blob	gen_ai.input.messages parts blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-file	gen_ai.input.messages parts file	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-uri	gen_ai.input.messages parts uri	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-reasoning	gen_ai.input.messages parts reasoning	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-compaction	gen_ai.input.messages parts compaction	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-generic	gen_ai.input.messages parts generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/input-messages/parts-generic-properties	gen_ai.input.messages parts generic properties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/message	gen_ai.output.messages	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-text	gen_ai.output.messages parts text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-tool_call	gen_ai.output.messages parts tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-tool_call-arguments	gen_ai.output.messages parts tool_call arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-tool_call_response	gen_ai.output.messages parts tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-tool_call_response-response	gen_ai.output.messages parts tool_call_response response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-server_tool_call	gen_ai.output.messages parts server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-server_tool_call-server_tool_call	gen_ai.output.messages parts server_tool_call server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-server_tool_call_response	gen_ai.output.messages parts server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-server_tool_call_response-server_tool_call_response	gen_ai.output.messages parts server_tool_call_response server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-blob	gen_ai.output.messages parts blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-file	gen_ai.output.messages parts file	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-uri	gen_ai.output.messages parts uri	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-reasoning	gen_ai.output.messages parts reasoning	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-compaction	gen_ai.output.messages parts compaction	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-generic	gen_ai.output.messages parts generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/output-messages/parts-generic-properties	gen_ai.output.messages parts generic properties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-call-arguments/node	gen_ai.tool.call.arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/tool-call-result/node	gen_ai.tool.call.result	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/memory-records/memory-record	gen_ai.memory.records	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/memory-records/content	gen_ai.memory.records content	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/memory-records/metadata	gen_ai.memory.records metadata	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/retrieval-documents/document	gen_ai.retrieval.documents	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
 Modules
 Module	Level	Secret	Uses	Mapping
 _relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17
@@ -115,7 +174,15 @@ WORKING-RECORD.mtsv	file	this record: structure and mapping	Architecture › Map
 spec/	folder	stating the mapping: one section per mapping rule	Architecture › Concerns; Project › Repository › mtsv top-level layout
 conformance/	folder	checking the mapping; no language, no provider	Project › Repository › mtsv top-level layout
 conformance/README.md	file	how the cases are laid out	Content › Conformance
-conformance/m<n>/	folder	one per mapping rule; each case a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/otlp/	folder	the carrier: one case per reading rule	Content › Conformance
+conformance/system-instructions/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/tool-definitions/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/input-messages/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/output-messages/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/tool-call-arguments/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/tool-call-result/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/memory-records/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/retrieval-documents/	folder	one of the eight: one case per sheet, each a .jsonl input and its expected .mtsv	Content › Conformance
 conformance/providers/<provider>/	folder	one per provider: its input and the same universal .mtsv	Architecture › Extension › a new integration
 python/	folder	the Python implementation	Architecture › Extension › a new language folder
 python/pyproject.toml	file	build, metadata, versions; depends on mtsv	Project › Build; Metadata; Versioning
@@ -167,9 +234,6 @@ checks	formatting only, by machine	Code › Checks
 register check	that every register citation resolves, nothing more	register README rule 4
 Downstream
 Item	Follows	From
-output file	one .mtsv per input file, sheets in the Sheets order	M1-M17
-empty sets	an attribute absent from the input gives no rows	M1-M17
-conformance cases	one or more per mapping rule	Symmetry
 library interface and command	as the Interfaces rows lay out	Content › Interfaces
 pyproject values	as the Build, Metadata and Versioning rows lay out; depends on mtsv	Project
 spec file	Markdown, one section per mapping rule	Project › Documentation
@@ -177,4 +241,5 @@ spec file	Markdown, one section per mapping rule	Project › Documentation
 Open
 Item	What is undecided
 M17	the key of a log record without ids
+M19	null, the empty string and an absent field in a schema sheet
 register	three rows cite code blocks; a converter that splits .proto, .json and .yaml would let them point exactly

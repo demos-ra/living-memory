@@ -121,6 +121,19 @@ and each schema's own field names ([OTEL-GENAI], model/gen-ai).
 Open. A log record carries a trace id and span id only optionally
 ([OTLP], logs.proto); the key of one without them is not yet set.
 
+## M18. The output
+
+The output is one MTSV file. A sheet is a header and zero or more
+records, and an MTSV file is an ordered sequence of sheets ([MTSV], Data
+Model): every sheet of the mapping is written, in the order of the
+working record's Sheets, each with its header, and with no records where
+the input holds none.
+
+## M19. Null, empty and absent
+
+Open. A field is text ([MTSV], Data Model), so an empty field does not
+tell a null, an empty string and an absent field apart.
+
 ## References
 
 [CODD1970] Codd, E., "A Relational Model of Data for Large Shared Data
