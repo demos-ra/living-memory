@@ -10,6 +10,8 @@ holds every sheet of the mapping, in the order of the Sheets of
 | Folder                            | Cases                                          |
 |-----------------------------------|------------------------------------------------|
 | `otlp/`                           | `spans` and `logRecords`: the eight on each kind of record |
+| `resourceSpans/`                  | one per sheet of the traces tree, named as the sheet |
+| `resourceLogs/`                   | one per sheet of the logs tree, named as the sheet |
 | `gen_ai.system_instructions/`     | one per sheet of the set, named as the sheet   |
 | `gen_ai.tool.definitions/`        | one per sheet of the set, named as the sheet   |
 | `gen_ai.input.messages/`          | one per sheet of the set, named as the sheet   |

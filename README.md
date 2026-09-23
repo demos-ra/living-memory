@@ -1,11 +1,14 @@
 # living-memory
 
 living-memory writes the text around an AI model as Multi-Sheet
-Tab-Separated Values (MTSV). The eight structured text sets of the
-OpenTelemetry GenAI semantic conventions — system instructions, tool
-definitions, input messages, output messages, tool call arguments, tool
-call result, memory records and retrieval documents — become MTSV sheets,
-nested values becoming sheets of their own in normal form.
+Tab-Separated Values (MTSV). An OpenTelemetry Protocol (OTLP) JSON Lines
+file of traces or logs becomes MTSV sheets, whole: its envelopes,
+resources, scopes, spans, log records and attributes, and the eight
+structured text sets of the OpenTelemetry GenAI semantic conventions —
+system instructions, tool definitions, input messages, output messages,
+tool call arguments, tool call result, memory records and retrieval
+documents — in sheets of their own, nested values becoming sheets of
+their own in normal form.
 
 * [MTSV specification](https://github.com/demos-ra/mtsv-spec)
 * [MTSV implementation](https://github.com/demos-ra/mtsv)
