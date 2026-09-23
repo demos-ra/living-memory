@@ -27,10 +27,8 @@ Conformance is the same for every language, so it sits beside them rather
 than inside one. A provider's own format is read by an integration of its
 own, and the mapping names no provider.
 
-`spec/living-memory.mtsv` states the mapping: each rule, and each sheet
-with its columns. `WORKING-RECORD.mtsv` lays out the project around it:
-the pattern the eight share and the context around them, then what each
-rule derives from, the modules, the files and the cases.
+`spec/living-memory.mtsv` states the mapping: its pattern, each rule,
+and each sheet with its columns.
 
 ## Conformance
 

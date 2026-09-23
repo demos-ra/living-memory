@@ -22,6 +22,5 @@ holds every sheet of the mapping, in the order of the Sheets of
 | `gen_ai.retrieval.documents/`     | one per sheet of the set, named as the sheet   |
 | `providers/<provider>/`           | a provider's own format, converting to the same MTSV |
 
-`WORKING-RECORD.mtsv` lists every case, the sheet it checks and the rules
-it exercises. An expected file is derived from the spec's rules, never
-from an implementation's output.
+An expected file is derived from the spec's rules, never from an
+implementation's output.
