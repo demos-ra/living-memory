@@ -10,36 +10,36 @@ gen_ai.memory.records	memory operations	array	memory records	id; content and met
 gen_ai.retrieval.documents	retrieval	array	documents	id	gen_ai.data_source.id on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals
 Context
 Variable	Source	On	Kind	Place	Status
-traceId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	in the file, at the row's record	boundary
-spanId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	in the file, at the row's record	boundary
-parentSpanId	OTLP trace.proto › Span	span	link: the parent operation	in the file, at the row's record	boundary
-startTimeUnixNano; endTimeUnixNano	OTLP trace.proto › Span	span	time	in the file, at the row's record	boundary
-timeUnixNano; observedTimeUnixNano	OTLP logs.proto › LogRecord	log record	time	in the file, at the row's record	boundary
-eventName	OTLP logs.proto › LogRecord	log record	the kind of event	in the file, at the row's record	boundary
-name	OTLP trace.proto › Span	span	the operation, by name	in the file, at the row's record	boundary
-kind; status; traceState; flags; links; dropped counts	OTLP trace.proto › Span	span	descriptive	in the file, at the row's record	boundary
-severityNumber; severityText; body; flags	OTLP logs.proto › LogRecord	log record	descriptive	in the file, at the row's record	boundary
-resource attributes; scope name, version and attributes	OTLP trace.proto, logs.proto › ResourceSpans, ScopeSpans, ResourceLogs, ScopeLogs	the records they hold	the producer	in the file, at the row's record	boundary
-gen_ai.conversation.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Execute tool span	span; the inference event	session	in the file, at the row's record	boundary
-gen_ai.operation.name	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	the operation	in the file, at the row's record	boundary
-gen_ai.response.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	identity of a response	in the file, at the row's record	boundary
-gen_ai.request.previous_response.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	link: the previous turn	in the file, at the row's record	boundary
-gen_ai.tool.call.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool_call part	in the file, at the row's record	boundary
-gen_ai.tool.name; gen_ai.tool.type	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool definition	in the file, at the row's record	boundary
-gen_ai.memory.record.id; gen_ai.memory.store.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Memory	span	link: the memory store	in the file, at the row's record	boundary
-gen_ai.data_source.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals	span	link: the data source	in the file, at the row's record	boundary
-gen_ai.agent.name	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	the agent	in the file, at the row's record	boundary
-gen_ai.provider.name; gen_ai.request.model; gen_ai.response.model	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	provider and model	in the file, at the row's record	boundary
-request settings: temperature, top_p, top_k, max_tokens, seed, stop_sequences, penalties, choice.count, stream, reasoning.level, output.type, encoding_formats, stream_cursor, retrieval.top_k, embeddings.dimension.count	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings; Retrievals; Fetch response	span; the inference event	descriptive	in the file, at the row's record	boundary
-gen_ai.usage.*	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings	span; the inference event	descriptive	in the file, at the row's record	boundary
-gen_ai.response.finish_reasons; gen_ai.response.status; gen_ai.response.time_to_first_chunk	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	descriptive	in the file, at the row's record	boundary
-server.address; server.port; error.type	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	descriptive	in the file, at the row's record	boundary
-gen_ai.conversation.compacted; gen_ai.prompt.name; gen_ai.prompt.version; gen_ai.memory.record.count	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Memory	span; the inference event	descriptive	in the file, at the row's record	boundary
-gen_ai.retrieval.query.text; gen_ai.memory.query.text; gen_ai.prompt.variable.<key>; gen_ai.tool.description	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals; Memory; Inference; Execute tool span	span; the inference event	text beyond the 8	in the file, at the row's record	boundary
-gen_ai.agent.id; gen_ai.agent.version	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; Invoke agent client span	span	the agent	in the file, at the row's record	boundary
-gen_ai.workflow.name	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Invoke workflow span	span	the workflow	in the file, at the row's record	boundary
-gen_ai.evaluation.name; gen_ai.evaluation.score.value; gen_ai.evaluation.score.label	OTEL-GENAI docs/gen-ai/gen-ai-events › Event: gen_ai.evaluation.result	the evaluation event	descriptive	in the file, at the row's record	boundary
-gen_ai.agent.description; gen_ai.evaluation.explanation	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; gen-ai-events › Event: gen_ai.evaluation.result	span; the evaluation event	text beyond the 8	in the file, at the row's record	boundary
+traceId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	resourceSpans.scopeSpans.spans › traceId; resourceLogs.scopeLogs.logRecords › traceId	in the grid
+spanId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	resourceSpans.scopeSpans.spans › spanId; resourceLogs.scopeLogs.logRecords › spanId	in the grid
+parentSpanId	OTLP trace.proto › Span	span	link: the parent operation	resourceSpans.scopeSpans.spans › parentSpanId	in the grid
+startTimeUnixNano; endTimeUnixNano	OTLP trace.proto › Span	span	time	resourceSpans.scopeSpans.spans › startTimeUnixNano, endTimeUnixNano	in the grid
+timeUnixNano; observedTimeUnixNano	OTLP logs.proto › LogRecord	log record	time	resourceLogs.scopeLogs.logRecords › timeUnixNano, observedTimeUnixNano	in the grid
+eventName	OTLP logs.proto › LogRecord	log record	the kind of event	resourceLogs.scopeLogs.logRecords › eventName	in the grid
+name	OTLP trace.proto › Span	span	the operation, by name	resourceSpans.scopeSpans.spans › name	in the grid
+kind; status; traceState; flags; links; dropped counts	OTLP trace.proto › Span	span	descriptive	resourceSpans.scopeSpans.spans › kind, traceState, flags, the dropped counts; resourceSpans.scopeSpans.spans.status; resourceSpans.scopeSpans.spans.links	in the grid
+severityNumber; severityText; body; flags	OTLP logs.proto › LogRecord	log record	descriptive	resourceLogs.scopeLogs.logRecords › severityNumber, severityText, flags; resourceLogs.scopeLogs.logRecords.body	in the grid
+resource attributes; scope name, version and attributes	OTLP trace.proto, logs.proto › ResourceSpans, ScopeSpans, ResourceLogs, ScopeLogs	the records they hold	the producer	resourceSpans.resource.attributes; resourceLogs.resource.attributes; resourceSpans.scopeSpans.scope and its attributes; resourceLogs.scopeLogs.scope and its attributes	in the grid
+gen_ai.conversation.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Execute tool span	span; the inference event	session	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.operation.name	OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	the operation	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.response.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	identity of a response	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.request.previous_response.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	link: the previous turn	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.tool.call.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool_call part	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.tool.name; gen_ai.tool.type	OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool definition	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.memory.record.id; gen_ai.memory.store.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Memory	span	link: the memory store	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.data_source.id	OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals	span	link: the data source	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.agent.name	OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	the agent	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.provider.name; gen_ai.request.model; gen_ai.response.model	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	provider and model	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+request settings: temperature, top_p, top_k, max_tokens, seed, stop_sequences, penalties, choice.count, stream, reasoning.level, output.type, encoding_formats, stream_cursor, retrieval.top_k, embeddings.dimension.count	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings; Retrievals; Fetch response	span; the inference event	descriptive	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.usage.*	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings	span; the inference event	descriptive	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.response.finish_reasons; gen_ai.response.status; gen_ai.response.time_to_first_chunk	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	descriptive	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+server.address; server.port; error.type	OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	descriptive	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.conversation.compacted; gen_ai.prompt.name; gen_ai.prompt.version; gen_ai.memory.record.count	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Memory	span; the inference event	descriptive	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.retrieval.query.text; gen_ai.memory.query.text; gen_ai.prompt.variable.<key>; gen_ai.tool.description	OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals; Memory; Inference; Execute tool span	span; the inference event	text beyond the 8	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.agent.id; gen_ai.agent.version	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; Invoke agent client span	span	the agent	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.workflow.name	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Invoke workflow span	span	the workflow	resourceSpans.scopeSpans.spans.attributes; by key	in the grid
+gen_ai.evaluation.name; gen_ai.evaluation.score.value; gen_ai.evaluation.score.label	OTEL-GENAI docs/gen-ai/gen-ai-events › Event: gen_ai.evaluation.result	the evaluation event	descriptive	resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
+gen_ai.agent.description; gen_ai.evaluation.explanation	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; gen-ai-events › Event: gen_ai.evaluation.result	span; the evaluation event	text beyond the 8	resourceSpans.scopeSpans.spans.attributes; resourceLogs.scopeLogs.logRecords.attributes; by key	in the grid
 Mapping
 Id	Status	Module	Note
 file.1	derived	integrations/otlp_json	
@@ -810,5 +810,4 @@ pyproject values	as the Build, Metadata and Versioning rows lay out; depends on 
 Item	What is undecided
 register	rows that cite the protos and the schemas point at whole code blocks; a converter that splits .proto, .json and .yaml would let them point exactly
 malformed input	a line that is not valid JSON, or not OTLP, and duplicate attribute keys: the sources define a valid line, and none says what a reader does with an invalid one
-Context	the whole record now goes into the grid, so the Context sheet's boundary no longer holds; re-point each variable to its sheet or remove the sheet
 _telemetry_data	the level 4 module's name, taken from the sources' term telemetry data; to be confirmed
