@@ -1,3 +1,62 @@
+Foundation map
+Level	Holds	MTSV	Source
+file	a JSON Lines file of TracesData or LogsData; a MetricsData line holds none of the 8 and yields no rows; invalid UTF-8 read as U+FFFD	one MTSV file	OTEL-FILE-EXPORTER; OTLP docs/specification › UTF-8 String Handling
+envelope	resourceSpans[] and resourceLogs[], each with its schemaUrl	Z: a sheet; Y: a row each	OTLP opentelemetry/proto/trace/v1/trace.proto; logs/v1/logs.proto
+resource	a Resource: its attributes, dropped count, entity references	Z: a child sheet, one row	OTLP opentelemetry/proto/resource/v1/resource.proto; common/v1/common.proto
+scope	scopeSpans[] and scopeLogs[], each with its scope: name, version, attributes	Z: child sheets	OTLP opentelemetry/proto/common/v1/common.proto
+record	a Span or a LogRecord: ids, times, name, kind, flags, severity, event name, dropped counts	Z: a sheet; Y: a row per record; X: its simple fields	OTLP opentelemetry/proto/trace/v1/trace.proto; logs/v1/logs.proto
+status, event, link	a Span's status, events[] and links[]	Z: child sheets	OTLP opentelemetry/proto/trace/v1/trace.proto
+attributes	the KeyValue list of a resource, scope, span, event, link or log record: unordered, identified by key	Z: a sheet per owner; X: key; the value by the node rules	OTEL-COMMON › Attribute Collections; AnyValue representation for non-OTLP protocols
+body	a LogRecord's body, an AnyValue	Z: a node sheet	OTLP opentelemetry/proto/logs/v1/logs.proto; OTEL-COMMON
+the 8	attributes of a span or log record whose key is one of the 8	their schemas' sheets, as now; never also in an attributes sheet	OTEL-GENAI
+item, field, nested, node, text, line, character	as now	as now	the current Pattern
+encoding	ids as hex text; enums as integers; 64-bit numbers and times as decimal strings; unknown fields ignored; profiling-only fields absent	written as the input holds them	OTLP docs/specification › JSON Protobuf Encoding; common.proto
+Foundation sheets
+Sheet	Columns	Source
+resourceSpans	address, schemaUrl	the envelope
+resourceSpans.resource	address, droppedAttributesCount	Resource
+resourceSpans.resource.attributes	address, key, pointer, type, value	Resource.attributes
+resourceSpans.resource.entityRefs	address, schemaUrl, type	EntityRef
+resourceSpans.resource.entityRefs.idKeys	address, value	EntityRef.id_keys
+resourceSpans.resource.entityRefs.descriptionKeys	address, value	EntityRef.description_keys
+resourceSpans.scopeSpans	address, schemaUrl	ScopeSpans / ScopeLogs
+resourceSpans.scopeSpans.scope	address, name, version, droppedAttributesCount	InstrumentationScope
+resourceSpans.scopeSpans.scope.attributes	address, key, pointer, type, value	InstrumentationScope.attributes
+resourceSpans.scopeSpans.spans	address, traceId, spanId, traceState, parentSpanId, flags, name, kind, startTimeUnixNano, endTimeUnixNano, droppedAttributesCount, droppedEventsCount, droppedLinksCount	Span
+resourceSpans.scopeSpans.spans.attributes	address, key, pointer, type, value	Span.attributes, the 8 excepted
+resourceSpans.scopeSpans.spans.status	address, message, code	Status
+resourceSpans.scopeSpans.spans.events	address, timeUnixNano, name, droppedAttributesCount	Span.Event
+resourceSpans.scopeSpans.spans.events.attributes	address, key, pointer, type, value	Span.Event.attributes
+resourceSpans.scopeSpans.spans.links	address, traceId, spanId, traceState, droppedAttributesCount, flags	Span.Link
+resourceSpans.scopeSpans.spans.links.attributes	address, key, pointer, type, value	Span.Link.attributes
+resourceLogs	address, schemaUrl	the envelope
+resourceLogs.resource	address, droppedAttributesCount	Resource
+resourceLogs.resource.attributes	address, key, pointer, type, value	Resource.attributes
+resourceLogs.resource.entityRefs	address, schemaUrl, type	EntityRef
+resourceLogs.resource.entityRefs.idKeys	address, value	EntityRef.id_keys
+resourceLogs.resource.entityRefs.descriptionKeys	address, value	EntityRef.description_keys
+resourceLogs.scopeLogs	address, schemaUrl	ScopeSpans / ScopeLogs
+resourceLogs.scopeLogs.scope	address, name, version, droppedAttributesCount	InstrumentationScope
+resourceLogs.scopeLogs.scope.attributes	address, key, pointer, type, value	InstrumentationScope.attributes
+resourceLogs.scopeLogs.logRecords	address, timeUnixNano, observedTimeUnixNano, severityNumber, severityText, droppedAttributesCount, flags, traceId, spanId, eventName	LogRecord
+resourceLogs.scopeLogs.logRecords.attributes	address, key, pointer, type, value	LogRecord.attributes, the 8 excepted
+resourceLogs.scopeLogs.logRecords.body	address, pointer, type, value	LogRecord.body
+Foundation decisions
+Id	Question	Resolution	Source
+scope	what is converted	the whole of the TracesData and LogsData lines that carry the 8, so the MTSV stands alone and the JSON can be dropped	owner, 2026-09-23
+F1	the key of every row	address: a JSON Pointer from the file, first token the line, to the OTLP structure the row is or belongs to; pointer: within an attribute's or body's value, once one JSON value; key: on the rows of ordinary attributes, which are unordered and identified by key. The 8's rows keep address and pointer, their sheet naming the key	RFC 6901; CODD1970 1.3 primary key; OTEL-COMMON › Attribute Collections
+F1 name	the column record	renamed address, since the draft calls a row a record; no source names this column	MTSV-DRAFT › Conventions and Definitions
+F2	one-to-one objects: resource, scope, status	child sheets, a nested object being a relation of one row, as the server tool call details are	CODD1970 1.3 block 33
+F3	lists of simple values: idKeys, descriptionKeys	child sheets, one value per row	CODD1970 1.4
+F4	attributes other than the 8	the owner's attributes sheet: address, key, pointer, type, value; the 8 are recognized on spans and log records only, where OTEL-GENAI defines them, and appear only in their own sheets	OTEL-COMMON; OTEL-GENAI
+F5	enums	written as the integers OTLP requires	OTLP docs/specification › JSON Protobuf Encoding
+F6	metrics	a MetricsData line yields no rows	OTEL-FILE-EXPORTER › Telemetry data requirements; OTEL-GENAI
+lines	which fields have lines sheets	the fields the source types as string, and every node value; ids (bytes), times, counts, flags and enums have none, as score has none	the protos; line.1
+names	sheet names	full parent paths of the OTLP JSON keys (CODD1970 R.d); the 8 keep their attribute key alone, both spans and log records holding them	CODD1970 1.4 blocks 15-17
+order	sheet order	the traces tree, then the logs tree, then the 8's sheets; each sheet followed by its lines sheets	file.4; line.1
+span events	the 8 on a Span.Event	ordinary attributes: OTEL-GENAI defines the 8 on spans and on log-record events only	OTEL-GENAI
+limits	what is not carried	int and double both a number, bytes a Base64 string (OTEL-COMMON: lossy); unknown fields; a JSON-string attribute's original whitespace; HT, FF and a CR alone; null, "" and absent alike	OTEL-COMMON; OTLP; MTSV-DRAFT
+register	the fill the apply needs	resource.proto added to OTLP; fact rows for the OTLP messages and the UTF-8 rule; the protos stay single code blocks	open-telemetry/opentelemetry-proto at commit 700dafd2e89ad6266049000c616a589d884523d4, opentelemetry/proto/resource/v1/resource.proto
 Sets
 Set	Recorded on	Shape	Items	Text	Links	Source
 gen_ai.system_instructions	inference; fetch_response; create_agent; invoke_agent; the inference event	array	parts: text, generic	content; type		OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response; OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span, Invoke agent client span, Invoke agent internal span, Invoke workflow span; docs/gen-ai/gen-ai-events
