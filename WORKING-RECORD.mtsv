@@ -1,115 +1,41 @@
-Tree
-Path	Kind	Holds	Register
-.	folder	the whole: MTSV applied to the eight universal text sets	Architecture › Containment
-README.md	file	what it is, how to install and use it, where to get help	Project › Documentation › README; root README Help section
-LICENSE	file	the MIT licence text	Project › Licensing › LICENSE
-SECURITY.md	file	how to report a vulnerability	Project › Documentation › SECURITY
-.gitattributes	file	line endings of .mtsv, .json and .jsonl	Project › Repository › .gitattributes
-.gitignore	file	the entries	Project › Repository › .gitignore
-WORKING-RECORD.mtsv	file	this record	
-spec/	folder	stating the properties: one section per Integrations artefact	Architecture › Concerns; Project › Repository › mtsv top-level layout
-conformance/	folder	checking the properties; no language, no provider	Project › Repository › mtsv top-level layout
-conformance/README.md	file	how the cases are laid out	Content › Conformance
-conformance/<artefact>/	folder	one per Integrations artefact; each case a .jsonl input and its expected .mtsv	Content › Integrations
-conformance/providers/<provider>/	folder	one per provider: its input and the same universal .mtsv	Architecture › Extension › a new integration
-python/	folder	the Python implementation	Architecture › Extension › a new language folder
-python/pyproject.toml	file	build, metadata, versions; depends on mtsv	Project › Build; Metadata; Versioning
-python/MANIFEST.in	file	files in the sdist	Project › Build › MANIFEST.in
-python/README.md	file	install, use, and the Layout section: the module guide	Architecture › Map; Project › Documentation
-python/src/living_memory/	folder	the package, src layout	Project › Build › python/src
-python/src/living_memory/py.typed	file	marks a typed package	Code › Definitions › py.typed
-python/src/living_memory/relations.py	file	level 1: how a value becomes keyed sheets: normalization, positions, values of any shape, numbers as written	Architecture › Parts
-python/src/living_memory/parts.py	file	level 2: the message part types, shared by the schemas that repeat them	Architecture › Parts
-python/src/living_memory/system_instructions.py	file	level 3: the system instructions schema	Architecture › Parts
-python/src/living_memory/tool_definitions.py	file	level 3: the tool definitions schema	Architecture › Parts
-python/src/living_memory/input_messages.py	file	level 3: the input messages schema	Architecture › Parts
-python/src/living_memory/output_messages.py	file	level 3: the output messages schema	Architecture › Parts
-python/src/living_memory/tool_call_arguments.py	file	level 3: the tool call arguments schema	Architecture › Parts
-python/src/living_memory/tool_call_result.py	file	level 3: the tool call result schema	Architecture › Parts
-python/src/living_memory/memory_records.py	file	level 3: the memory records schema	Architecture › Parts
-python/src/living_memory/retrieval_documents.py	file	level 3: the retrieval documents schema	Architecture › Parts
-python/src/living_memory/integrations/__init__.py	file	level 4: which reader reads which input	Architecture › Parts
-python/src/living_memory/integrations/otlp_json.py	file	level 4: how an OTLP JSON Lines file is read, and where the eight are on its spans and events	Architecture › Parts
-python/src/living_memory/integrations/providers/__init__.py	file	level 4: which provider formats exist	Architecture › Parts
-python/src/living_memory/_command.py	file	level 5: how a person runs a conversion	Architecture › Parts
-python/src/living_memory/__main__.py	file	level 5: the command's entry point	Architecture › Parts
-python/src/living_memory/__init__.py	file	the public interface	Architecture › Parts
-python/src/living_memory/integrations/providers/<provider>.py	file	one per provider format	Architecture › Extension › a new integration
-python/tests/	folder	one test file per module, and the conformance runner	Architecture › Tests; Code › Tests
-python/tests/test_relations.py	file	tests of relations	Code › Tests
-python/tests/test_parts.py	file	tests of parts	Code › Tests
-python/tests/test_system_instructions.py	file	tests of system_instructions	Code › Tests
-python/tests/test_tool_definitions.py	file	tests of tool_definitions	Code › Tests
-python/tests/test_input_messages.py	file	tests of input_messages	Code › Tests
-python/tests/test_output_messages.py	file	tests of output_messages	Code › Tests
-python/tests/test_tool_call_arguments.py	file	tests of tool_call_arguments	Code › Tests
-python/tests/test_tool_call_result.py	file	tests of tool_call_result	Code › Tests
-python/tests/test_memory_records.py	file	tests of memory_records	Code › Tests
-python/tests/test_retrieval_documents.py	file	tests of retrieval_documents	Code › Tests
-python/tests/test_integrations.py	file	tests of integrations/__init__	Code › Tests
-python/tests/test_otlp_json.py	file	tests of integrations/otlp_json	Code › Tests
-python/tests/test_providers.py	file	tests of integrations/providers/__init__	Code › Tests
-python/tests/test_command.py	file	tests of _command	Code › Tests
-python/tests/test_main.py	file	tests of __main__	Code › Tests
-python/tests/test_living_memory.py	file	tests of __init__	Code › Tests
-python/tests/test_conformance.py	file	runs every conformance case	Code › Tests
-Modules
-Module	Level	Secret	Uses	Integrations artefacts
-relations	1	how a value becomes keyed sheets: normalization, positions, values of any shape, numbers as written	mtsv	relations; nonsimple values; order; numbers; sheet and column names
-parts	2	the message part types, shared by the schemas that repeat them	relations	GenAI structured attributes
-system_instructions	3	the system instructions schema	parts; relations	GenAI structured attributes; GenAI system instructions
-tool_definitions	3	the tool definitions schema	relations	GenAI structured attributes; GenAI tool definitions
-input_messages	3	the input messages schema	parts; relations	GenAI structured attributes; GenAI input messages
-output_messages	3	the output messages schema	parts; relations	GenAI structured attributes; GenAI output messages
-tool_call_arguments	3	the tool call arguments schema	relations	GenAI structured attributes; GenAI tool call arguments
-tool_call_result	3	the tool call result schema	relations	GenAI structured attributes; GenAI tool call result
-memory_records	3	the memory records schema	relations	GenAI structured attributes; GenAI memory records
-retrieval_documents	3	the retrieval documents schema	relations	GenAI structured attributes; GenAI retrieval documents
-integrations/__init__	4	which reader reads which input	integrations/otlp_json; integrations/providers/__init__	
-integrations/otlp_json	4	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 3	OTLP file; OTLP JSON; OTLP records; OTLP attributes; GenAI structured attributes
-integrations/providers/__init__	4	which provider formats exist	level 3	
-_command	5	how a person runs a conversion	integrations/__init__	Interfaces
-__main__	5	the command's entry point	_command	Interfaces
-__init__		the public interface	integrations/__init__	Interfaces
+Mapping
+Id	Rule	Status	Derived from	Module
+M1	the input is an OTLP JSON Lines file; TracesData and LogsData carry the eight, MetricsData none	derived	Content › Integrations › OTLP file; Content › Integrations › GenAI structured attributes	integrations/otlp_json
+M2	lines are read in the file's order; nothing is sorted	derived	Content › Integrations › OTLP file	integrations/otlp_json
+M3	fields with unknown names are ignored	derived	Content › Integrations › OTLP JSON	integrations/otlp_json
+M4	ids are written as their hex text and compared without regard to case	derived	Content › Integrations › OTLP JSON	integrations/otlp_json
+M5	the eight are found by their attribute keys, structured or as a JSON string	derived	Content › Integrations › GenAI structured attributes; the eight GenAI set artefacts	integrations/otlp_json
+M6	each of the eight has sheets of its own; input and output messages are kept apart	derived	the eight GenAI set artefacts	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts
+M7	a schema definition with fields of its own is a sheet of its own	derived	Content › Integrations › relations (same domains); Content › Integrations › GenAI structured attributes (fields)	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts
+M8	a nonsimple field is a child sheet carrying its parent's key	derived	Content › Integrations › relations (nonsimple domain; normalization)	relations
+M9	every row of the eight carries its span's traceId and spanId	derived	Content › Integrations › relations (normalization); Content › Integrations › OTLP records	relations
+M10	a value of any shape is one sheet whose rows refer to their parent row	derived	Content › Integrations › relations (foreign key to its own relation)	relations
+M11	order is kept as position columns in the key	derived	Content › Integrations › relations (rows unordered); Content › Integrations › JSON (arrays ordered); Content › Integrations › GenAI input messages (order)	relations
+M12	an enum is a simple value, so a column	derived	Content › Integrations › relations (simple domain)	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts
+M13	properties beyond a schema go to their object's value sheet	derived	Content › Integrations › GenAI structured attributes (further properties); M10	relations
+M14	numbers are written as the source writes them	derived	Content › Integrations › JSON (range and precision may be limited)	relations
+M15	values MTSV cannot represent are not written	derived	Content › Format › fields and sheet names	relations
+M16	sheet and column names are the source's own; the key and position columns are named	open	no source names the key and position columns	relations; system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts
+M17	a log record without trace and span ids is keyed by its position in the file	open	Content › Integrations › OTLP records (ids optional); no source keys it	relations
 Symmetry
-Artefact	Rule	Status	Spec section	Conformance folder	Module	Test file
-OTLP file	JSON Lines: UTF-8, one JSON value per line, LF between lines	covered	spec › OTLP file	conformance/otlp-file/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP file	each line in OTLP JSON encoding	covered	spec › OTLP file	conformance/otlp-file/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP file	TracesData, MetricsData or LogsData; one kind of data per file	covered	spec › OTLP file	conformance/otlp-file/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP file	lines in no guaranteed order	covered	spec › OTLP file	conformance/otlp-file/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	trace and span ids are hex strings	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	enums are integers	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	fields with unknown names are ignored	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	keys are the lowerCamelCase field names	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	64-bit integers and timestamps are decimal strings	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP JSON	hex ids compared without regard to case	covered	spec › OTLP JSON	conformance/otlp-json/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP records	a span is identified by trace id and span id; a log record carries them only optionally	open	spec › OTLP records	conformance/otlp-records/	integrations/otlp_json	python/tests/test_otlp_json.py
-OTLP attributes	value types: string, bool, int, double, array, key-value list, bytes	open	spec › OTLP attributes	conformance/otlp-attributes/	integrations/otlp_json	python/tests/test_otlp_json.py
-GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported	covered	spec › GenAI structured attributes	conformance/genai-structured-attributes/	integrations/otlp_json	python/tests/test_otlp_json.py
-GenAI structured attributes	the fields of the eight	open	spec › GenAI structured attributes	conformance/genai-structured-attributes/	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-GenAI system instructions	the attribute gen_ai.system_instructions	covered	spec › GenAI system instructions	conformance/genai-system-instructions/	system_instructions	python/tests/test_system_instructions.py
-GenAI tool definitions	the attribute gen_ai.tool.definitions	covered	spec › GenAI tool definitions	conformance/genai-tool-definitions/	tool_definitions	python/tests/test_tool_definitions.py
-GenAI input messages	the attribute gen_ai.input.messages	covered	spec › GenAI input messages	conformance/genai-input-messages/	input_messages	python/tests/test_input_messages.py
-GenAI input messages	in the order sent to the model	covered	spec › GenAI input messages	conformance/genai-input-messages/	input_messages	python/tests/test_input_messages.py
-GenAI output messages	the attribute gen_ai.output.messages	covered	spec › GenAI output messages	conformance/genai-output-messages/	output_messages	python/tests/test_output_messages.py
-GenAI output messages	one message per choice	covered	spec › GenAI output messages	conformance/genai-output-messages/	output_messages	python/tests/test_output_messages.py
-GenAI tool call arguments	the attribute gen_ai.tool.call.arguments	covered	spec › GenAI tool call arguments	conformance/genai-tool-call-arguments/	tool_call_arguments	python/tests/test_tool_call_arguments.py
-GenAI tool call result	the attribute gen_ai.tool.call.result	covered	spec › GenAI tool call result	conformance/genai-tool-call-result/	tool_call_result	python/tests/test_tool_call_result.py
-GenAI memory records	the attribute gen_ai.memory.records	covered	spec › GenAI memory records	conformance/genai-memory-records/	memory_records	python/tests/test_memory_records.py
-GenAI retrieval documents	the attribute gen_ai.retrieval.documents	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
-GenAI retrieval documents	each document's id and score	covered	spec › GenAI retrieval documents	conformance/genai-retrieval-documents/	retrieval_documents	python/tests/test_retrieval_documents.py
-relations	a relation whose values are all simple is a two-dimensional array: a sheet	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
-relations	a schema definition with fields of its own is a relation of its own: its own sheet	open	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
-relations	each row carries its parent's key: a row of the eight carries its span's trace id and span id	covered	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
-relations	a log record without trace and span ids has no key but its position in the file	open	spec › relations	conformance/relations/	relations	python/tests/test_relations.py
-nonsimple values	each gets a sheet of its own, the parent's key copied into it, and is struck from the parent	covered	spec › nonsimple values	conformance/nonsimple-values/	relations	python/tests/test_relations.py
-nonsimple values	applies because the nesting is a tree and no key is nonsimple	covered	spec › nonsimple values	conformance/nonsimple-values/	relations	python/tests/test_relations.py
-nonsimple values	a value of any shape: one sheet whose foreign key may refer to the same sheet	covered	spec › nonsimple values	conformance/nonsimple-values/	relations	python/tests/test_relations.py
-order	array items keep their positions	covered	spec › order	conformance/order/	relations	python/tests/test_relations.py
-order	a position column, part of the key, keeps the source's order	open	spec › order	conformance/order/	relations	python/tests/test_relations.py
-text values	a value holding HT, LF, FF or CR	open	spec › text values	conformance/text-values/	none: open at the MTSV level	none
-numbers	kept as written	open	spec › numbers	conformance/numbers/	relations	python/tests/test_relations.py
-sheet and column names	as the sources write them	open	spec › sheet and column names	conformance/sheet-and-column-names/	relations; system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+Id	Spec section	Conformance folder	Module	Test file
+M1	spec › M1	conformance/m1/	integrations/otlp_json	python/tests/test_otlp_json.py
+M2	spec › M2	conformance/m2/	integrations/otlp_json	python/tests/test_otlp_json.py
+M3	spec › M3	conformance/m3/	integrations/otlp_json	python/tests/test_otlp_json.py
+M4	spec › M4	conformance/m4/	integrations/otlp_json	python/tests/test_otlp_json.py
+M5	spec › M5	conformance/m5/	integrations/otlp_json	python/tests/test_otlp_json.py
+M6	spec › M6	conformance/m6/	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M7	spec › M7	conformance/m7/	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M8	spec › M8	conformance/m8/	relations	python/tests/test_relations.py
+M9	spec › M9	conformance/m9/	relations	python/tests/test_relations.py
+M10	spec › M10	conformance/m10/	relations	python/tests/test_relations.py
+M11	spec › M11	conformance/m11/	relations	python/tests/test_relations.py
+M12	spec › M12	conformance/m12/	system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M13	spec › M13	conformance/m13/	relations	python/tests/test_relations.py
+M14	spec › M14	conformance/m14/	relations	python/tests/test_relations.py
+M15	spec › M15	conformance/m15/	relations	python/tests/test_relations.py
+M16	spec › M16	conformance/m16/	relations; system_instructions; tool_definitions; input_messages; output_messages; tool_call_arguments; tool_call_result; memory_records; retrieval_documents; parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+M17	spec › M17	conformance/m17/	relations	python/tests/test_relations.py
 Sheets
 Sheet	One row per	Columns	Module
 gen_ai.system_instructions text	text part	traceId, spanId, position, content	system_instructions
@@ -159,17 +85,96 @@ gen_ai.memory.records	memory record	traceId, spanId, position, id, score	memory_
 gen_ai.memory.records content	node of a record's content	traceId, spanId, record position, node, parent node, name, value	memory_records
 gen_ai.memory.records metadata	node of a record's metadata	traceId, spanId, record position, node, parent node, name, value	memory_records
 gen_ai.retrieval.documents	document	traceId, spanId, position, id, score	retrieval_documents
+Modules
+Module	Level	Secret	Uses	Mapping
+relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17
+parts	2	the message part types, shared by the schemas that repeat them	relations	M6; M7; M12; M16
+system_instructions	3	the system instructions schema	parts; relations	M6; M7; M12; M16
+tool_definitions	3	the tool definitions schema	relations	M6; M7; M12; M16
+input_messages	3	the input messages schema	parts; relations	M6; M7; M12; M16
+output_messages	3	the output messages schema	parts; relations	M6; M7; M12; M16
+tool_call_arguments	3	the tool call arguments schema	relations	M6; M7; M12; M16
+tool_call_result	3	the tool call result schema	relations	M6; M7; M12; M16
+memory_records	3	the memory records schema	relations	M6; M7; M12; M16
+retrieval_documents	3	the retrieval documents schema	relations	M6; M7; M12; M16
+integrations/__init__	4	which reader reads which input	integrations/otlp_json; integrations/providers/__init__	
+integrations/otlp_json	4	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 3	M1; M2; M3; M4; M5
+integrations/providers/__init__	4	which provider formats exist	level 3	
+_command	5	how a person runs a conversion	integrations/__init__	
+__main__	5	the command's entry point	_command	
+__init__		the public interface	integrations/__init__	
+Tree
+Path	Kind	Holds	Register
+.	folder	the whole: MTSV applied to the eight universal text sets	Architecture › Containment
+README.md	file	what it is, how to install and use it, where to get help	Project › Documentation › README; root README Help section
+LICENSE	file	the MIT licence text	Project › Licensing › LICENSE
+SECURITY.md	file	how to report a vulnerability	Project › Documentation › SECURITY
+.gitattributes	file	line endings of .mtsv, .json and .jsonl	Project › Repository › .gitattributes
+.gitignore	file	the entries	Project › Repository › .gitignore
+WORKING-RECORD.mtsv	file	this record: structure and mapping	Architecture › Map
+spec/	folder	stating the mapping: one section per mapping rule	Architecture › Concerns; Project › Repository › mtsv top-level layout
+conformance/	folder	checking the mapping; no language, no provider	Project › Repository › mtsv top-level layout
+conformance/README.md	file	how the cases are laid out	Content › Conformance
+conformance/m<n>/	folder	one per mapping rule; each case a .jsonl input and its expected .mtsv	Content › Conformance
+conformance/providers/<provider>/	folder	one per provider: its input and the same universal .mtsv	Architecture › Extension › a new integration
+python/	folder	the Python implementation	Architecture › Extension › a new language folder
+python/pyproject.toml	file	build, metadata, versions; depends on mtsv	Project › Build; Metadata; Versioning
+python/MANIFEST.in	file	files in the sdist	Project › Build › MANIFEST.in
+python/README.md	file	install, use, and the Layout section	Project › Documentation
+python/src/living_memory/	folder	the package, src layout	Project › Build › python/src
+python/src/living_memory/py.typed	file	marks a typed package	Code › Definitions › py.typed
+python/src/living_memory/relations.py	file	level 1: how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	Architecture › Parts
+python/src/living_memory/parts.py	file	level 2: the message part types, shared by the schemas that repeat them	Architecture › Parts
+python/src/living_memory/system_instructions.py	file	level 3: the system instructions schema	Architecture › Parts
+python/src/living_memory/tool_definitions.py	file	level 3: the tool definitions schema	Architecture › Parts
+python/src/living_memory/input_messages.py	file	level 3: the input messages schema	Architecture › Parts
+python/src/living_memory/output_messages.py	file	level 3: the output messages schema	Architecture › Parts
+python/src/living_memory/tool_call_arguments.py	file	level 3: the tool call arguments schema	Architecture › Parts
+python/src/living_memory/tool_call_result.py	file	level 3: the tool call result schema	Architecture › Parts
+python/src/living_memory/memory_records.py	file	level 3: the memory records schema	Architecture › Parts
+python/src/living_memory/retrieval_documents.py	file	level 3: the retrieval documents schema	Architecture › Parts
+python/src/living_memory/integrations/__init__.py	file	level 4: which reader reads which input	Architecture › Parts
+python/src/living_memory/integrations/otlp_json.py	file	level 4: how an OTLP JSON Lines file is read, and where the eight are on its spans and events	Architecture › Parts
+python/src/living_memory/integrations/providers/__init__.py	file	level 4: which provider formats exist	Architecture › Parts
+python/src/living_memory/_command.py	file	level 5: how a person runs a conversion	Architecture › Parts
+python/src/living_memory/__main__.py	file	level 5: the command's entry point	Architecture › Parts
+python/src/living_memory/__init__.py	file	the public interface	Architecture › Parts
+python/src/living_memory/integrations/providers/<provider>.py	file	one per provider format	Architecture › Extension › a new integration
+python/tests/	folder	one test file per module, and the conformance runner	Architecture › Tests; Code › Tests
+python/tests/test_relations.py	file	tests of relations	Code › Tests
+python/tests/test_parts.py	file	tests of parts	Code › Tests
+python/tests/test_system_instructions.py	file	tests of system_instructions	Code › Tests
+python/tests/test_tool_definitions.py	file	tests of tool_definitions	Code › Tests
+python/tests/test_input_messages.py	file	tests of input_messages	Code › Tests
+python/tests/test_output_messages.py	file	tests of output_messages	Code › Tests
+python/tests/test_tool_call_arguments.py	file	tests of tool_call_arguments	Code › Tests
+python/tests/test_tool_call_result.py	file	tests of tool_call_result	Code › Tests
+python/tests/test_memory_records.py	file	tests of memory_records	Code › Tests
+python/tests/test_retrieval_documents.py	file	tests of retrieval_documents	Code › Tests
+python/tests/test_integrations.py	file	tests of integrations/__init__	Code › Tests
+python/tests/test_otlp_json.py	file	tests of integrations/otlp_json	Code › Tests
+python/tests/test_providers.py	file	tests of integrations/providers/__init__	Code › Tests
+python/tests/test_command.py	file	tests of _command	Code › Tests
+python/tests/test_main.py	file	tests of __main__	Code › Tests
+python/tests/test_living_memory.py	file	tests of __init__	Code › Tests
+python/tests/test_conformance.py	file	runs every conformance case	Code › Tests
+Tests
+Group	Checks	Register
+conformance	the implementation against the spec's mapping	Content › Conformance
+unit tests	each module's own secret, one test file per module	Architecture › Tests; Code › Tests
+checks	formatting only, by machine	Code › Checks
+register check	that every register citation resolves, nothing more	register README rule 4
+Downstream
+Item	Follows	From
+output file	one .mtsv per input file, sheets in the Sheets order	M1-M17
+empty sets	an attribute absent from the input gives no rows	M1-M17
+conformance cases	one or more per mapping rule	Symmetry
+library interface and command	as the Interfaces rows lay out	Content › Interfaces
+pyproject values	as the Build, Metadata and Versioning rows lay out; depends on mtsv	Project
+spec file	Markdown, one section per mapping rule	Project › Documentation
+.jsonl line endings	as .mtsv and .json	Project › Repository › .gitattributes
 Open
-Item	What is undecided	Where
-key and position names	the column names above for position, node and parent node	Integrations › sheet and column names
-text holding HT, LF, FF or CR	atomic to Codd, out of scope in the MTSV draft: to settle at the MTSV level	Integrations › text values
-log records without ids	their key is their position in the file	Integrations › relations
-numbers as written	kept as the source writes them, by analogy	Integrations › numbers
-properties beyond a schema	each goes to its object's value sheet	Integrations › nonsimple values
-three rows cite code blocks	a register converter that splits .proto, .json and .yaml would let them point exactly	Register
-spec file	its name and format	Tree
-conformance case layout	file names; whether cases also exist that must be refused	Tree
-.jsonl line endings	the .gitattributes row names .mtsv and .json only	Tree
-library interface	the call names, following the Interfaces rows	Modules
-command	its name and options, following the Interfaces rows	Modules
-this record	its name, and no register row places it	Tree
+Item	What is undecided
+M16	the names of the key and position columns
+M17	the key of a log record without ids
+register	three rows cite code blocks; a converter that splits .proto, .json and .yaml would let them point exactly
