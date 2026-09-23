@@ -1,26 +1,22 @@
 # Conformance
 
 Every implementation is tested against the same files. Each case is an
-input, `name.jsonl`, an OpenTelemetry Protocol (OTLP) JSON Lines file, and
-its expected output, `name.mtsv`. An implementation must convert the input
-to MTSV sheets equal to those of the expected file. Every expected file
-holds every sheet of the mapping, in the order of the Sheets of
-`spec/living-memory.mtsv`, each with its header (file.4).
+input, `name.jsonl`, an OpenTelemetry Protocol (OTLP) JSON Lines file,
+and, where the input is converted, its expected output, `name.mtsv`. A
+converter conforms when it writes the sheets of every expected file and
+rejects every input it must reject (`spec/living-memory.mtsv` ›
+Conformance). Every expected file holds every sheet of the Sheets, in
+their order, each with its header (file.4).
 
-| Folder                            | Cases                                          |
-|-----------------------------------|------------------------------------------------|
-| `otlp/`                           | `spans` and `logRecords`: the eight on each kind of record |
-| `resourceSpans/`                  | one per sheet of the traces tree, named as the sheet |
-| `resourceLogs/`                   | one per sheet of the logs tree, named as the sheet |
-| `gen_ai.system_instructions/`     | one per sheet of the set, named as the sheet   |
-| `gen_ai.tool.definitions/`        | one per sheet of the set, named as the sheet   |
-| `gen_ai.input.messages/`          | one per sheet of the set, named as the sheet   |
-| `gen_ai.output.messages/`         | one per sheet of the set, named as the sheet   |
-| `gen_ai.tool.call.arguments/`     | one per sheet of the set, named as the sheet   |
-| `gen_ai.tool.call.result/`        | one per sheet of the set, named as the sheet   |
-| `gen_ai.memory.records/`          | one per sheet of the set, named as the sheet   |
-| `gen_ai.retrieval.documents/`     | one per sheet of the set, named as the sheet   |
-| `providers/<provider>/`           | a provider's own format, converting to the same MTSV |
+| Folder                   | Cases                                                        |
+|--------------------------|--------------------------------------------------------------|
+| `conforming/`            | inputs a converter must convert, with their expected output  |
+| `cannot-be-represented/` | inputs holding text MTSV cannot represent (character.1), with their expected output |
+| `non-conforming/`        | inputs a converter must reject (file.5, set.3)               |
+
+A case is named for what it checks: a sheet case by the sheet of the
+Sheets it fills, as `resourceSpans.scopeSpans.spans.attributes`, and a
+rule case by its rule and assertion, as `file.1.metrics-data`.
 
 An expected file is derived from the spec's rules, never from an
 implementation's output.

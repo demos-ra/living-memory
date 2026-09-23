@@ -1,11 +1,14 @@
 resourceSpans
 address	schemaUrl
+/0/resourceSpans/0	
 resourceSpans.schemaUrl
 address	line	value
 resourceSpans.resource
 address	droppedAttributesCount
+/0/resourceSpans/0/resource	
 resourceSpans.resource.attributes
 address	key	pointer	type	value
+/0/resourceSpans/0/resource	gen_ai.input.messages		string	r
 resourceSpans.resource.attributes.key
 address	key	line	value
 resourceSpans.resource.attributes.value
@@ -26,22 +29,26 @@ address	value
 address	line	value
 resourceSpans.scopeSpans
 address	schemaUrl
+/0/resourceSpans/0/scopeSpans/0	
 resourceSpans.scopeSpans.schemaUrl
 address	line	value
 resourceSpans.scopeSpans.scope
 address	name	version	droppedAttributesCount
+/0/resourceSpans/0/scopeSpans/0/scope			
 resourceSpans.scopeSpans.scope.name
 address	line	value
 resourceSpans.scopeSpans.scope.version
 address	line	value
 resourceSpans.scopeSpans.scope.attributes
 address	key	pointer	type	value
+/0/resourceSpans/0/scopeSpans/0/scope	gen_ai.input.messages		string	s
 resourceSpans.scopeSpans.scope.attributes.key
 address	key	line	value
 resourceSpans.scopeSpans.scope.attributes.value
 address	key	pointer	line	value
 resourceSpans.scopeSpans.spans
 address	traceId	spanId	traceState	parentSpanId	flags	name	kind	startTimeUnixNano	endTimeUnixNano	droppedAttributesCount	droppedEventsCount	droppedLinksCount
+/0/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174				chat	3	1581452772000000321	1581452773000000789			
 resourceSpans.scopeSpans.spans.traceState
 address	line	value
 resourceSpans.scopeSpans.spans.name
@@ -58,32 +65,34 @@ address	message	code
 address	line	value
 resourceSpans.scopeSpans.spans.events
 address	timeUnixNano	name	droppedAttributesCount
+/0/resourceSpans/0/scopeSpans/0/spans/0/events/0	1581452772000000400	e	
 resourceSpans.scopeSpans.spans.events.name
 address	line	value
 resourceSpans.scopeSpans.spans.events.attributes
 address	key	pointer	type	value
+/0/resourceSpans/0/scopeSpans/0/spans/0/events/0	gen_ai.input.messages		string	e
 resourceSpans.scopeSpans.spans.events.attributes.key
 address	key	line	value
 resourceSpans.scopeSpans.spans.events.attributes.value
 address	key	pointer	line	value
 resourceSpans.scopeSpans.spans.links
 address	traceId	spanId	traceState	droppedAttributesCount	flags
+/0/resourceSpans/0/scopeSpans/0/spans/0/links/0	0af7651916cd43dd8448eb211c80319c	b7ad6b7169203331			
 resourceSpans.scopeSpans.spans.links.traceState
 address	line	value
 resourceSpans.scopeSpans.spans.links.attributes
 address	key	pointer	type	value
+/0/resourceSpans/0/scopeSpans/0/spans/0/links/0	gen_ai.input.messages		string	l
 resourceSpans.scopeSpans.spans.links.attributes.key
 address	key	line	value
 resourceSpans.scopeSpans.spans.links.attributes.value
 address	key	pointer	line	value
 resourceLogs
 address	schemaUrl
-/0/resourceLogs/0	
 resourceLogs.schemaUrl
 address	line	value
 resourceLogs.resource
 address	droppedAttributesCount
-/0/resourceLogs/0/resource	
 resourceLogs.resource.attributes
 address	key	pointer	type	value
 resourceLogs.resource.attributes.key
@@ -106,12 +115,10 @@ address	value
 address	line	value
 resourceLogs.scopeLogs
 address	schemaUrl
-/0/resourceLogs/0/scopeLogs/0	
 resourceLogs.scopeLogs.schemaUrl
 address	line	value
 resourceLogs.scopeLogs.scope
 address	name	version	droppedAttributesCount
-/0/resourceLogs/0/scopeLogs/0/scope			
 resourceLogs.scopeLogs.scope.name
 address	line	value
 resourceLogs.scopeLogs.scope.version
@@ -124,8 +131,6 @@ address	key	line	value
 address	key	pointer	line	value
 resourceLogs.scopeLogs.logRecords
 address	timeUnixNano	observedTimeUnixNano	severityNumber	severityText	droppedAttributesCount	flags	traceId	spanId	eventName
-/0/resourceLogs/0/scopeLogs/0/logRecords/0	1581452773000000789						5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	gen_ai.client.inference.operation.details
-/0/resourceLogs/0/scopeLogs/0/logRecords/1	1581452773000000789								gen_ai.client.inference.operation.details
 resourceLogs.scopeLogs.logRecords.severityText
 address	line	value
 resourceLogs.scopeLogs.logRecords.eventName
@@ -322,8 +327,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.output.messages
 address	pointer	role	name	finish_reason
-/0/resourceLogs/0/scopeLogs/0/logRecords/0	/0	assistant		stop
-/0/resourceLogs/0/scopeLogs/0/logRecords/1	/0	assistant		stop
 gen_ai.output.messages.role
 address	pointer	line	value
 gen_ai.output.messages.name
@@ -336,8 +339,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.output.messages.parts.text
 address	pointer	content
-/0/resourceLogs/0/scopeLogs/0/logRecords/0	/0/parts/0	Rainy.
-/0/resourceLogs/0/scopeLogs/0/logRecords/1	/0/parts/0	Rainy.
 gen_ai.output.messages.parts.text.content
 address	pointer	line	value
 gen_ai.output.messages.parts.text.additionalProperties

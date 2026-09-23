@@ -2,14 +2,12 @@
 address	schemaUrl
 /0/resourceSpans/0	
 /1/resourceSpans/0	
-/2/resourceSpans/0	
 resourceSpans.schemaUrl
 address	line	value
 resourceSpans.resource
 address	droppedAttributesCount
 /0/resourceSpans/0/resource	
 /1/resourceSpans/0/resource	
-/2/resourceSpans/0/resource	
 resourceSpans.resource.attributes
 address	key	pointer	type	value
 resourceSpans.resource.attributes.key
@@ -34,14 +32,12 @@ address	line	value
 address	schemaUrl
 /0/resourceSpans/0/scopeSpans/0	
 /1/resourceSpans/0/scopeSpans/0	
-/2/resourceSpans/0/scopeSpans/0	
 resourceSpans.scopeSpans.schemaUrl
 address	line	value
 resourceSpans.scopeSpans.scope
 address	name	version	droppedAttributesCount
 /0/resourceSpans/0/scopeSpans/0/scope			
 /1/resourceSpans/0/scopeSpans/0/scope			
-/2/resourceSpans/0/scopeSpans/0/scope			
 resourceSpans.scopeSpans.scope.name
 address	line	value
 resourceSpans.scopeSpans.scope.version
@@ -54,16 +50,14 @@ address	key	line	value
 address	key	pointer	line	value
 resourceSpans.scopeSpans.spans
 address	traceId	spanId	traceState	parentSpanId	flags	name	kind	startTimeUnixNano	endTimeUnixNano	droppedAttributesCount	droppedEventsCount	droppedLinksCount
-/0/resourceSpans/0/scopeSpans/0/spans/0	5B8EFFF798038103D269B633813FC60C	EEE19B7EC3C1B174				chat	3	1581452772000000321	1581452773000000789			
-/1/resourceSpans/0/scopeSpans/0/spans/0	0af7651916cd43dd8448eb211c80319c	b7ad6b7169203331				chat	3	1581452772000000321	1581452773000000789			
-/2/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	b7ad6b7169203332				execute_tool f	1	1581452772000000321	1581452773000000789			
+/0/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	b7ad6b7169203332				later	3	1581452774000000000	1581452775000000000			
+/1/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	b7ad6b7169203331				earlier	3	1581452772000000000	1581452773000000000			
 resourceSpans.scopeSpans.spans.traceState
 address	line	value
 resourceSpans.scopeSpans.spans.name
 address	line	value
 resourceSpans.scopeSpans.spans.attributes
 address	key	pointer	type	value
-/1/resourceSpans/0/scopeSpans/0/spans/0	gen_ai.request.model		string	m
 resourceSpans.scopeSpans.spans.attributes.key
 address	key	line	value
 resourceSpans.scopeSpans.spans.attributes.value
@@ -152,7 +146,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.system_instructions.text
 address	pointer	content
-/1/resourceSpans/0/scopeSpans/0/spans/0	/0	Be brief.
 gen_ai.system_instructions.text.content
 address	pointer	line	value
 gen_ai.system_instructions.text.additionalProperties
@@ -193,7 +186,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.input.messages
 address	pointer	role	name
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0	user	
 gen_ai.input.messages.role
 address	pointer	line	value
 gen_ai.input.messages.name
@@ -204,7 +196,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.input.messages.parts.text
 address	pointer	content
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0	Weather in Paris?
 gen_ai.input.messages.parts.text.content
 address	pointer	line	value
 gen_ai.input.messages.parts.text.additionalProperties
@@ -477,15 +468,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.tool.call.arguments
 address	pointer	type	value
-/2/resourceSpans/0/scopeSpans/0/spans/0		object	
-/2/resourceSpans/0/scopeSpans/0/spans/0	/s	string	x
-/2/resourceSpans/0/scopeSpans/0/spans/0	/i	number	5
-/2/resourceSpans/0/scopeSpans/0/spans/0	/d	number	0.5
-/2/resourceSpans/0/scopeSpans/0/spans/0	/b	true	
-/2/resourceSpans/0/scopeSpans/0/spans/0	/y	string	aGk=
-/2/resourceSpans/0/scopeSpans/0/spans/0	/e	null	
-/2/resourceSpans/0/scopeSpans/0/spans/0	/a	array	
-/2/resourceSpans/0/scopeSpans/0/spans/0	/a/0	string	p
 gen_ai.tool.call.arguments.value
 address	pointer	line	value
 gen_ai.tool.call.result

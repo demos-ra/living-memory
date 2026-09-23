@@ -1,11 +1,9 @@
 resourceSpans
 address	schemaUrl
-/0/resourceSpans/0	
 resourceSpans.schemaUrl
 address	line	value
 resourceSpans.resource
 address	droppedAttributesCount
-/0/resourceSpans/0/resource	
 resourceSpans.resource.attributes
 address	key	pointer	type	value
 resourceSpans.resource.attributes.key
@@ -28,12 +26,10 @@ address	value
 address	line	value
 resourceSpans.scopeSpans
 address	schemaUrl
-/0/resourceSpans/0/scopeSpans/0	
 resourceSpans.scopeSpans.schemaUrl
 address	line	value
 resourceSpans.scopeSpans.scope
 address	name	version	droppedAttributesCount
-/0/resourceSpans/0/scopeSpans/0/scope			
 resourceSpans.scopeSpans.scope.name
 address	line	value
 resourceSpans.scopeSpans.scope.version
@@ -46,7 +42,6 @@ address	key	line	value
 address	key	pointer	line	value
 resourceSpans.scopeSpans.spans
 address	traceId	spanId	traceState	parentSpanId	flags	name	kind	startTimeUnixNano	endTimeUnixNano	droppedAttributesCount	droppedEventsCount	droppedLinksCount
-/0/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174				chat	3	1581452772000000321	1581452773000000789			
 resourceSpans.scopeSpans.spans.traceState
 address	line	value
 resourceSpans.scopeSpans.spans.name
@@ -157,22 +152,14 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.tool.definitions.function
 address	pointer	name	description
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0	f	
 gen_ai.tool.definitions.function.name
 address	pointer	line	value
 gen_ai.tool.definitions.function.description
 address	pointer	line	value
 gen_ai.tool.definitions.function.parameters
 address	pointer	type	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters	object	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/type	string	object
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	string	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/required	array	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/required/0	string	a
 gen_ai.tool.definitions.function.parameters.value
 address	pointer	line	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	0	first
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	1	second
 gen_ai.tool.definitions.function.additionalProperties
 address	pointer	type	value
 gen_ai.tool.definitions.function.additionalProperties.value

@@ -5,7 +5,6 @@ address	schemaUrl
 address	line	value
 resourceSpans.resource
 address	droppedAttributesCount
-/0/resourceSpans/0/resource	
 resourceSpans.resource.attributes
 address	key	pointer	type	value
 resourceSpans.resource.attributes.key
@@ -157,22 +156,14 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.tool.definitions.function
 address	pointer	name	description
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0	f	
 gen_ai.tool.definitions.function.name
 address	pointer	line	value
 gen_ai.tool.definitions.function.description
 address	pointer	line	value
 gen_ai.tool.definitions.function.parameters
 address	pointer	type	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters	object	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/type	string	object
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	string	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/required	array	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/required/0	string	a
 gen_ai.tool.definitions.function.parameters.value
 address	pointer	line	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	0	first
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parameters/description	1	second
 gen_ai.tool.definitions.function.additionalProperties
 address	pointer	type	value
 gen_ai.tool.definitions.function.additionalProperties.value
