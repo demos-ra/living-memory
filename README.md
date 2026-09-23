@@ -14,7 +14,7 @@ nested values becoming sheets of their own in normal form.
 
 | Folder         | Contents                                                |
 |----------------|---------------------------------------------------------|
-| `spec/`        | The mapping from the eight text sets to MTSV sheets     |
+| `spec/`        | The mapping, as MTSV: its rules and its sheets          |
 | `conformance/` | Test files shared by every implementation               |
 | `python/`      | Python implementation                                   |
 
@@ -24,8 +24,9 @@ Conformance is the same for every language, so it sits beside them rather
 than inside one. A provider's own format is read by an integration of its
 own, and the mapping names no provider.
 
-`WORKING-RECORD.mtsv` lays out the whole structure: the mapping rules, the
-sheets, the modules and the files, and what each derives from.
+`spec/living-memory.mtsv` states the mapping: each rule, and each sheet
+with its columns. `WORKING-RECORD.mtsv` lays out the project around it:
+what each rule derives from, the modules, the files and the cases.
 
 ## Conformance
 

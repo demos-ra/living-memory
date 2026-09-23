@@ -4,8 +4,8 @@ Every implementation is tested against the same files. Each case is an
 input, `name.jsonl`, an OpenTelemetry Protocol (OTLP) JSON Lines file, and
 its expected output, `name.mtsv`. An implementation must convert the input
 to MTSV sheets equal to those of the expected file. Every expected file
-holds every sheet of the mapping, in the order of the working record's
-Sheets, each with its header (M18).
+holds every sheet of the mapping, in the order of the Sheets of
+`spec/living-memory.mtsv`, each with its header (M18).
 
 | Folder                            | Cases                                          |
 |-----------------------------------|------------------------------------------------|
@@ -21,5 +21,5 @@ Sheets, each with its header (M18).
 | `providers/<provider>/`           | a provider's own format, converting to the same MTSV |
 
 `WORKING-RECORD.mtsv` lists every case, the sheet it checks and the rules
-it exercises. An expected file is derived from the spec, never from an
-implementation's output.
+it exercises. An expected file is derived from the spec's rules, never
+from an implementation's output.
