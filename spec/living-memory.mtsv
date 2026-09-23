@@ -3,31 +3,13 @@ Id	Clause
 conformance.1	This specification defines one class of product, a converter, which reads an OTLP JSON Lines file and writes an MTSV file. A converter is a generator of [MTSV-DRAFT], and MUST meet that document's requirements for generators.
 conformance.2	A converter conforms if it writes, for every conformance input it must convert, the sheets of the expected file: the same sheets, in the same order, with the same sheet names, headers and rows; and if it rejects every conformance input it must reject.
 conformance.3	The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this specification are to be interpreted as described in BCP 14 [BCP14] when, and only when, they appear in all capitals, as shown here.
-conformance.4	The Rules and the Sheets are normative. The Pattern is informative: it summarizes the Rules, whose Ids begin with its levels. A rule names each source it follows in brackets, as [OTLP], and the References list them.
+conformance.4	The Rules and the Sheets are normative. The first part of a rule's Id names the level of the input it governs. A rule names each source it follows in brackets, as [OTLP]; the References list them, each marked normative or informative.
 conformance.5	Sheet, sheet name, header and field are as defined in [MTSV-DRAFT]; row, column and cell as in [CSVW], a row being written as one line of fields. Member, name and value are as in [RFC8259]; property and schema as in [JSON-SCHEMA-07]; attribute as in [OTEL-COMMON].
-Pattern
-Level	Holds	MTSV
-file	an OTLP JSON Lines file, a TracesData, LogsData or MetricsData per line	one MTSV file; a MetricsData line yields no rows
-envelope	the resourceSpans of a TracesData and the resourceLogs of a LogsData, each with its schemaUrl	a sheet, a row each, the key address in every row
-resource	a Resource: its attributes, dropped count and entity references	a child sheet, one row
-scope	scopeSpans and scopeLogs, each with its schemaUrl and its scope: name, version, attributes	child sheets
-record	a span or a log record: ids, times, name, kind, flags, severity, event name, dropped counts	a sheet, a row per record, a column per simple member
-span	a span's status, events and links	child sheets
-attributes	the key-value list of a resource, scope, span, span event, link or log record: unordered, identified by key	a sheet per owner, the column key, the value by the node rules
-body	a log record's body, a value of any shape	a node sheet
-set	one of the eight, on a span or a log record, structured or a JSON string	sheets of its own, never in attributes
-item	a message, part, tool, memory record or document: a defined shape, or generic	a sheet per shape, a row per item
-field	a simple value of an item	a column
-nested	an item within an item	a child sheet, joined by pointer
-node	a value of no fixed shape	a node sheet, a row per node
-text	a string value	its cell
-line	the text between line breaks	a row of its lines sheet
-character	HT, FF, or CR alone	not written
 Rules
 Id	Rule
 file.1	The input is an OTLP JSON Lines file [OTEL-FILE-EXPORTER]: UTF-8, one JSON value per line, each line a TracesData, MetricsData or LogsData in the OTLP JSON encoding [OTLP], one kind of data per file. A converter MUST convert a TracesData or LogsData line whole. The eight are recorded on spans and events [OTEL-GENAI], so a MetricsData line holds none of them, and a converter MUST write no rows for it. A converter SHOULD read an invalid UTF-8 sequence in a string as U+FFFD [OTLP].
 file.2	The lines of a file are in no guaranteed order [OTEL-FILE-EXPORTER]. A converter MUST read them in the file's order, and MUST NOT sort them.
-file.3	A converter MUST ignore members with unknown names [OTLP]. It MUST read string_value_strindex and key_strindex, used only by Profiling, as absent, and SHOULD report their presence as a warning [OTLP].
+file.3	A converter MUST ignore members with unknown names [OTLP]. Of the members of one object that share a name, a converter SHOULD read the last [PROTOJSON]. It MUST read string_value_strindex and key_strindex, used only by Profiling, as absent, and SHOULD report their presence as a warning [OTLP].
 file.4	A converter MUST write one MTSV file [MTSV-DRAFT]: every sheet of the Sheets, in their order, each with its header, and no rows where the input holds none. The Sheets run the traces tree, then the logs tree, then the eight's sheets; each sheet is followed by its lines sheets, then by its child sheets.
 file.5	A line that is not a JSON value [RFC8259], or whose value is not a TracesData, MetricsData or LogsData in the OTLP JSON encoding [OTLP] [PROTOJSON], is non-conforming; a member with an unknown name does not make it so (file.3). A converter MUST reject a file that holds such a line, and name the line [RFC9413].
 envelope.1	A converter MUST write the resourceSpans of a TracesData line, and the resourceLogs of a LogsData line, as the rows of a sheet of that name, their schemaUrl a column. Every row MUST carry an address: a JSON Pointer [RFC6901] to the OTLP structure the row is or belongs to, whose first reference token is the zero-based index of its line in the file and whose other tokens point within that line's JSON value, as in /0/resourceSpans/0. No two structures share an address, so the address is the key [CODD1970].
