@@ -62,27 +62,30 @@ type and each record type.
 A nonsimple field is struck from its parent and becomes a child sheet
 that carries its parent's key ([CODD1970], Section 1.4, normalization).
 Normalization applies because the nesting is a tree and no key is
-nonsimple ([CODD1970], Section 1.4).
+nonsimple ([CODD1970], Section 1.4). A child row's pointer (M9) extends
+its parent's pointer, so the parent's key is carried in it.
 
 ## M9. The key of every row
 
-Every row of the eight carries the `traceId` and `spanId` of the span or
-event it came from: a span is identified by its trace id and span id
-([OTLP], trace.proto), and normalization copies the parent's key down
-([CODD1970], Section 1.4).
+Every row is keyed by three columns. `traceId` and `spanId` name the span
+or event it came from: a span is identified by its trace id and span id
+([OTLP], trace.proto). `pointer` is a JSON Pointer ([RFC6901]) from the
+root of the attribute value to the row's value: `/0` for the first
+message, `/0/parts/2` for its third part.
 
 ## M10. Values of any shape
 
-A value of any shape is one sheet whose rows refer to their parent row
-in the same sheet; a foreign key may refer to its own relation
-([CODD1970], Section 1.3).
+A value of any shape is one sheet with a row per node: its `pointer`, its
+`type`, one of `object`, `array`, `string`, `number`, `true`, `false`
+and `null` ([RFC8259], Section 3), and its `value`.
 
 ## M11. Order
 
 The rows of a relation are unordered ([CODD1970], Section 1.3), while a
 JSON array is an ordered sequence ([RFC8259], Section 5) and input
 messages are in the order sent ([OTEL-GENAI], gen-ai-spans: Inference).
-Order is therefore kept as position columns in the key.
+A JSON Pointer names an array element by its zero-based index
+([RFC6901], Section 4), so order is kept in the pointer.
 
 ## M12. Enums
 
@@ -108,8 +111,10 @@ written.
 
 ## M16. Names
 
-Open. Sheet and column names are the sources' own; the names of the key
-and position columns are not yet set.
+Names are the sources' own: `traceId` and `spanId` as OTLP JSON writes
+them ([OTLP], JSON Protobuf Encoding), `pointer` for the JSON Pointer
+([RFC6901]), `type` and `value` for a JSON value ([RFC8259], Section 3),
+and each schema's own field names ([OTEL-GENAI], model/gen-ai).
 
 ## M17. Log records without ids
 
@@ -134,6 +139,9 @@ Protobuf definitions.
 
 [RFC4648] Josefsson, S., "The Base16, Base32, and Base64 Data
 Encodings", RFC 4648, October 2006.
+
+[RFC6901] Bryan, P., Ed., Zyp, K., and M. Nottingham, Ed., "JavaScript
+Object Notation (JSON) Pointer", RFC 6901, April 2013.
 
 [RFC8259] Bray, T., Ed., "The JavaScript Object Notation (JSON) Data
 Interchange Format", STD 90, RFC 8259, December 2017.

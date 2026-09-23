@@ -10,5 +10,4 @@ to MTSV sheets equal to those of the expected file.
 | `m1/` … `m17/`          | the mapping rule of the same number in the spec      |
 | `providers/<provider>/` | a provider's own format, converting to the same MTSV |
 
-No cases are written yet: an expected file needs the names of the key and
-position columns, which the spec leaves open (M16).
+No cases are written yet.

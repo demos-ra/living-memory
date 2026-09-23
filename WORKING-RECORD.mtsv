@@ -7,15 +7,15 @@ M4	ids are written as their hex text and compared without regard to case	derived
 M5	the eight are found by their attribute keys, structured or as a JSON string	derived	Content › Integrations › GenAI structured attributes; the eight GenAI set artefacts	integrations/otlp_json
 M6	each of the eight has sheets of its own; input and output messages are kept apart	derived	the eight GenAI set artefacts	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
 M7	a schema definition with fields of its own is a sheet of its own	derived	Content › Integrations › relations (same domains); Content › Integrations › GenAI structured attributes (fields)	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
-M8	a nonsimple field is a child sheet carrying its parent's key	derived	Content › Integrations › relations (nonsimple domain; normalization)	_relations
-M9	every row of the eight carries its span's traceId and spanId	derived	Content › Integrations › relations (normalization); Content › Integrations › OTLP records	_relations
-M10	a value of any shape is one sheet whose rows refer to their parent row	derived	Content › Integrations › relations (foreign key to its own relation)	_relations
-M11	order is kept as position columns in the key	derived	Content › Integrations › relations (rows unordered); Content › Integrations › JSON (arrays ordered); Content › Integrations › GenAI input messages (order)	_relations
+M8	a nonsimple field is a child sheet; each row's pointer extends its parent's pointer, so it carries its parent's key	derived	Content › Integrations › relations (nonsimple domain; normalization); Content › Integrations › JSON Pointer	_relations
+M9	every row is keyed by traceId, spanId and pointer: its span, and its place in the attribute value from the value's root	derived	Content › Integrations › OTLP records; Content › Integrations › JSON Pointer; Content › Integrations › relations (normalization)	_relations
+M10	a value of any shape is one sheet, a row per node: pointer, type and value	derived	Content › Integrations › JSON Pointer; Content › Integrations › JSON (value kinds)	_relations
+M11	order is kept by the pointer's zero-based indexes	derived	Content › Integrations › relations (rows unordered); Content › Integrations › JSON (arrays ordered); Content › Integrations › JSON Pointer (zero-based index); Content › Integrations › GenAI input messages (order)	_relations
 M12	an enum is a simple value, so a column	derived	Content › Integrations › relations (simple domain)	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
 M13	properties beyond a schema go to their object's value sheet	derived	Content › Integrations › GenAI structured attributes (further properties); M10	_relations
 M14	numbers are written as the source writes them	derived	Content › Integrations › JSON (range and precision may be limited)	_relations
 M15	values MTSV cannot represent are not written	derived	Content › Format › fields and sheet names	_relations
-M16	sheet and column names are the source's own; the key and position columns are named	open	no source names the key and position columns	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
+M16	names are the sources' own: traceId and spanId from OTLP JSON, pointer from JSON Pointer, type and value from JSON, the fields from the schemas	derived	Content › Integrations › OTLP JSON (keys); Content › Integrations › JSON Pointer; Content › Integrations › JSON (value kinds); Content › Integrations › GenAI structured attributes (fields)	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts
 M17	a log record without trace and span ids is keyed by its position in the file	open	Content › Integrations › OTLP records (ids optional); no source keys it	_relations
 Symmetry
 Id	Spec section	Conformance folder	Module	Test file
@@ -38,53 +38,53 @@ M16	spec › M16	conformance/m16/	_relations; _system_instructions; _tool_defini
 M17	spec › M17	conformance/m17/	_relations	python/tests/test_relations.py
 Sheets
 Sheet	One row per	Columns	Module
-gen_ai.system_instructions text	text part	traceId, spanId, position, content	_system_instructions
-gen_ai.system_instructions generic	generic part	traceId, spanId, position, type	_system_instructions
-gen_ai.system_instructions generic properties	node of a generic part's properties	traceId, spanId, part position, node, parent node, name, value	_system_instructions
-gen_ai.tool.definitions function	function tool	traceId, spanId, position, name, description	_tool_definitions
-gen_ai.tool.definitions function parameters	node of a function tool's parameters	traceId, spanId, tool position, node, parent node, name, value	_tool_definitions
-gen_ai.tool.definitions generic	generic tool	traceId, spanId, position, type, name	_tool_definitions
-gen_ai.tool.definitions generic properties	node of a generic tool's properties	traceId, spanId, tool position, node, parent node, name, value	_tool_definitions
-gen_ai.input.messages	message	traceId, spanId, position, role, name	_input_messages
-gen_ai.input.messages parts text	text part	traceId, spanId, message position, position, content	_parts
-gen_ai.input.messages parts tool_call	tool_call part	traceId, spanId, message position, position, id, name	_parts
-gen_ai.input.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.input.messages parts tool_call_response	tool_call_response part	traceId, spanId, message position, position, id	_parts
-gen_ai.input.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.input.messages parts server_tool_call	server_tool_call part	traceId, spanId, message position, position, id, name	_parts
-gen_ai.input.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.input.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, message position, position, id	_parts
-gen_ai.input.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.input.messages parts blob	blob part	traceId, spanId, message position, position, mime_type, modality, content	_parts
-gen_ai.input.messages parts file	file part	traceId, spanId, message position, position, mime_type, modality, file_id	_parts
-gen_ai.input.messages parts uri	uri part	traceId, spanId, message position, position, mime_type, modality, uri	_parts
-gen_ai.input.messages parts reasoning	reasoning part	traceId, spanId, message position, position, content	_parts
-gen_ai.input.messages parts compaction	compaction part	traceId, spanId, message position, position, id, content	_parts
-gen_ai.input.messages parts generic	generic part	traceId, spanId, message position, position, type	_parts
-gen_ai.input.messages parts generic properties	node of a generic part's properties	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.output.messages	message	traceId, spanId, position, role, name, finish_reason	_output_messages
-gen_ai.output.messages parts text	text part	traceId, spanId, message position, position, content	_parts
-gen_ai.output.messages parts tool_call	tool_call part	traceId, spanId, message position, position, id, name	_parts
-gen_ai.output.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.output.messages parts tool_call_response	tool_call_response part	traceId, spanId, message position, position, id	_parts
-gen_ai.output.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.output.messages parts server_tool_call	server_tool_call part	traceId, spanId, message position, position, id, name	_parts
-gen_ai.output.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.output.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, message position, position, id	_parts
-gen_ai.output.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.output.messages parts blob	blob part	traceId, spanId, message position, position, mime_type, modality, content	_parts
-gen_ai.output.messages parts file	file part	traceId, spanId, message position, position, mime_type, modality, file_id	_parts
-gen_ai.output.messages parts uri	uri part	traceId, spanId, message position, position, mime_type, modality, uri	_parts
-gen_ai.output.messages parts reasoning	reasoning part	traceId, spanId, message position, position, content	_parts
-gen_ai.output.messages parts compaction	compaction part	traceId, spanId, message position, position, id, content	_parts
-gen_ai.output.messages parts generic	generic part	traceId, spanId, message position, position, type	_parts
-gen_ai.output.messages parts generic properties	node of a generic part's properties	traceId, spanId, message position, part position, node, parent node, name, value	_parts
-gen_ai.tool.call.arguments	node	traceId, spanId, node, parent node, name, value	_tool_call_arguments
-gen_ai.tool.call.result	node	traceId, spanId, node, parent node, name, value	_tool_call_result
-gen_ai.memory.records	memory record	traceId, spanId, position, id, score	_memory_records
-gen_ai.memory.records content	node of a record's content	traceId, spanId, record position, node, parent node, name, value	_memory_records
-gen_ai.memory.records metadata	node of a record's metadata	traceId, spanId, record position, node, parent node, name, value	_memory_records
-gen_ai.retrieval.documents	document	traceId, spanId, position, id, score	_retrieval_documents
+gen_ai.system_instructions text	text part	traceId, spanId, pointer, content	_system_instructions
+gen_ai.system_instructions generic	generic part	traceId, spanId, pointer, type	_system_instructions
+gen_ai.system_instructions generic properties	node of a generic part's properties	traceId, spanId, pointer, type, value	_system_instructions
+gen_ai.tool.definitions function	function tool	traceId, spanId, pointer, name, description	_tool_definitions
+gen_ai.tool.definitions function parameters	node of a function tool's parameters	traceId, spanId, pointer, type, value	_tool_definitions
+gen_ai.tool.definitions generic	generic tool	traceId, spanId, pointer, type, name	_tool_definitions
+gen_ai.tool.definitions generic properties	node of a generic tool's properties	traceId, spanId, pointer, type, value	_tool_definitions
+gen_ai.input.messages	message	traceId, spanId, pointer, role, name	_input_messages
+gen_ai.input.messages parts text	text part	traceId, spanId, pointer, content	_parts
+gen_ai.input.messages parts tool_call	tool_call part	traceId, spanId, pointer, id, name	_parts
+gen_ai.input.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, pointer, type, value	_parts
+gen_ai.input.messages parts tool_call_response	tool_call_response part	traceId, spanId, pointer, id	_parts
+gen_ai.input.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, pointer, type, value	_parts
+gen_ai.input.messages parts server_tool_call	server_tool_call part	traceId, spanId, pointer, id, name	_parts
+gen_ai.input.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, pointer, type, value	_parts
+gen_ai.input.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, pointer, id	_parts
+gen_ai.input.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, pointer, type, value	_parts
+gen_ai.input.messages parts blob	blob part	traceId, spanId, pointer, mime_type, modality, content	_parts
+gen_ai.input.messages parts file	file part	traceId, spanId, pointer, mime_type, modality, file_id	_parts
+gen_ai.input.messages parts uri	uri part	traceId, spanId, pointer, mime_type, modality, uri	_parts
+gen_ai.input.messages parts reasoning	reasoning part	traceId, spanId, pointer, content	_parts
+gen_ai.input.messages parts compaction	compaction part	traceId, spanId, pointer, id, content	_parts
+gen_ai.input.messages parts generic	generic part	traceId, spanId, pointer, type	_parts
+gen_ai.input.messages parts generic properties	node of a generic part's properties	traceId, spanId, pointer, type, value	_parts
+gen_ai.output.messages	message	traceId, spanId, pointer, role, name, finish_reason	_output_messages
+gen_ai.output.messages parts text	text part	traceId, spanId, pointer, content	_parts
+gen_ai.output.messages parts tool_call	tool_call part	traceId, spanId, pointer, id, name	_parts
+gen_ai.output.messages parts tool_call arguments	node of a tool_call part's arguments	traceId, spanId, pointer, type, value	_parts
+gen_ai.output.messages parts tool_call_response	tool_call_response part	traceId, spanId, pointer, id	_parts
+gen_ai.output.messages parts tool_call_response response	node of a tool_call_response part's response	traceId, spanId, pointer, type, value	_parts
+gen_ai.output.messages parts server_tool_call	server_tool_call part	traceId, spanId, pointer, id, name	_parts
+gen_ai.output.messages parts server_tool_call server_tool_call	node of a server_tool_call part's server_tool_call	traceId, spanId, pointer, type, value	_parts
+gen_ai.output.messages parts server_tool_call_response	server_tool_call_response part	traceId, spanId, pointer, id	_parts
+gen_ai.output.messages parts server_tool_call_response server_tool_call_response	node of a server_tool_call_response part's server_tool_call_response	traceId, spanId, pointer, type, value	_parts
+gen_ai.output.messages parts blob	blob part	traceId, spanId, pointer, mime_type, modality, content	_parts
+gen_ai.output.messages parts file	file part	traceId, spanId, pointer, mime_type, modality, file_id	_parts
+gen_ai.output.messages parts uri	uri part	traceId, spanId, pointer, mime_type, modality, uri	_parts
+gen_ai.output.messages parts reasoning	reasoning part	traceId, spanId, pointer, content	_parts
+gen_ai.output.messages parts compaction	compaction part	traceId, spanId, pointer, id, content	_parts
+gen_ai.output.messages parts generic	generic part	traceId, spanId, pointer, type	_parts
+gen_ai.output.messages parts generic properties	node of a generic part's properties	traceId, spanId, pointer, type, value	_parts
+gen_ai.tool.call.arguments	node	traceId, spanId, pointer, type, value	_tool_call_arguments
+gen_ai.tool.call.result	node	traceId, spanId, pointer, type, value	_tool_call_result
+gen_ai.memory.records	memory record	traceId, spanId, pointer, id, score	_memory_records
+gen_ai.memory.records content	node of a record's content	traceId, spanId, pointer, type, value	_memory_records
+gen_ai.memory.records metadata	node of a record's metadata	traceId, spanId, pointer, type, value	_memory_records
+gen_ai.retrieval.documents	document	traceId, spanId, pointer, id, score	_retrieval_documents
 Modules
 Module	Level	Secret	Uses	Mapping
 _relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17
@@ -176,6 +176,5 @@ spec file	Markdown, one section per mapping rule	Project › Documentation
 .jsonl line endings	as .mtsv and .json	Project › Repository › .gitattributes
 Open
 Item	What is undecided
-M16	the names of the key and position columns
 M17	the key of a log record without ids
 register	three rows cite code blocks; a converter that splits .proto, .json and .yaml would let them point exactly
