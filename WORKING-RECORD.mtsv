@@ -1,277 +1,536 @@
+Sets
+Set	Recorded on	Shape	Items	Text	Links	Source
+gen_ai.system_instructions	inference; fetch_response; create_agent; invoke_agent; the inference event	array	parts: text, generic	content; type		OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response; OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span, Invoke agent client span, Invoke agent internal span, Invoke workflow span; docs/gen-ai/gen-ai-events
+gen_ai.tool.definitions	inference; fetch_response; invoke_agent; the inference event	array	tools: function, generic	name; description; type; parameters, free shape	a tool's name is the name a tool_call part and gen_ai.tool.name carry	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response; OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span, Invoke agent client span, Invoke agent internal span, Invoke workflow span; docs/gen-ai/gen-ai-events
+gen_ai.input.messages	inference; invoke_agent; invoke_workflow; the inference event	array	messages; parts: text, tool_call, tool_call_response, server_tool_call, server_tool_call_response, blob, file, uri, reasoning, compaction, generic	role; name; content; id; type; mime_type; modality; file_id; uri; arguments and response, free shape	a tool_call part's id is the id of its tool_call_response part and the gen_ai.tool.call.id of its execute_tool span	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span, Invoke agent client span, Invoke agent internal span, Invoke workflow span; docs/gen-ai/gen-ai-events
+gen_ai.output.messages	inference; fetch_response; invoke_agent; invoke_workflow; the inference event	array	messages, one per choice; parts as input messages	as input messages; finish_reason	as input messages; gen_ai.response.id on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response; OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span, Invoke agent client span, Invoke agent internal span, Invoke workflow span; docs/gen-ai/gen-ai-events
+gen_ai.tool.call.arguments	execute_tool	object, free shape		any string value	gen_ai.tool.call.id and gen_ai.tool.name on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span
+gen_ai.tool.call.result	execute_tool	object, free shape		any string value	gen_ai.tool.call.id and gen_ai.tool.name on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span
+gen_ai.memory.records	memory operations	array	memory records	id; content and metadata, free shape	gen_ai.memory.record.id and gen_ai.memory.store.id on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Memory
+gen_ai.retrieval.documents	retrieval	array	documents	id	gen_ai.data_source.id on its record	OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals
+Context
+Variable	Source	On	Kind	Place	Status
+traceId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	in the file, at the row's record	boundary
+spanId	OTLP trace.proto › Span; logs.proto › LogRecord	span; log record	the record's identity	in the file, at the row's record	boundary
+parentSpanId	OTLP trace.proto › Span	span	link: the parent operation	in the file, at the row's record	boundary
+startTimeUnixNano; endTimeUnixNano	OTLP trace.proto › Span	span	time	in the file, at the row's record	boundary
+timeUnixNano; observedTimeUnixNano	OTLP logs.proto › LogRecord	log record	time	in the file, at the row's record	boundary
+eventName	OTLP logs.proto › LogRecord	log record	the kind of event	in the file, at the row's record	boundary
+name	OTLP trace.proto › Span	span	the operation, by name	in the file, at the row's record	boundary
+kind; status; traceState; flags; links; dropped counts	OTLP trace.proto › Span	span	descriptive	in the file, at the row's record	boundary
+severityNumber; severityText; body; flags	OTLP logs.proto › LogRecord	log record	descriptive	in the file, at the row's record	boundary
+resource attributes; scope name, version and attributes	OTLP trace.proto, logs.proto › ResourceSpans, ScopeSpans, ResourceLogs, ScopeLogs	the records they hold	the producer	in the file, at the row's record	boundary
+gen_ai.conversation.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Execute tool span	span; the inference event	session	in the file, at the row's record	boundary
+gen_ai.operation.name	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	the operation	in the file, at the row's record	boundary
+gen_ai.response.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	identity of a response	in the file, at the row's record	boundary
+gen_ai.request.previous_response.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	link: the previous turn	in the file, at the row's record	boundary
+gen_ai.tool.call.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool_call part	in the file, at the row's record	boundary
+gen_ai.tool.name; gen_ai.tool.type	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	link: the tool definition	in the file, at the row's record	boundary
+gen_ai.memory.record.id; gen_ai.memory.store.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Memory	span	link: the memory store	in the file, at the row's record	boundary
+gen_ai.data_source.id	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals	span	link: the data source	in the file, at the row's record	boundary
+gen_ai.agent.name	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Execute tool span	span	the agent	in the file, at the row's record	boundary
+gen_ai.provider.name; gen_ai.request.model; gen_ai.response.model	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference	span; the inference event	provider and model	in the file, at the row's record	boundary
+request settings: temperature, top_p, top_k, max_tokens, seed, stop_sequences, penalties, choice.count, stream, reasoning.level, output.type, encoding_formats, stream_cursor, retrieval.top_k, embeddings.dimension.count	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings; Retrievals; Fetch response	span; the inference event	descriptive	in the file, at the row's record	boundary
+gen_ai.usage.*	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Embeddings	span; the inference event	descriptive	in the file, at the row's record	boundary
+gen_ai.response.finish_reasons; gen_ai.response.status; gen_ai.response.time_to_first_chunk	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Fetch response	span; the inference event	descriptive	in the file, at the row's record	boundary
+server.address; server.port; error.type	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › every operation	span; the inference event	descriptive	in the file, at the row's record	boundary
+gen_ai.conversation.compacted; gen_ai.prompt.name; gen_ai.prompt.version; gen_ai.memory.record.count	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Inference; Memory	span; the inference event	descriptive	in the file, at the row's record	boundary
+gen_ai.retrieval.query.text; gen_ai.memory.query.text; gen_ai.prompt.variable.<key>; gen_ai.tool.description	OTEL-GENAI OTEL-GENAI docs/gen-ai/gen-ai-spans › Retrievals; Memory; Inference; Execute tool span	span; the inference event	text beyond the 8	in the file, at the row's record	boundary
+gen_ai.agent.id; gen_ai.agent.version	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; Invoke agent client span	span	the agent	in the file, at the row's record	boundary
+gen_ai.workflow.name	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Invoke workflow span	span	the workflow	in the file, at the row's record	boundary
+gen_ai.evaluation.name; gen_ai.evaluation.score.value; gen_ai.evaluation.score.label	OTEL-GENAI docs/gen-ai/gen-ai-events › Event: gen_ai.evaluation.result	the evaluation event	descriptive	in the file, at the row's record	boundary
+gen_ai.agent.description; gen_ai.evaluation.explanation	OTEL-GENAI docs/gen-ai/gen-ai-agent-spans › Create agent span; gen-ai-events › Event: gen_ai.evaluation.result	span; the evaluation event	text beyond the 8	in the file, at the row's record	boundary
 Mapping
 Id	Status	Module	Note
-M1	derived	integrations/otlp_json	
-M2	derived	integrations/otlp_json	
-M3	derived	integrations/otlp_json	
-M4	derived	integrations/otlp_json	
-M5	open	integrations/otlp_json	no register row states how the OTLP attribute value types (string, bool, int, double, array, key-value list, bytes) map to the JSON value kinds; bytes has none
-M6	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
-M7	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
-M8	derived	_relations	
-M9	derived	_relations	
-M10	derived	_relations	
-M11	derived	_relations	
-M12	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
-M13	open	_relations	BlobPart leaves out additionalProperties; no register row states what leaving it out means
-M14	derived	_relations	
-M15	derived	_relations	
-M16	open	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	no register row states how a relation made from a nonsimple domain is named
-M17	derived	_relations	
-M18	derived	_relations	
-M19	open	_relations	no register row states that the optional fields of the eight default to null
+file.1	derived	integrations/otlp_json	
+file.2	derived	integrations/otlp_json	
+file.3	derived	integrations/otlp_json	
+file.4	derived	_relations	the draft allows a sheet with no records; OOXML defines a sheet in the workbook apart from its data, so every sheet is written
+record.1	derived	integrations/otlp_json	by analogy: RFC 6901 names an array element by its zero-based index; here the file's lines, a sequence of JSON values
+set.1	derived	integrations/otlp_json	
+set.2	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
+item.1	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
+item.2	derived	_relations	
+field.1	derived	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
+nested.1	derived	_relations	
+nested.2	derived	_relations	
+nested.3	derived	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	
+node.1	derived	_relations	
+node.2	derived	_relations	
+node.3	derived	_relations	
+text.1	derived	_relations	
+line.1	derived	_relations	
+character.1	derived	_relations	
 Derivation
 Id	Sheet	Group	Artefact	Rule
-M1	Content	Integrations	OTLP file	JSON Lines: UTF-8, one JSON value per line, LF between lines
-M1	Content	Integrations	OTLP file	each line in OTLP JSON encoding
-M1	Content	Integrations	OTLP file	TracesData, MetricsData or LogsData; one kind of data per file
-M1	Content	Integrations	GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported
-M2	Content	Integrations	OTLP file	lines in no guaranteed order
-M3	Content	Integrations	OTLP JSON	a receiver ignores fields with unknown names
-M4	Content	Integrations	OTLP JSON	trace and span ids are hex strings
-M4	Content	Integrations	OTLP JSON	hex ids are case-insensitive
-M5	Content	Integrations	GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported
-M5	Content	Integrations	GenAI system instructions	the attribute gen_ai.system_instructions
-M5	Content	Integrations	GenAI tool definitions	the attribute gen_ai.tool.definitions
-M5	Content	Integrations	GenAI input messages	the attribute gen_ai.input.messages
-M5	Content	Integrations	GenAI output messages	the attribute gen_ai.output.messages
-M5	Content	Integrations	GenAI tool call arguments	the attribute gen_ai.tool.call.arguments
-M5	Content	Integrations	GenAI tool call result	the attribute gen_ai.tool.call.result
-M5	Content	Integrations	GenAI memory records	the attribute gen_ai.memory.records
-M5	Content	Integrations	GenAI retrieval documents	the attribute gen_ai.retrieval.documents
-M6	Content	Integrations	GenAI system instructions	the attribute gen_ai.system_instructions
-M6	Content	Integrations	GenAI tool definitions	the attribute gen_ai.tool.definitions
-M6	Content	Integrations	GenAI input messages	the attribute gen_ai.input.messages
-M6	Content	Integrations	GenAI output messages	the attribute gen_ai.output.messages
-M6	Content	Integrations	GenAI tool call arguments	the attribute gen_ai.tool.call.arguments
-M6	Content	Integrations	GenAI tool call result	the attribute gen_ai.tool.call.result
-M6	Content	Integrations	GenAI memory records	the attribute gen_ai.memory.records
-M6	Content	Integrations	GenAI retrieval documents	the attribute gen_ai.retrieval.documents
-M7	Content	Integrations	relations	every row of a relation draws on the same domains
-M7	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
-M8	Content	Integrations	relations	a domain may be nonsimple: its elements are relations
-M8	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
-M8	Content	Integrations	relations	normalization applies when the nesting is a tree and no primary key is nonsimple
-M8	Content	Integrations	JSON Pointer	reference tokens, each prefixed by '/'; in a token '~' is written '~0' and '/' is written '~1'
-M9	Content	Integrations	OTLP records	a span is identified by trace id and span id; a log record carries them only optionally
-M9	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
-M9	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
-M10	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
-M10	Content	Integrations	JSON	a value is false, null, true, an object, an array, a number or a string
-M11	Content	Integrations	relations	the ordering of rows is immaterial
-M11	Content	Integrations	JSON	an array is an ordered sequence
-M11	Content	Integrations	JSON Pointer	a token names an object member, or an array element by its zero-based index
-M11	Content	Integrations	GenAI input messages	in the order sent to the model
-M12	Content	Integrations	relations	a domain may be nonsimple: its elements are relations
-M12	Content	Integrations	relations	a relation whose domains are all simple is a two-dimensional array
-M13	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
-M14	Content	Integrations	JSON	an implementation may limit the range and precision of numbers
-M15	Content	Format	sheet names and fields	holding HT, LF, FF or CR: cannot be represented, and a generator does not write them
-M16	Content	Integrations	OTLP JSON	keys are the lowerCamelCase field names
-M16	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
-M16	Content	Integrations	JSON	a value is false, null, true, an object, an array, a number or a string
-M16	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
-M16	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
-M17	Content	Integrations	OTLP records	a span is identified by trace id and span id; a log record carries them only optionally
-M17	Content	Integrations	relations	normally a domain, or a combination of domains, uniquely identifies each row: the primary key
-M18	Content	Format	sheets	a sheet is a header and an ordered sequence of zero or more records; an MTSV file is an ordered sequence of sheets
-M19	Content	Format	fields	a field is text
-M19	Content	Format	empty fields	by default a cell whose string value is empty has the value null; the model does not tell an empty value from a quoted empty one
-M19	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
+file.1	Content	Integrations	OTLP file	JSON Lines: UTF-8, one JSON value per line, LF between lines
+file.1	Content	Integrations	OTLP file	each line in OTLP JSON encoding
+file.1	Content	Integrations	OTLP file	TracesData, MetricsData or LogsData; one kind of data per file
+file.1	Content	Integrations	GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported
+file.2	Content	Integrations	OTLP file	lines in no guaranteed order
+file.3	Content	Integrations	OTLP JSON	a receiver ignores fields with unknown names
+file.4	Content	Format	sheets	a sheet is a header and an ordered sequence of zero or more records; an MTSV file is an ordered sequence of sheets
+file.4	Content	Integrations	XLSX workbook	a sheet is defined in the workbook, its data stored in a separate part
+record.1	Content	Integrations	OTLP file	JSON Lines: UTF-8, one JSON value per line, LF between lines
+record.1	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
+record.1	Content	Integrations	JSON Pointer	a token names an object member, or an array element by its zero-based index
+record.1	Content	Integrations	relations	normally a domain, or a combination of domains, uniquely identifies each row: the primary key
+record.1	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
+set.1	Content	Integrations	GenAI structured attributes	structured on events; on spans structured, or a JSON string where structure is not supported
+set.1	Content	Integrations	GenAI system instructions	the attribute gen_ai.system_instructions
+set.1	Content	Integrations	GenAI tool definitions	the attribute gen_ai.tool.definitions
+set.1	Content	Integrations	GenAI input messages	the attribute gen_ai.input.messages
+set.1	Content	Integrations	GenAI output messages	the attribute gen_ai.output.messages
+set.1	Content	Integrations	GenAI tool call arguments	the attribute gen_ai.tool.call.arguments
+set.1	Content	Integrations	GenAI tool call result	the attribute gen_ai.tool.call.result
+set.1	Content	Integrations	GenAI memory records	the attribute gen_ai.memory.records
+set.1	Content	Integrations	GenAI retrieval documents	the attribute gen_ai.retrieval.documents
+set.1	Content	Integrations	OTLP attributes	an attribute value is represented as an array element and a map value would be
+set.1	Content	Integrations	OTLP attributes	an array element is a JSON value: a string a JSON string, a boolean a JSON boolean, an integer or floating point number a JSON number, a byte array a Base64 JSON string, an empty value null, an array a JSON array, a map a JSON object
+set.1	Content	Integrations	OTLP attributes	a map is a JSON object, its values following the rules for array elements
+set.2	Content	Integrations	GenAI system instructions	the attribute gen_ai.system_instructions
+set.2	Content	Integrations	GenAI tool definitions	the attribute gen_ai.tool.definitions
+set.2	Content	Integrations	GenAI input messages	the attribute gen_ai.input.messages
+set.2	Content	Integrations	GenAI output messages	the attribute gen_ai.output.messages
+set.2	Content	Integrations	GenAI tool call arguments	the attribute gen_ai.tool.call.arguments
+set.2	Content	Integrations	GenAI tool call result	the attribute gen_ai.tool.call.result
+set.2	Content	Integrations	GenAI memory records	the attribute gen_ai.memory.records
+set.2	Content	Integrations	GenAI retrieval documents	the attribute gen_ai.retrieval.documents
+item.1	Content	Integrations	relations	every row of a relation draws on the same domains
+item.1	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
+item.2	Content	Integrations	OTLP records	a span is identified by trace id and span id; a log record carries them only optionally
+item.2	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
+item.2	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
+field.1	Content	Integrations	relations	a domain may be nonsimple: its elements are relations
+field.1	Content	Integrations	relations	a relation whose domains are all simple is a two-dimensional array
+nested.1	Content	Integrations	relations	a domain may be nonsimple: its elements are relations
+nested.1	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
+nested.1	Content	Integrations	relations	normalization applies when the nesting is a tree and no primary key is nonsimple
+nested.1	Content	Integrations	JSON Pointer	reference tokens, each prefixed by '/'; in a token '~' is written '~0' and '/' is written '~1'
+nested.2	Content	Integrations	relations	the ordering of rows is immaterial
+nested.2	Content	Integrations	JSON	an array is an ordered sequence
+nested.2	Content	Integrations	JSON Pointer	a token names an object member, or an array element by its zero-based index
+nested.2	Content	Integrations	GenAI input messages	in the order sent to the model
+nested.3	Content	Integrations	OTLP JSON	keys are the lowerCamelCase field names
+nested.3	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
+nested.3	Content	Integrations	JSON	a value is false, null, true, an object, an array, a number or a string
+nested.3	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
+nested.3	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
+nested.3	Content	Integrations	relations	normalization keeps each subordinate relation named by the nonsimple domain it came from
+nested.3	Content	Integrations	relations	a general name is R(g).r.d, the relation, generation, role and domain; the simple form R.d will often be adequate
+node.1	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
+node.1	Content	Integrations	JSON	a value is false, null, true, an object, an array, a number or a string
+node.2	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
+node.2	Content	Integrations	JSON Schema	omitting additionalProperties has the same behavior as an empty schema
+node.2	Content	Integrations	JSON Schema	an empty schema always passes validation
+node.3	Content	Integrations	JSON	an implementation may limit the range and precision of numbers
+text.1	Content	Format	fields	a field is text
+text.1	Content	Format	empty fields	by default a cell whose string value is empty has the value null; the model does not tell an empty value from a quoted empty one
+text.1	Content	Integrations	GenAI structured attributes	the fields of the eight; every object allows further properties
+text.1	Content	Integrations	JSON Schema	default supplies a default JSON value associated with a schema
+line.1	Content	Format	separators HT, LF, FF, CR	the characters
+line.1	Content	Format	line breaks	LF or CRLF
+line.1	Content	Format	sheets	a sheet is a header and an ordered sequence of zero or more records; an MTSV file is an ordered sequence of sheets
+line.1	Content	Integrations	relations	a domain may be nonsimple: its elements are relations
+line.1	Content	Integrations	relations	normalization: each subordinate relation takes its parent's primary key, and the parent's nonsimple domains are struck out
+line.1	Content	Integrations	relations	the ordering of rows is immaterial
+line.1	Content	Integrations	JSON Pointer	a string that identifies a specific value within a JSON document
+character.1	Content	Format	sheet names and fields	holding HT, LF, FF or CR: cannot be represented, and a generator does not write them
 Symmetry
 Id	Spec	Conformance	Module	Test file
-M1	spec/living-memory.mtsv › Rules › M1	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
-M2	spec/living-memory.mtsv › Rules › M2	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
-M3	spec/living-memory.mtsv › Rules › M3	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
-M4	spec/living-memory.mtsv › Rules › M4	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
-M5	spec/living-memory.mtsv › Rules › M5	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
-M6	spec/living-memory.mtsv › Rules › M6	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M7	spec/living-memory.mtsv › Rules › M7	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M8	spec/living-memory.mtsv › Rules › M8	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M9	spec/living-memory.mtsv › Rules › M9	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M10	spec/living-memory.mtsv › Rules › M10	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M11	spec/living-memory.mtsv › Rules › M11	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M12	spec/living-memory.mtsv › Rules › M12	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M13	spec/living-memory.mtsv › Rules › M13	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M14	spec/living-memory.mtsv › Rules › M14	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M15	spec/living-memory.mtsv › Rules › M15	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M16	spec/living-memory.mtsv › Rules › M16	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
-M17	spec/living-memory.mtsv › Rules › M17	conformance/otlp/	_relations	python/tests/test_relations.py
-M18	spec/living-memory.mtsv › Rules › M18	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
-M19	spec/living-memory.mtsv › Rules › M19	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+file.1	spec/living-memory.mtsv › Rules › file.1	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+file.2	spec/living-memory.mtsv › Rules › file.2	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+file.3	spec/living-memory.mtsv › Rules › file.3	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+file.4	spec/living-memory.mtsv › Rules › file.4	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+record.1	spec/living-memory.mtsv › Rules › record.1	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+set.1	spec/living-memory.mtsv › Rules › set.1	conformance/otlp/	integrations/otlp_json	python/tests/test_otlp_json.py
+set.2	spec/living-memory.mtsv › Rules › set.2	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+item.1	spec/living-memory.mtsv › Rules › item.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+item.2	spec/living-memory.mtsv › Rules › item.2	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+field.1	spec/living-memory.mtsv › Rules › field.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+nested.1	spec/living-memory.mtsv › Rules › nested.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+nested.2	spec/living-memory.mtsv › Rules › nested.2	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+nested.3	spec/living-memory.mtsv › Rules › nested.3	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations; _system_instructions; _tool_definitions; _input_messages; _output_messages; _tool_call_arguments; _tool_call_result; _memory_records; _retrieval_documents; _parts	python/tests/test_relations.py; python/tests/test_system_instructions.py; python/tests/test_tool_definitions.py; python/tests/test_input_messages.py; python/tests/test_output_messages.py; python/tests/test_tool_call_arguments.py; python/tests/test_tool_call_result.py; python/tests/test_memory_records.py; python/tests/test_retrieval_documents.py; python/tests/test_parts.py
+node.1	spec/living-memory.mtsv › Rules › node.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+node.2	spec/living-memory.mtsv › Rules › node.2	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+node.3	spec/living-memory.mtsv › Rules › node.3	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+text.1	spec/living-memory.mtsv › Rules › text.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+line.1	spec/living-memory.mtsv › Rules › line.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
+character.1	spec/living-memory.mtsv › Rules › character.1	conformance/gen_ai.system_instructions/; conformance/gen_ai.tool.definitions/; conformance/gen_ai.input.messages/; conformance/gen_ai.output.messages/; conformance/gen_ai.tool.call.arguments/; conformance/gen_ai.tool.call.result/; conformance/gen_ai.memory.records/; conformance/gen_ai.retrieval.documents/	_relations	python/tests/test_relations.py
 Sheet modules
 Sheet	Module
 gen_ai.system_instructions.text	_parts
+gen_ai.system_instructions.text.content	_parts
 gen_ai.system_instructions.text.additionalProperties	_parts
+gen_ai.system_instructions.text.additionalProperties.value	_parts
 gen_ai.system_instructions.generic	_parts
+gen_ai.system_instructions.generic.type	_parts
 gen_ai.system_instructions.generic.additionalProperties	_parts
+gen_ai.system_instructions.generic.additionalProperties.value	_parts
 gen_ai.tool.definitions.function	_tool_definitions
+gen_ai.tool.definitions.function.name	_tool_definitions
+gen_ai.tool.definitions.function.description	_tool_definitions
 gen_ai.tool.definitions.function.parameters	_tool_definitions
+gen_ai.tool.definitions.function.parameters.value	_tool_definitions
 gen_ai.tool.definitions.function.additionalProperties	_tool_definitions
+gen_ai.tool.definitions.function.additionalProperties.value	_tool_definitions
 gen_ai.tool.definitions.generic	_tool_definitions
+gen_ai.tool.definitions.generic.type	_tool_definitions
+gen_ai.tool.definitions.generic.name	_tool_definitions
 gen_ai.tool.definitions.generic.additionalProperties	_tool_definitions
+gen_ai.tool.definitions.generic.additionalProperties.value	_tool_definitions
 gen_ai.input.messages	_input_messages
+gen_ai.input.messages.role	_input_messages
+gen_ai.input.messages.name	_input_messages
 gen_ai.input.messages.additionalProperties	_input_messages
+gen_ai.input.messages.additionalProperties.value	_input_messages
 gen_ai.input.messages.parts.text	_parts
+gen_ai.input.messages.parts.text.content	_parts
 gen_ai.input.messages.parts.text.additionalProperties	_parts
+gen_ai.input.messages.parts.text.additionalProperties.value	_parts
 gen_ai.input.messages.parts.tool_call	_parts
+gen_ai.input.messages.parts.tool_call.id	_parts
+gen_ai.input.messages.parts.tool_call.name	_parts
 gen_ai.input.messages.parts.tool_call.arguments	_parts
+gen_ai.input.messages.parts.tool_call.arguments.value	_parts
 gen_ai.input.messages.parts.tool_call.additionalProperties	_parts
+gen_ai.input.messages.parts.tool_call.additionalProperties.value	_parts
 gen_ai.input.messages.parts.tool_call_response	_parts
+gen_ai.input.messages.parts.tool_call_response.id	_parts
 gen_ai.input.messages.parts.tool_call_response.response	_parts
+gen_ai.input.messages.parts.tool_call_response.response.value	_parts
 gen_ai.input.messages.parts.tool_call_response.additionalProperties	_parts
+gen_ai.input.messages.parts.tool_call_response.additionalProperties.value	_parts
 gen_ai.input.messages.parts.server_tool_call	_parts
+gen_ai.input.messages.parts.server_tool_call.id	_parts
+gen_ai.input.messages.parts.server_tool_call.name	_parts
 gen_ai.input.messages.parts.server_tool_call.server_tool_call	_parts
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.type	_parts
 gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	_parts
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	_parts
 gen_ai.input.messages.parts.server_tool_call.additionalProperties	_parts
+gen_ai.input.messages.parts.server_tool_call.additionalProperties.value	_parts
 gen_ai.input.messages.parts.server_tool_call_response	_parts
+gen_ai.input.messages.parts.server_tool_call_response.id	_parts
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	_parts
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.type	_parts
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	_parts
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	_parts
 gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	_parts
+gen_ai.input.messages.parts.server_tool_call_response.additionalProperties.value	_parts
 gen_ai.input.messages.parts.blob	_parts
+gen_ai.input.messages.parts.blob.mime_type	_parts
+gen_ai.input.messages.parts.blob.modality	_parts
+gen_ai.input.messages.parts.blob.content	_parts
 gen_ai.input.messages.parts.blob.additionalProperties	_parts
+gen_ai.input.messages.parts.blob.additionalProperties.value	_parts
 gen_ai.input.messages.parts.file	_parts
+gen_ai.input.messages.parts.file.mime_type	_parts
+gen_ai.input.messages.parts.file.modality	_parts
+gen_ai.input.messages.parts.file.file_id	_parts
 gen_ai.input.messages.parts.file.additionalProperties	_parts
+gen_ai.input.messages.parts.file.additionalProperties.value	_parts
 gen_ai.input.messages.parts.uri	_parts
+gen_ai.input.messages.parts.uri.mime_type	_parts
+gen_ai.input.messages.parts.uri.modality	_parts
+gen_ai.input.messages.parts.uri.uri	_parts
 gen_ai.input.messages.parts.uri.additionalProperties	_parts
+gen_ai.input.messages.parts.uri.additionalProperties.value	_parts
 gen_ai.input.messages.parts.reasoning	_parts
+gen_ai.input.messages.parts.reasoning.content	_parts
 gen_ai.input.messages.parts.reasoning.additionalProperties	_parts
+gen_ai.input.messages.parts.reasoning.additionalProperties.value	_parts
 gen_ai.input.messages.parts.compaction	_parts
+gen_ai.input.messages.parts.compaction.id	_parts
+gen_ai.input.messages.parts.compaction.content	_parts
 gen_ai.input.messages.parts.compaction.additionalProperties	_parts
+gen_ai.input.messages.parts.compaction.additionalProperties.value	_parts
 gen_ai.input.messages.parts.generic	_parts
+gen_ai.input.messages.parts.generic.type	_parts
 gen_ai.input.messages.parts.generic.additionalProperties	_parts
+gen_ai.input.messages.parts.generic.additionalProperties.value	_parts
 gen_ai.output.messages	_output_messages
+gen_ai.output.messages.role	_output_messages
+gen_ai.output.messages.name	_output_messages
+gen_ai.output.messages.finish_reason	_output_messages
 gen_ai.output.messages.additionalProperties	_output_messages
+gen_ai.output.messages.additionalProperties.value	_output_messages
 gen_ai.output.messages.parts.text	_parts
+gen_ai.output.messages.parts.text.content	_parts
 gen_ai.output.messages.parts.text.additionalProperties	_parts
+gen_ai.output.messages.parts.text.additionalProperties.value	_parts
 gen_ai.output.messages.parts.tool_call	_parts
+gen_ai.output.messages.parts.tool_call.id	_parts
+gen_ai.output.messages.parts.tool_call.name	_parts
 gen_ai.output.messages.parts.tool_call.arguments	_parts
+gen_ai.output.messages.parts.tool_call.arguments.value	_parts
 gen_ai.output.messages.parts.tool_call.additionalProperties	_parts
+gen_ai.output.messages.parts.tool_call.additionalProperties.value	_parts
 gen_ai.output.messages.parts.tool_call_response	_parts
+gen_ai.output.messages.parts.tool_call_response.id	_parts
 gen_ai.output.messages.parts.tool_call_response.response	_parts
+gen_ai.output.messages.parts.tool_call_response.response.value	_parts
 gen_ai.output.messages.parts.tool_call_response.additionalProperties	_parts
+gen_ai.output.messages.parts.tool_call_response.additionalProperties.value	_parts
 gen_ai.output.messages.parts.server_tool_call	_parts
+gen_ai.output.messages.parts.server_tool_call.id	_parts
+gen_ai.output.messages.parts.server_tool_call.name	_parts
 gen_ai.output.messages.parts.server_tool_call.server_tool_call	_parts
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.type	_parts
 gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	_parts
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	_parts
 gen_ai.output.messages.parts.server_tool_call.additionalProperties	_parts
+gen_ai.output.messages.parts.server_tool_call.additionalProperties.value	_parts
 gen_ai.output.messages.parts.server_tool_call_response	_parts
+gen_ai.output.messages.parts.server_tool_call_response.id	_parts
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	_parts
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.type	_parts
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	_parts
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	_parts
 gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	_parts
+gen_ai.output.messages.parts.server_tool_call_response.additionalProperties.value	_parts
 gen_ai.output.messages.parts.blob	_parts
+gen_ai.output.messages.parts.blob.mime_type	_parts
+gen_ai.output.messages.parts.blob.modality	_parts
+gen_ai.output.messages.parts.blob.content	_parts
 gen_ai.output.messages.parts.blob.additionalProperties	_parts
+gen_ai.output.messages.parts.blob.additionalProperties.value	_parts
 gen_ai.output.messages.parts.file	_parts
+gen_ai.output.messages.parts.file.mime_type	_parts
+gen_ai.output.messages.parts.file.modality	_parts
+gen_ai.output.messages.parts.file.file_id	_parts
 gen_ai.output.messages.parts.file.additionalProperties	_parts
+gen_ai.output.messages.parts.file.additionalProperties.value	_parts
 gen_ai.output.messages.parts.uri	_parts
+gen_ai.output.messages.parts.uri.mime_type	_parts
+gen_ai.output.messages.parts.uri.modality	_parts
+gen_ai.output.messages.parts.uri.uri	_parts
 gen_ai.output.messages.parts.uri.additionalProperties	_parts
+gen_ai.output.messages.parts.uri.additionalProperties.value	_parts
 gen_ai.output.messages.parts.reasoning	_parts
+gen_ai.output.messages.parts.reasoning.content	_parts
 gen_ai.output.messages.parts.reasoning.additionalProperties	_parts
+gen_ai.output.messages.parts.reasoning.additionalProperties.value	_parts
 gen_ai.output.messages.parts.compaction	_parts
+gen_ai.output.messages.parts.compaction.id	_parts
+gen_ai.output.messages.parts.compaction.content	_parts
 gen_ai.output.messages.parts.compaction.additionalProperties	_parts
+gen_ai.output.messages.parts.compaction.additionalProperties.value	_parts
 gen_ai.output.messages.parts.generic	_parts
+gen_ai.output.messages.parts.generic.type	_parts
 gen_ai.output.messages.parts.generic.additionalProperties	_parts
+gen_ai.output.messages.parts.generic.additionalProperties.value	_parts
 gen_ai.tool.call.arguments	_tool_call_arguments
+gen_ai.tool.call.arguments.value	_tool_call_arguments
 gen_ai.tool.call.result	_tool_call_result
+gen_ai.tool.call.result.value	_tool_call_result
 gen_ai.memory.records	_memory_records
+gen_ai.memory.records.id	_memory_records
 gen_ai.memory.records.content	_memory_records
+gen_ai.memory.records.content.value	_memory_records
 gen_ai.memory.records.metadata	_memory_records
+gen_ai.memory.records.metadata.value	_memory_records
 gen_ai.memory.records.additionalProperties	_memory_records
+gen_ai.memory.records.additionalProperties.value	_memory_records
 gen_ai.retrieval.documents	_retrieval_documents
+gen_ai.retrieval.documents.id	_retrieval_documents
 gen_ai.retrieval.documents.additionalProperties	_retrieval_documents
+gen_ai.retrieval.documents.additionalProperties.value	_retrieval_documents
 Cases
 Case	Checks	Rules
-conformance/otlp/spans	the eight on a span	M1; M2; M3; M4; M5
-conformance/otlp/logRecords	the eight on an event	M1; M2; M3; M4; M5; M17
-conformance/gen_ai.system_instructions/gen_ai.system_instructions.text	gen_ai.system_instructions.text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.system_instructions/gen_ai.system_instructions.text.additionalProperties	gen_ai.system_instructions.text.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic	gen_ai.system_instructions.generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic.additionalProperties	gen_ai.system_instructions.generic.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function	gen_ai.tool.definitions.function	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.parameters	gen_ai.tool.definitions.function.parameters	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.additionalProperties	gen_ai.tool.definitions.function.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic	gen_ai.tool.definitions.generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic.additionalProperties	gen_ai.tool.definitions.generic.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages	gen_ai.input.messages	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.additionalProperties	gen_ai.input.messages.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text	gen_ai.input.messages.parts.text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text.additionalProperties	gen_ai.input.messages.parts.text.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call	gen_ai.input.messages.parts.tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.arguments	gen_ai.input.messages.parts.tool_call.arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.additionalProperties	gen_ai.input.messages.parts.tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response	gen_ai.input.messages.parts.tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.response	gen_ai.input.messages.parts.tool_call_response.response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.additionalProperties	gen_ai.input.messages.parts.tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call	gen_ai.input.messages.parts.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call	gen_ai.input.messages.parts.server_tool_call.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob	gen_ai.input.messages.parts.blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.additionalProperties	gen_ai.input.messages.parts.blob.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file	gen_ai.input.messages.parts.file	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.additionalProperties	gen_ai.input.messages.parts.file.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri	gen_ai.input.messages.parts.uri	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.additionalProperties	gen_ai.input.messages.parts.uri.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning	gen_ai.input.messages.parts.reasoning	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning.additionalProperties	gen_ai.input.messages.parts.reasoning.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction	gen_ai.input.messages.parts.compaction	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction.additionalProperties	gen_ai.input.messages.parts.compaction.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic	gen_ai.input.messages.parts.generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic.additionalProperties	gen_ai.input.messages.parts.generic.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages	gen_ai.output.messages	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.additionalProperties	gen_ai.output.messages.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text	gen_ai.output.messages.parts.text	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text.additionalProperties	gen_ai.output.messages.parts.text.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call	gen_ai.output.messages.parts.tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.arguments	gen_ai.output.messages.parts.tool_call.arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.additionalProperties	gen_ai.output.messages.parts.tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response	gen_ai.output.messages.parts.tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.response	gen_ai.output.messages.parts.tool_call_response.response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.additionalProperties	gen_ai.output.messages.parts.tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call	gen_ai.output.messages.parts.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call	gen_ai.output.messages.parts.server_tool_call.server_tool_call	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob	gen_ai.output.messages.parts.blob	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.additionalProperties	gen_ai.output.messages.parts.blob.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file	gen_ai.output.messages.parts.file	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.additionalProperties	gen_ai.output.messages.parts.file.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri	gen_ai.output.messages.parts.uri	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.additionalProperties	gen_ai.output.messages.parts.uri.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning	gen_ai.output.messages.parts.reasoning	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning.additionalProperties	gen_ai.output.messages.parts.reasoning.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction	gen_ai.output.messages.parts.compaction	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction.additionalProperties	gen_ai.output.messages.parts.compaction.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic	gen_ai.output.messages.parts.generic	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic.additionalProperties	gen_ai.output.messages.parts.generic.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.call.arguments/gen_ai.tool.call.arguments	gen_ai.tool.call.arguments	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.tool.call.result/gen_ai.tool.call.result	gen_ai.tool.call.result	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.memory.records/gen_ai.memory.records	gen_ai.memory.records	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.memory.records/gen_ai.memory.records.content	gen_ai.memory.records.content	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.memory.records/gen_ai.memory.records.metadata	gen_ai.memory.records.metadata	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.memory.records/gen_ai.memory.records.additionalProperties	gen_ai.memory.records.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents	gen_ai.retrieval.documents	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
-conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents.additionalProperties	gen_ai.retrieval.documents.additionalProperties	M6; M7; M8; M9; M10; M11; M12; M13; M14; M15; M16; M18; M19
+conformance/otlp/spans	the eight on a span	file.1; file.2; file.3; record.1; set.1; node.1; node.3
+conformance/otlp/logRecords	the eight on an event	file.1; file.2; file.3; record.1; set.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.text	gen_ai.system_instructions.text	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.text.content	gen_ai.system_instructions.text.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.text.additionalProperties	gen_ai.system_instructions.text.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.text.additionalProperties.value	gen_ai.system_instructions.text.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic	gen_ai.system_instructions.generic	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic.type	gen_ai.system_instructions.generic.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic.additionalProperties	gen_ai.system_instructions.generic.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.system_instructions/gen_ai.system_instructions.generic.additionalProperties.value	gen_ai.system_instructions.generic.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function	gen_ai.tool.definitions.function	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.name	gen_ai.tool.definitions.function.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.description	gen_ai.tool.definitions.function.description	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.parameters	gen_ai.tool.definitions.function.parameters	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.parameters.value	gen_ai.tool.definitions.function.parameters.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.additionalProperties	gen_ai.tool.definitions.function.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.function.additionalProperties.value	gen_ai.tool.definitions.function.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic	gen_ai.tool.definitions.generic	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic.type	gen_ai.tool.definitions.generic.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic.name	gen_ai.tool.definitions.generic.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic.additionalProperties	gen_ai.tool.definitions.generic.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.definitions/gen_ai.tool.definitions.generic.additionalProperties.value	gen_ai.tool.definitions.generic.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages	gen_ai.input.messages	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.role	gen_ai.input.messages.role	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.name	gen_ai.input.messages.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.additionalProperties	gen_ai.input.messages.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.additionalProperties.value	gen_ai.input.messages.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text	gen_ai.input.messages.parts.text	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text.content	gen_ai.input.messages.parts.text.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text.additionalProperties	gen_ai.input.messages.parts.text.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.text.additionalProperties.value	gen_ai.input.messages.parts.text.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call	gen_ai.input.messages.parts.tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.id	gen_ai.input.messages.parts.tool_call.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.name	gen_ai.input.messages.parts.tool_call.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.arguments	gen_ai.input.messages.parts.tool_call.arguments	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.arguments.value	gen_ai.input.messages.parts.tool_call.arguments.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.additionalProperties	gen_ai.input.messages.parts.tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call.additionalProperties.value	gen_ai.input.messages.parts.tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response	gen_ai.input.messages.parts.tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.id	gen_ai.input.messages.parts.tool_call_response.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.response	gen_ai.input.messages.parts.tool_call_response.response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.response.value	gen_ai.input.messages.parts.tool_call_response.response.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.additionalProperties	gen_ai.input.messages.parts.tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.tool_call_response.additionalProperties.value	gen_ai.input.messages.parts.tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call	gen_ai.input.messages.parts.server_tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.id	gen_ai.input.messages.parts.server_tool_call.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.name	gen_ai.input.messages.parts.server_tool_call.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call	gen_ai.input.messages.parts.server_tool_call.server_tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call.type	gen_ai.input.messages.parts.server_tool_call.server_tool_call.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.additionalProperties	gen_ai.input.messages.parts.server_tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call.additionalProperties.value	gen_ai.input.messages.parts.server_tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.id	gen_ai.input.messages.parts.server_tool_call_response.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.type	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	gen_ai.input.messages.parts.server_tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.server_tool_call_response.additionalProperties.value	gen_ai.input.messages.parts.server_tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob	gen_ai.input.messages.parts.blob	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.mime_type	gen_ai.input.messages.parts.blob.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.modality	gen_ai.input.messages.parts.blob.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.content	gen_ai.input.messages.parts.blob.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.additionalProperties	gen_ai.input.messages.parts.blob.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.blob.additionalProperties.value	gen_ai.input.messages.parts.blob.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file	gen_ai.input.messages.parts.file	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.mime_type	gen_ai.input.messages.parts.file.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.modality	gen_ai.input.messages.parts.file.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.file_id	gen_ai.input.messages.parts.file.file_id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.additionalProperties	gen_ai.input.messages.parts.file.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.file.additionalProperties.value	gen_ai.input.messages.parts.file.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri	gen_ai.input.messages.parts.uri	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.mime_type	gen_ai.input.messages.parts.uri.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.modality	gen_ai.input.messages.parts.uri.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.uri	gen_ai.input.messages.parts.uri.uri	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.additionalProperties	gen_ai.input.messages.parts.uri.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.uri.additionalProperties.value	gen_ai.input.messages.parts.uri.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning	gen_ai.input.messages.parts.reasoning	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning.content	gen_ai.input.messages.parts.reasoning.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning.additionalProperties	gen_ai.input.messages.parts.reasoning.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.reasoning.additionalProperties.value	gen_ai.input.messages.parts.reasoning.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction	gen_ai.input.messages.parts.compaction	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction.id	gen_ai.input.messages.parts.compaction.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction.content	gen_ai.input.messages.parts.compaction.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction.additionalProperties	gen_ai.input.messages.parts.compaction.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.compaction.additionalProperties.value	gen_ai.input.messages.parts.compaction.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic	gen_ai.input.messages.parts.generic	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic.type	gen_ai.input.messages.parts.generic.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic.additionalProperties	gen_ai.input.messages.parts.generic.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.input.messages/gen_ai.input.messages.parts.generic.additionalProperties.value	gen_ai.input.messages.parts.generic.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages	gen_ai.output.messages	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.role	gen_ai.output.messages.role	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.name	gen_ai.output.messages.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.finish_reason	gen_ai.output.messages.finish_reason	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.additionalProperties	gen_ai.output.messages.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.additionalProperties.value	gen_ai.output.messages.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text	gen_ai.output.messages.parts.text	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text.content	gen_ai.output.messages.parts.text.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text.additionalProperties	gen_ai.output.messages.parts.text.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.text.additionalProperties.value	gen_ai.output.messages.parts.text.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call	gen_ai.output.messages.parts.tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.id	gen_ai.output.messages.parts.tool_call.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.name	gen_ai.output.messages.parts.tool_call.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.arguments	gen_ai.output.messages.parts.tool_call.arguments	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.arguments.value	gen_ai.output.messages.parts.tool_call.arguments.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.additionalProperties	gen_ai.output.messages.parts.tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call.additionalProperties.value	gen_ai.output.messages.parts.tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response	gen_ai.output.messages.parts.tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.id	gen_ai.output.messages.parts.tool_call_response.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.response	gen_ai.output.messages.parts.tool_call_response.response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.response.value	gen_ai.output.messages.parts.tool_call_response.response.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.additionalProperties	gen_ai.output.messages.parts.tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.tool_call_response.additionalProperties.value	gen_ai.output.messages.parts.tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call	gen_ai.output.messages.parts.server_tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.id	gen_ai.output.messages.parts.server_tool_call.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.name	gen_ai.output.messages.parts.server_tool_call.name	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call	gen_ai.output.messages.parts.server_tool_call.server_tool_call	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call.type	gen_ai.output.messages.parts.server_tool_call.server_tool_call.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.additionalProperties	gen_ai.output.messages.parts.server_tool_call.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call.additionalProperties.value	gen_ai.output.messages.parts.server_tool_call.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.id	gen_ai.output.messages.parts.server_tool_call_response.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.type	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	gen_ai.output.messages.parts.server_tool_call_response.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.server_tool_call_response.additionalProperties.value	gen_ai.output.messages.parts.server_tool_call_response.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob	gen_ai.output.messages.parts.blob	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.mime_type	gen_ai.output.messages.parts.blob.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.modality	gen_ai.output.messages.parts.blob.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.content	gen_ai.output.messages.parts.blob.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.additionalProperties	gen_ai.output.messages.parts.blob.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.blob.additionalProperties.value	gen_ai.output.messages.parts.blob.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file	gen_ai.output.messages.parts.file	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.mime_type	gen_ai.output.messages.parts.file.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.modality	gen_ai.output.messages.parts.file.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.file_id	gen_ai.output.messages.parts.file.file_id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.additionalProperties	gen_ai.output.messages.parts.file.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.file.additionalProperties.value	gen_ai.output.messages.parts.file.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri	gen_ai.output.messages.parts.uri	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.mime_type	gen_ai.output.messages.parts.uri.mime_type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.modality	gen_ai.output.messages.parts.uri.modality	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.uri	gen_ai.output.messages.parts.uri.uri	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.additionalProperties	gen_ai.output.messages.parts.uri.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.uri.additionalProperties.value	gen_ai.output.messages.parts.uri.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning	gen_ai.output.messages.parts.reasoning	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning.content	gen_ai.output.messages.parts.reasoning.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning.additionalProperties	gen_ai.output.messages.parts.reasoning.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.reasoning.additionalProperties.value	gen_ai.output.messages.parts.reasoning.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction	gen_ai.output.messages.parts.compaction	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction.id	gen_ai.output.messages.parts.compaction.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction.content	gen_ai.output.messages.parts.compaction.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction.additionalProperties	gen_ai.output.messages.parts.compaction.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.compaction.additionalProperties.value	gen_ai.output.messages.parts.compaction.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic	gen_ai.output.messages.parts.generic	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic.type	gen_ai.output.messages.parts.generic.type	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic.additionalProperties	gen_ai.output.messages.parts.generic.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.output.messages/gen_ai.output.messages.parts.generic.additionalProperties.value	gen_ai.output.messages.parts.generic.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.call.arguments/gen_ai.tool.call.arguments	gen_ai.tool.call.arguments	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.call.arguments/gen_ai.tool.call.arguments.value	gen_ai.tool.call.arguments.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.call.result/gen_ai.tool.call.result	gen_ai.tool.call.result	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.tool.call.result/gen_ai.tool.call.result.value	gen_ai.tool.call.result.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records	gen_ai.memory.records	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.id	gen_ai.memory.records.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.content	gen_ai.memory.records.content	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.content.value	gen_ai.memory.records.content.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.metadata	gen_ai.memory.records.metadata	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.metadata.value	gen_ai.memory.records.metadata.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.additionalProperties	gen_ai.memory.records.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.memory.records/gen_ai.memory.records.additionalProperties.value	gen_ai.memory.records.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents	gen_ai.retrieval.documents	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents.id	gen_ai.retrieval.documents.id	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents.additionalProperties	gen_ai.retrieval.documents.additionalProperties	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
+conformance/gen_ai.retrieval.documents/gen_ai.retrieval.documents.additionalProperties.value	gen_ai.retrieval.documents.additionalProperties.value	file.4; set.2; item.1; item.2; field.1; nested.1; nested.2; nested.3; node.1; node.2; node.3; text.1; line.1; character.1
 Modules
 Module	Level	Secret	Uses	Mapping
-_relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	M8; M9; M10; M11; M13; M14; M15; M16; M17; M18; M19
-_parts	2	the message part types, shared by the schemas that repeat them	_relations	M6; M7; M12; M16
-_system_instructions	3	the system instructions schema	_parts; _relations	M6; M7; M12; M16
-_tool_definitions	3	the tool definitions schema	_relations	M6; M7; M12; M16
-_input_messages	3	the input messages schema	_parts; _relations	M6; M7; M12; M16
-_output_messages	3	the output messages schema	_parts; _relations	M6; M7; M12; M16
-_tool_call_arguments	3	the tool call arguments schema	_relations	M6; M7; M12; M16
-_tool_call_result	3	the tool call result schema	_relations	M6; M7; M12; M16
-_memory_records	3	the memory records schema	_relations	M6; M7; M12; M16
-_retrieval_documents	3	the retrieval documents schema	_relations	M6; M7; M12; M16
+_relations	1	how a value becomes keyed sheets: child sheets, keys, positions, values of any shape, numbers as written, values MTSV cannot represent not written	mtsv	nested.1; item.2; node.1; nested.2; node.2; node.3; character.1; nested.3; file.4; text.1; line.1
+_parts	2	the message part types, shared by the schemas that repeat them	_relations	set.2; item.1; field.1; nested.3
+_system_instructions	3	the system instructions schema	_parts; _relations	set.2; item.1; field.1; nested.3
+_tool_definitions	3	the tool definitions schema	_relations	set.2; item.1; field.1; nested.3
+_input_messages	3	the input messages schema	_parts; _relations	set.2; item.1; field.1; nested.3
+_output_messages	3	the output messages schema	_parts; _relations	set.2; item.1; field.1; nested.3
+_tool_call_arguments	3	the tool call arguments schema	_relations	set.2; item.1; field.1; nested.3
+_tool_call_result	3	the tool call result schema	_relations	set.2; item.1; field.1; nested.3
+_memory_records	3	the memory records schema	_relations	set.2; item.1; field.1; nested.3
+_retrieval_documents	3	the retrieval documents schema	_relations	set.2; item.1; field.1; nested.3
 integrations/__init__	4	which reader reads which input	integrations/otlp_json; integrations/providers/__init__	
-integrations/otlp_json	4	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 3	M1; M2; M3; M4; M5
+integrations/otlp_json	4	how an OTLP JSON Lines file is read, and where the eight are on its spans and events	level 3	file.1; file.2; file.3; record.1; set.1
 integrations/providers/__init__	4	which provider formats exist	level 3	
 _command	5	how a person runs a conversion	integrations/__init__	
 __main__	5	the command's entry point	_command	
@@ -284,9 +543,9 @@ LICENSE	file	the MIT licence text	Project › Licensing › LICENSE
 SECURITY.md	file	how to report a vulnerability	Project › Documentation › SECURITY
 .gitattributes	file	line endings of .mtsv and .jsonl	Project › Repository › .gitattributes
 .gitignore	file	the entries	Project › Repository › .gitignore
-WORKING-RECORD.mtsv	file	this record: structure and mapping	Architecture › Map
+WORKING-RECORD.mtsv	file	this record: the eight against the pattern, the context around them, then the mapping and the structure	Architecture › Map
 spec/	folder	stating the mapping	Architecture › Concerns; Project › Repository › mtsv top-level layout
-spec/living-memory.mtsv	file	the rules, and the sheets with their columns, in normal form	Content › Integrations; Content › Format
+spec/living-memory.mtsv	file	the Pattern, the Rules by level, and the Sheets with their columns	Content › Integrations; Content › Format
 conformance/	folder	checking the mapping; no language, no provider	Project › Repository › mtsv top-level layout
 conformance/README.md	file	how the cases are laid out	Content › Conformance
 conformance/otlp/	folder	the carrier: one case per kind of record, span and log record	Content › Conformance

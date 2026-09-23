@@ -26,7 +26,8 @@ own, and the mapping names no provider.
 
 `spec/living-memory.mtsv` states the mapping: each rule, and each sheet
 with its columns. `WORKING-RECORD.mtsv` lays out the project around it:
-what each rule derives from, the modules, the files and the cases.
+the pattern the eight share and the context around them, then what each
+rule derives from, the modules, the files and the cases.
 
 ## Conformance
 

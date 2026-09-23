@@ -5,7 +5,7 @@ input, `name.jsonl`, an OpenTelemetry Protocol (OTLP) JSON Lines file, and
 its expected output, `name.mtsv`. An implementation must convert the input
 to MTSV sheets equal to those of the expected file. Every expected file
 holds every sheet of the mapping, in the order of the Sheets of
-`spec/living-memory.mtsv`, each with its header (M18).
+`spec/living-memory.mtsv`, each with its header (file.4).
 
 | Folder                            | Cases                                          |
 |-----------------------------------|------------------------------------------------|

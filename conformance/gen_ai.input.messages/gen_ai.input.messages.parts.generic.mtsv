@@ -1,156 +1,356 @@
 gen_ai.system_instructions.text
-traceId	spanId	pointer	content
+record	pointer	content
+gen_ai.system_instructions.text.content
+record	pointer	line	value
 gen_ai.system_instructions.text.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.system_instructions.text.additionalProperties.value
+record	pointer	line	value
 gen_ai.system_instructions.generic
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.system_instructions.generic.type
+record	pointer	line	value
 gen_ai.system_instructions.generic.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.system_instructions.generic.additionalProperties.value
+record	pointer	line	value
 gen_ai.tool.definitions.function
-traceId	spanId	pointer	name	description
+record	pointer	name	description
+gen_ai.tool.definitions.function.name
+record	pointer	line	value
+gen_ai.tool.definitions.function.description
+record	pointer	line	value
 gen_ai.tool.definitions.function.parameters
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.tool.definitions.function.parameters.value
+record	pointer	line	value
 gen_ai.tool.definitions.function.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.tool.definitions.function.additionalProperties.value
+record	pointer	line	value
 gen_ai.tool.definitions.generic
-traceId	spanId	pointer	type	name
+record	pointer	type	name
+gen_ai.tool.definitions.generic.type
+record	pointer	line	value
+gen_ai.tool.definitions.generic.name
+record	pointer	line	value
 gen_ai.tool.definitions.generic.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.tool.definitions.generic.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages
-traceId	spanId	pointer	role	name
-5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0	user	
+record	pointer	role	name
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0	user	
+gen_ai.input.messages.role
+record	pointer	line	value
+gen_ai.input.messages.name
+record	pointer	line	value
 gen_ai.input.messages.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.text
-traceId	spanId	pointer	content
+record	pointer	content
+gen_ai.input.messages.parts.text.content
+record	pointer	line	value
 gen_ai.input.messages.parts.text.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.text.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call
-traceId	spanId	pointer	id	name
+record	pointer	id	name
+gen_ai.input.messages.parts.tool_call.id
+record	pointer	line	value
+gen_ai.input.messages.parts.tool_call.name
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call.arguments
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.tool_call.arguments.value
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call_response
-traceId	spanId	pointer	id
+record	pointer	id
+gen_ai.input.messages.parts.tool_call_response.id
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call_response.response
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.tool_call_response.response.value
+record	pointer	line	value
 gen_ai.input.messages.parts.tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call
-traceId	spanId	pointer	id	name
+record	pointer	id	name
+gen_ai.input.messages.parts.server_tool_call.id
+record	pointer	line	value
+gen_ai.input.messages.parts.server_tool_call.name
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call.server_tool_call
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.type
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.server_tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call_response
-traceId	spanId	pointer	id
+record	pointer	id
+gen_ai.input.messages.parts.server_tool_call_response.id
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.type
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.server_tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.blob
-traceId	spanId	pointer	mime_type	modality	content
+record	pointer	mime_type	modality	content
+gen_ai.input.messages.parts.blob.mime_type
+record	pointer	line	value
+gen_ai.input.messages.parts.blob.modality
+record	pointer	line	value
+gen_ai.input.messages.parts.blob.content
+record	pointer	line	value
 gen_ai.input.messages.parts.blob.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.blob.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.file
-traceId	spanId	pointer	mime_type	modality	file_id
+record	pointer	mime_type	modality	file_id
+gen_ai.input.messages.parts.file.mime_type
+record	pointer	line	value
+gen_ai.input.messages.parts.file.modality
+record	pointer	line	value
+gen_ai.input.messages.parts.file.file_id
+record	pointer	line	value
 gen_ai.input.messages.parts.file.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.file.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.uri
-traceId	spanId	pointer	mime_type	modality	uri
+record	pointer	mime_type	modality	uri
+gen_ai.input.messages.parts.uri.mime_type
+record	pointer	line	value
+gen_ai.input.messages.parts.uri.modality
+record	pointer	line	value
+gen_ai.input.messages.parts.uri.uri
+record	pointer	line	value
 gen_ai.input.messages.parts.uri.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.uri.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.reasoning
-traceId	spanId	pointer	content
+record	pointer	content
+gen_ai.input.messages.parts.reasoning.content
+record	pointer	line	value
 gen_ai.input.messages.parts.reasoning.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.reasoning.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.compaction
-traceId	spanId	pointer	id	content
+record	pointer	id	content
+gen_ai.input.messages.parts.compaction.id
+record	pointer	line	value
+gen_ai.input.messages.parts.compaction.content
+record	pointer	line	value
 gen_ai.input.messages.parts.compaction.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.compaction.additionalProperties.value
+record	pointer	line	value
 gen_ai.input.messages.parts.generic
-traceId	spanId	pointer	type
-5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174	/0/parts/0	refusal
+record	pointer	type
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0	refusal
+gen_ai.input.messages.parts.generic.type
+record	pointer	line	value
 gen_ai.input.messages.parts.generic.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.input.messages.parts.generic.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages
-traceId	spanId	pointer	role	name	finish_reason
+record	pointer	role	name	finish_reason
+gen_ai.output.messages.role
+record	pointer	line	value
+gen_ai.output.messages.name
+record	pointer	line	value
+gen_ai.output.messages.finish_reason
+record	pointer	line	value
 gen_ai.output.messages.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.text
-traceId	spanId	pointer	content
+record	pointer	content
+gen_ai.output.messages.parts.text.content
+record	pointer	line	value
 gen_ai.output.messages.parts.text.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.text.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call
-traceId	spanId	pointer	id	name
+record	pointer	id	name
+gen_ai.output.messages.parts.tool_call.id
+record	pointer	line	value
+gen_ai.output.messages.parts.tool_call.name
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call.arguments
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.tool_call.arguments.value
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response
-traceId	spanId	pointer	id
+record	pointer	id
+gen_ai.output.messages.parts.tool_call_response.id
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response.response
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.tool_call_response.response.value
+record	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call
-traceId	spanId	pointer	id	name
+record	pointer	id	name
+gen_ai.output.messages.parts.server_tool_call.id
+record	pointer	line	value
+gen_ai.output.messages.parts.server_tool_call.name
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call.server_tool_call
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.type
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.server_tool_call.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call_response
-traceId	spanId	pointer	id
+record	pointer	id
+gen_ai.output.messages.parts.server_tool_call_response.id
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.type
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.server_tool_call_response.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.server_tool_call_response.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.blob
-traceId	spanId	pointer	mime_type	modality	content
+record	pointer	mime_type	modality	content
+gen_ai.output.messages.parts.blob.mime_type
+record	pointer	line	value
+gen_ai.output.messages.parts.blob.modality
+record	pointer	line	value
+gen_ai.output.messages.parts.blob.content
+record	pointer	line	value
 gen_ai.output.messages.parts.blob.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.blob.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.file
-traceId	spanId	pointer	mime_type	modality	file_id
+record	pointer	mime_type	modality	file_id
+gen_ai.output.messages.parts.file.mime_type
+record	pointer	line	value
+gen_ai.output.messages.parts.file.modality
+record	pointer	line	value
+gen_ai.output.messages.parts.file.file_id
+record	pointer	line	value
 gen_ai.output.messages.parts.file.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.file.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.uri
-traceId	spanId	pointer	mime_type	modality	uri
+record	pointer	mime_type	modality	uri
+gen_ai.output.messages.parts.uri.mime_type
+record	pointer	line	value
+gen_ai.output.messages.parts.uri.modality
+record	pointer	line	value
+gen_ai.output.messages.parts.uri.uri
+record	pointer	line	value
 gen_ai.output.messages.parts.uri.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.uri.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.reasoning
-traceId	spanId	pointer	content
+record	pointer	content
+gen_ai.output.messages.parts.reasoning.content
+record	pointer	line	value
 gen_ai.output.messages.parts.reasoning.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.reasoning.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.compaction
-traceId	spanId	pointer	id	content
+record	pointer	id	content
+gen_ai.output.messages.parts.compaction.id
+record	pointer	line	value
+gen_ai.output.messages.parts.compaction.content
+record	pointer	line	value
 gen_ai.output.messages.parts.compaction.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.compaction.additionalProperties.value
+record	pointer	line	value
 gen_ai.output.messages.parts.generic
-traceId	spanId	pointer	type
+record	pointer	type
+gen_ai.output.messages.parts.generic.type
+record	pointer	line	value
 gen_ai.output.messages.parts.generic.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.output.messages.parts.generic.additionalProperties.value
+record	pointer	line	value
 gen_ai.tool.call.arguments
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.tool.call.arguments.value
+record	pointer	line	value
 gen_ai.tool.call.result
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.tool.call.result.value
+record	pointer	line	value
 gen_ai.memory.records
-traceId	spanId	pointer	id	score
+record	pointer	id	score
+gen_ai.memory.records.id
+record	pointer	line	value
 gen_ai.memory.records.content
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.memory.records.content.value
+record	pointer	line	value
 gen_ai.memory.records.metadata
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.memory.records.metadata.value
+record	pointer	line	value
 gen_ai.memory.records.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.memory.records.additionalProperties.value
+record	pointer	line	value
 gen_ai.retrieval.documents
-traceId	spanId	pointer	id	score
+record	pointer	id	score
+gen_ai.retrieval.documents.id
+record	pointer	line	value
 gen_ai.retrieval.documents.additionalProperties
-traceId	spanId	pointer	type	value
+record	pointer	type	value
+gen_ai.retrieval.documents.additionalProperties.value
+record	pointer	line	value
