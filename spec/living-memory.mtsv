@@ -5,7 +5,7 @@ envelope	the resourceSpans of a TracesData and the resourceLogs of a LogsData, e
 resource	a Resource: its attributes, dropped count and entity references	Z: a child sheet, one row
 scope	scopeSpans and scopeLogs, each with its schemaUrl and its scope: name, version, attributes	Z: child sheets
 record	a span or a log record: ids, times, name, kind, flags, severity, event name, dropped counts	Z: a sheet; Y: a row per record; X: its simple fields
-status, event, link	a span's status, events and links	Z: child sheets
+span	a span's status, events and links	Z: child sheets
 attributes	the key-value list of a resource, scope, span, event, link or log record: unordered, identified by key	Z: a sheet per owner; X: key; the value by the node rules
 body	a log record's body, a value of any shape	Z: a node sheet
 set	one of the 8, on a span or a log record, structured or a JSON string	Z: sheets of its own, never in attributes
