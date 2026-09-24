@@ -1,8 +1,9 @@
 """Which reader reads which input."""
 
-__all__ = ["load", "lookup", "JSONL"]
+__all__ = ["load", "lookup", "lookup_directory", "JSONL"]
 
 import importlib
+from pathlib import Path
 from types import ModuleType
 from typing import Any, BinaryIO
 
@@ -27,6 +28,14 @@ def lookup(suffix: str) -> ModuleType:
 
     Raise LookupError for an extension that names no format.
     """
-    if suffix in _MODULES:
-        return importlib.import_module(f"{__name__}.{_MODULES[suffix]}")
-    return providers.lookup(suffix)
+    if suffix not in _MODULES:
+        raise LookupError(f"no format for {suffix!r}")
+    return importlib.import_module(f"{__name__}.{_MODULES[suffix]}")
+
+
+def lookup_directory(directory: Path) -> ModuleType:
+    """Return the module of the provider whose directory this is.
+
+    Raise LookupError for a directory of no provider.
+    """
+    return providers.lookup(directory)

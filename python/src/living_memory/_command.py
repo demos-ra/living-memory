@@ -44,7 +44,10 @@ def run(argv: list[str] | None = None) -> None:
 def _build_parser() -> _Parser:
     parser = _Parser(
         prog=_PROG,
-        description="Convert an OTLP JSON Lines file to MTSV sheets.",
+        description=(
+            "Convert an OTLP JSON Lines file, or a provider's directory,"
+            " to MTSV sheets."
+        ),
     )
     parser.add_argument("input", type=Path)
     parser.add_argument("operand", type=Path, nargs="?", metavar="output")
@@ -80,10 +83,18 @@ def _output(args: argparse.Namespace, parser: _Parser) -> Path:
 def _format(path: Path, parser: _Parser) -> str:
     source = integrations.JSONL if path == _STDIO else path.suffix
     try:
-        integrations.lookup(source)
+        if _is_directory(path):
+            integrations.lookup_directory(path)
+        else:
+            integrations.lookup(source)
     except LookupError as error:
         parser.error(str(error))
     return source
+
+
+def _is_directory(path: Path) -> bool:
+    # A file is read by its extension, a directory by its provider.
+    return path != _STDIO and path.is_dir()
 
 
 def _convert(path: Path, output: Path, source: str) -> None:
@@ -103,6 +114,8 @@ def _convert(path: Path, output: Path, source: str) -> None:
 
 
 def _read(source: str, path: Path) -> list[dict[str, Any]]:
+    if _is_directory(path):
+        return integrations.lookup_directory(path).load(path)
     if path == _STDIO:
         data = sys.stdin.buffer.read()
     else:

@@ -1,4 +1,4 @@
-"""Tests of integrations/providers/anthropic: Claude Code's record, rule by rule."""
+"""Tests of providers/anthropic: Claude Code's raw API bodies, rule by rule."""
 
 import json
 import tempfile
@@ -72,7 +72,7 @@ ENTRY = {
 }
 
 
-def record(directory, entries, documents):
+def raw_api_bodies(directory, entries, documents):
     """Write an index of entries and the named documents into a directory."""
     folder = Path(directory)
     lines = "".join(json.dumps(entry) + "\n" for entry in entries)
@@ -86,7 +86,7 @@ def event(request=REQUEST, response=RESPONSE, entry=ENTRY):
     """The log record written for one call, and its attributes by key."""
     with tempfile.TemporaryDirectory() as directory:
         documents = {entry["request_file"]: request, entry["response_file"]: response}
-        record(directory, [entry], documents)
+        raw_api_bodies(directory, [entry], documents)
         (data,) = anthropic.logs_data(directory)
     (log_record,) = data["resourceLogs"][0]["scopeLogs"][0]["logRecords"]
     return log_record, {a["key"]: a["value"] for a in log_record["attributes"]}
@@ -156,7 +156,7 @@ class TestIndex(unittest.TestCase):
                 "b.request.json": REQUEST,
                 "req_1.response.json": RESPONSE,
             }
-            record(directory, [ENTRY, second], documents)
+            raw_api_bodies(directory, [ENTRY, second], documents)
             found = anthropic.logs_data(directory)
         ids = []
         for data in found:
@@ -197,7 +197,7 @@ class TestIndex(unittest.TestCase):
                         if not isinstance(document, str):
                             text = json.dumps(document)
                         (folder / name).write_text(text, encoding="utf-8")
-                    with self.assertRaises(anthropic.RecordDecodeError) as found:
+                    with self.assertRaises(anthropic.RawAPIBodiesDecodeError) as found:
                         anthropic.logs_data(directory)
                     expected = 2 if index.endswith("\n\n") else 1
                     self.assertEqual(found.exception.lineno, expected)
@@ -217,7 +217,7 @@ class TestEvent(unittest.TestCase):
         self.assertEqual(plain(attributes["gen_ai.operation.name"]), "chat")
         self.assertEqual(plain(attributes["gen_ai.provider.name"]), "anthropic")
 
-    def test_3_absent_where_the_record_holds_no_value(self):
+    def test_3_absent_where_the_raw_api_bodies_hold_no_value(self):
         _, attributes = event(request={"messages": []}, response={})
         self.assertNotIn("gen_ai.request.model", attributes)
         self.assertNotIn("gen_ai.response.finish_reasons", attributes)
@@ -472,7 +472,7 @@ class TestLoad(unittest.TestCase):
     def test_the_core_reads_what_the_reader_writes(self):
         with tempfile.TemporaryDirectory() as directory:
             documents = {"a.request.json": REQUEST, "req_1.response.json": RESPONSE}
-            record(directory, [ENTRY], documents)
+            raw_api_bodies(directory, [ENTRY], documents)
             sheets = {s["sheet name"]: s for s in anthropic.load(directory)}
         messages = sheets["gen_ai.input.messages"]["records"]
         self.assertEqual([row[2] for row in messages], ["user", "assistant", "user"])

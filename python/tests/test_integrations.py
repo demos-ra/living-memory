@@ -1,10 +1,13 @@
 """Tests of integrations/__init__: which reader reads which input."""
 
 import io
+import tempfile
 import unittest
+from pathlib import Path
 
 from living_memory import integrations
 from living_memory.integrations import otlp_json
+from living_memory.integrations.providers import anthropic
 
 
 class TestLookup(unittest.TestCase):
@@ -14,6 +17,14 @@ class TestLookup(unittest.TestCase):
     def test_unknown(self):
         with self.assertRaises(LookupError):
             integrations.lookup(".x")
+
+    def test_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            with self.assertRaises(LookupError):
+                integrations.lookup_directory(folder)
+            (folder / "index.jsonl").write_text("", encoding="utf-8")
+            self.assertIs(integrations.lookup_directory(folder), anthropic)
 
 
 class TestLoad(unittest.TestCase):

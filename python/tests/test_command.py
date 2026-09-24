@@ -90,6 +90,19 @@ class TestRun(unittest.TestCase):
         code = run([str(missing)])[0]
         self.assertEqual(code, f"living-memory: {missing}: no such file or directory")
 
+    def test_provider_directory(self):
+        directory = Path(self.folder.name) / "bodies"
+        directory.mkdir()
+        (directory / "index.jsonl").write_text("", encoding="utf-8")
+        self.assertEqual(run([str(directory)])[0], 0)
+        with directory.with_suffix(".mtsv").open("rb") as file:
+            self.assertEqual(mtsv.load(file), otlp_json.loads(""))
+
+    def test_directory_of_no_provider(self):
+        code, _, stderr = run([self.folder.name])
+        self.assertEqual(code, 2)
+        self.assertIn("living-memory: no provider for", stderr)
+
     def test_version(self):
         code, stdout, _ = run(["--version"])
         self.assertEqual(code, 0)

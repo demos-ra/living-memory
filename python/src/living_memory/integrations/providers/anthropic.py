@@ -1,6 +1,6 @@
-"""How Claude Code's record of Messages API calls is read."""
+"""How Claude Code's raw API bodies of Messages API calls are read."""
 
-__all__ = ["load", "logs_data", "RecordDecodeError"]
+__all__ = ["load", "logs_data", "RawAPIBodiesDecodeError"]
 
 import json
 import math
@@ -73,7 +73,7 @@ _SOURCES = {
 _Attributes = list[dict[str, Any]]
 
 
-class RecordDecodeError(ValueError):
+class RawAPIBodiesDecodeError(ValueError):
     """Subclass of ValueError with the following additional properties:
 
     msg: The unformatted error message
@@ -90,9 +90,9 @@ class RecordDecodeError(ValueError):
 
 
 def load(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
-    """Read MTSV sheets from the directory Claude Code writes its record in.
+    """Read MTSV sheets from the directory of Claude Code's raw API bodies.
 
-    Raise RecordDecodeError for a record that does not conform.
+    Raise RawAPIBodiesDecodeError for raw API bodies that do not conform.
     """
     # anthropic.mtsv › conformance.1.
     lines = "".join(_encode(data) + "\n" for data in logs_data(path))
@@ -100,9 +100,9 @@ def load(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
 
 
 def logs_data(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
-    """Return one LogsData for each line of the record's index.
+    """Return one LogsData for each line of the raw API bodies' index.
 
-    Raise RecordDecodeError for a record that does not conform.
+    Raise RawAPIBodiesDecodeError for raw API bodies that do not conform.
     """
     # anthropic.mtsv › index.1, index.4.
     directory = Path(path)
@@ -111,7 +111,7 @@ def logs_data(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
         try:
             found.append(_logs_data(*_documents(directory, line)))
         except ValueError as error:
-            raise RecordDecodeError(str(error), index + 1) from None
+            raise RawAPIBodiesDecodeError(str(error), index + 1) from None
     return found
 
 
@@ -165,8 +165,8 @@ def _logs_data(
     attributes += _index_attributes(entry)
     attributes += _request_attributes(request)
     attributes += _response_attributes(response)
-    record = {"eventName": _EVENT, "attributes": attributes}
-    return {"resourceLogs": [{"scopeLogs": [{"logRecords": [record]}]}]}
+    log_record = {"eventName": _EVENT, "attributes": attributes}
+    return {"resourceLogs": [{"scopeLogs": [{"logRecords": [log_record]}]}]}
 
 
 def _index_attributes(entry: dict[str, Any]) -> _Attributes:
@@ -400,7 +400,7 @@ def _server_tool_call_response(block: dict[str, Any]) -> dict[str, Any]:
 
 def _typed(key: str, value: Any, kind: str) -> _Attributes:
     # anthropic.mtsv › event.3, event.5: an attribute only where the
-    # record holds its value, of the Value Type its table gives.
+    # raw API bodies hold its value, of the Value Type its table gives.
     if value is None:
         return []
     return [_attribute(key, value, kind)]
@@ -486,7 +486,7 @@ def _array(value: Any, name: str) -> list[Any]:
 
 
 def _encode(value: Any) -> str:
-    # anthropic.mtsv › event.5: a number as the record writes it;
+    # anthropic.mtsv › event.5: a number as the raw API bodies write it;
     # RFC 8259.
     if isinstance(value, Number):
         return str(value)
