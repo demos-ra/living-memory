@@ -1,32 +1,25 @@
-"""How Claude Code's raw API bodies of Messages API calls are read."""
+"""How a Messages API call becomes the attributes of an event."""
 
-__all__ = ["load", "logs_data", "RawAPIBodiesDecodeError"]
+__all__ = ["attribute", "attributes"]
 
-import json
 import math
-import os
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
-from living_memory._json import Number, decode
-from living_memory.integrations import otlp_json
+from living_memory._json import Number
 
-# anthropic.mtsv › index.1.
-_INDEX = "index.jsonl"
-# anthropic.mtsv › event.1.
-_EVENT = "gen_ai.client.inference.operation.details"
-# anthropic.mtsv › event.2.
+# messages.mtsv › event.1.
 _OPERATION = "chat"
 _PROVIDER = "anthropic"
-# anthropic.mtsv › index.2, request.6, response.4.
-_INDEX_NAMESPACE = "anthropic.claude_code."
+# messages.mtsv › request.6, response.4.
 _REQUEST_NAMESPACE = "anthropic.request."
 _RESPONSE_NAMESPACE = "anthropic.response."
-# anthropic.mtsv › event.5: OTEL-COMMON, Integer Values.
+# messages.mtsv › event.4: OTEL-COMMON, Integer Values.
 _INT64 = (-(2**63), 2**63 - 1)
+# messages.mtsv › event.6.
+_COMPACTION = "compaction"
 
-# anthropic.mtsv › request.1: member, attribute and Value Type.
+# messages.mtsv › request.1: member, attribute and Value Type.
 _REQUEST = (
     ("model", "gen_ai.request.model", "string"),
     ("max_tokens", "gen_ai.request.max_tokens", "int"),
@@ -35,12 +28,12 @@ _REQUEST = (
     ("top_p", "gen_ai.request.top_p", "double"),
     ("stop_sequences", "gen_ai.request.stop_sequences", "string[]"),
 )
-# anthropic.mtsv › response.1.
+# messages.mtsv › response.1.
 _RESPONSE = (
     ("id", "gen_ai.response.id", "string"),
     ("model", "gen_ai.response.model", "string"),
 )
-# anthropic.mtsv › response.2.
+# messages.mtsv › response.2.
 _USAGE = (
     ("cache_read_input_tokens", "gen_ai.usage.cache_read.input_tokens"),
     ("cache_creation_input_tokens", "gen_ai.usage.cache_write.input_tokens"),
@@ -51,7 +44,7 @@ _INPUT_TOKENS = (
     "cache_creation_input_tokens",
     "cache_read_input_tokens",
 )
-# anthropic.mtsv › block.8.
+# messages.mtsv › block.8.
 _SERVER_TOOL_RESULTS = frozenset(
     {
         "web_search_tool_result",
@@ -62,7 +55,7 @@ _SERVER_TOOL_RESULTS = frozenset(
         "tool_search_tool_result",
     }
 )
-# anthropic.mtsv › block.3: source type, part type, member taken, and
+# messages.mtsv › block.3: source type, part type, member taken, and
 # the part's name for it.
 _SOURCES = {
     "base64": ("blob", "data", "content"),
@@ -71,113 +64,53 @@ _SOURCES = {
 }
 
 _Attributes = list[dict[str, Any]]
+_Document = dict[str, Any] | None
 
 
-class RawAPIBodiesDecodeError(ValueError):
-    """Subclass of ValueError with the following additional properties:
+def attributes(request: _Document, response: _Document) -> _Attributes:
+    """Return the event's attributes for a request and its response.
 
-    msg: The unformatted error message
-    lineno: The line of the index, the first being line 1
+    A request or response that was not recorded is None.
+    Raise ValueError for a request or response that does not conform.
     """
-
-    def __init__(self, msg: str, lineno: int) -> None:
-        super().__init__(f"{msg}: line {lineno}")
-        self.msg = msg
-        self.lineno = lineno
-
-    def __reduce__(self) -> tuple[type, tuple[str, int]]:
-        return self.__class__, (self.msg, self.lineno)
-
-
-def load(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
-    """Read MTSV sheets from the directory of Claude Code's raw API bodies.
-
-    Raise RawAPIBodiesDecodeError for raw API bodies that do not conform.
-    """
-    # anthropic.mtsv › conformance.1.
-    lines = "".join(_encode(data) + "\n" for data in logs_data(path))
-    return otlp_json.loads(lines)
-
-
-def logs_data(path: str | os.PathLike[str], /) -> list[dict[str, Any]]:
-    """Return one LogsData for each line of the raw API bodies' index.
-
-    Raise RawAPIBodiesDecodeError for raw API bodies that do not conform.
-    """
-    # anthropic.mtsv › index.1, index.4.
-    directory = Path(path)
-    found = []
-    for index, line in enumerate(_index_lines(directory)):
-        try:
-            found.append(_logs_data(*_documents(directory, line)))
-        except ValueError as error:
-            raise RawAPIBodiesDecodeError(str(error), index + 1) from None
-    return found
-
-
-def _index_lines(directory: Path) -> list[bytes]:
-    # anthropic.mtsv › index.1; JSON Lines, 3. Line Terminator is '\n'.
-    found = (directory / _INDEX).read_bytes().split(b"\n")
-    if found[-1] == b"":
-        found.pop()
-    return found
-
-
-def _documents(
-    directory: Path, line: bytes
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    # anthropic.mtsv › index.1, index.4.
-    entry = _object(line, "an index line")
-    request = _object(_file(directory, entry.get("request_file")), "a request")
-    response = _object(_file(directory, entry.get("response_file")), "a response")
-    return entry, request, response
-
-
-def _file(directory: Path, name: Any) -> bytes:
-    # anthropic.mtsv › index.1: a path that is not absolute is in <dir>.
-    if not isinstance(name, str):
-        raise ValueError(f"{name!r} names no file")
-    try:
-        return (directory / name).read_bytes()
-    except OSError as error:
-        raise ValueError(f"{name}: {error.strerror}") from None
-
-
-def _object(data: bytes, what: str) -> dict[str, Any]:
-    # anthropic.mtsv › index.4.
-    try:
-        value = decode(data.decode("utf-8"))
-    except ValueError:
-        raise ValueError(f"{what} is not JSON") from None
-    if not isinstance(value, dict):
-        raise ValueError(f"{what} is not a JSON object")
-    return value
-
-
-def _logs_data(
-    entry: dict[str, Any], request: dict[str, Any], response: dict[str, Any]
-) -> dict[str, Any]:
-    # anthropic.mtsv › event.1, event.2.
-    attributes = [
-        _attribute("gen_ai.operation.name", _OPERATION, "string"),
-        _attribute("gen_ai.provider.name", _PROVIDER, "string"),
+    # messages.mtsv › conformance.1, event.1; event.2: nothing of what
+    # was not recorded.
+    found = [
+        attribute("gen_ai.operation.name", _OPERATION, "string"),
+        attribute("gen_ai.provider.name", _PROVIDER, "string"),
     ]
-    attributes += _index_attributes(entry)
-    attributes += _request_attributes(request)
-    attributes += _response_attributes(response)
-    log_record = {"eventName": _EVENT, "attributes": attributes}
-    return {"resourceLogs": [{"scopeLogs": [{"logRecords": [log_record]}]}]}
+    if request is not None:
+        found += _request_attributes(request)
+    if response is not None:
+        found += _response_attributes(response)
+    if _compacted(request, response):
+        found.append(attribute("gen_ai.conversation.compacted", True, "boolean"))
+    return found
 
 
-def _index_attributes(entry: dict[str, Any]) -> _Attributes:
-    # anthropic.mtsv › index.2.
-    found = _typed("gen_ai.conversation.id", entry.get("session_id"), "string")
-    rest = {name: value for name, value in entry.items() if name != "session_id"}
-    return found + _namespaced(_INDEX_NAMESPACE, rest)
+def attribute(key: str, value: Any, kind: str) -> dict[str, Any]:
+    """Return an attribute of a Value Type, any for an AnyValue.
+
+    Raise ValueError for a value that is not of that type.
+    """
+    # messages.mtsv › event.4, event.5.
+    if kind == "string" and isinstance(value, str) and not isinstance(value, Number):
+        return {"key": key, "value": {"stringValue": value}}
+    if kind == "boolean" and isinstance(value, bool):
+        return {"key": key, "value": {"boolValue": value}}
+    if kind == "int" and _is_int64(value):
+        return {"key": key, "value": _any_value(value)}
+    if kind == "double" and _is_double(value):
+        return {"key": key, "value": {"doubleValue": value}}
+    if kind == "string[]" and _strings(value):
+        return {"key": key, "value": _any_value(value)}
+    if kind == "any":
+        return {"key": key, "value": _any_value(value)}
+    raise ValueError(f"{key} is not a {kind}")
 
 
 def _request_attributes(request: dict[str, Any]) -> _Attributes:
-    # anthropic.mtsv › request.1 to request.6.
+    # messages.mtsv › request.1 to request.6.
     found: _Attributes = []
     for member, key, kind in _REQUEST:
         found += _typed(key, request.get(member), kind)
@@ -196,14 +129,14 @@ def _request_attributes(request: dict[str, Any]) -> _Attributes:
 
 
 def _stream(value: Any) -> _Attributes:
-    # anthropic.mtsv › request.1: only when the request is streaming.
+    # messages.mtsv › request.1: only when the request is streaming.
     if value is None or value is False:
         return []
     return _typed("gen_ai.request.stream", value, "boolean")
 
 
 def _output_config(value: Any) -> tuple[Any, _Attributes]:
-    # anthropic.mtsv › request.2: the rest of output_config, and what it
+    # messages.mtsv › request.2: the rest of output_config, and what it
     # writes; the rest is None when nothing is left.
     if not isinstance(value, dict):
         return value, []
@@ -215,47 +148,49 @@ def _output_config(value: Any) -> tuple[Any, _Attributes]:
 
 
 def _messages(request: dict[str, Any]) -> Any:
-    # anthropic.mtsv › request.3.
+    # messages.mtsv › request.3.
     if "messages" not in request:
         return None
     return [_message(message) for message in _array(request["messages"], "messages")]
 
 
 def _message(message: Any) -> dict[str, Any]:
-    # anthropic.mtsv › request.3: the role as written, the rest its own.
+    # messages.mtsv › request.3, event.5: a role and a content; the role
+    # as written, the rest its own.
     if not isinstance(message, dict):
         raise ValueError("a message is not an object")
+    for member in ("role", "content"):
+        if member not in message:
+            raise ValueError(f"a message has no {member}")
     chat = {name: value for name, value in message.items() if name != "content"}
-    chat["parts"] = _parts(message.get("content"))
+    chat["parts"] = _parts(message["content"])
     return chat
 
 
 def _system(request: dict[str, Any]) -> Any:
-    # anthropic.mtsv › request.4.
+    # messages.mtsv › request.4.
     if "system" not in request:
         return None
     return _parts(request["system"])
 
 
 def _parts(content: Any) -> list[Any]:
-    # anthropic.mtsv › request.3, request.4, response.3.
-    if content is None:
-        return []
+    # messages.mtsv › request.3, request.4, response.3.
     if isinstance(content, str):
         return [{"type": "text", "content": content}]
     return [_part(block) for block in _array(content, "content")]
 
 
 def _tools(request: dict[str, Any]) -> Any:
-    # anthropic.mtsv › request.5.
+    # messages.mtsv › request.5.
     if "tools" not in request:
         return None
     return [_tool(tool) for tool in _array(request["tools"], "tools")]
 
 
 def _tool(tool: Any) -> Any:
-    # anthropic.mtsv › request.5: a client tool is a function; any other
-    # tool is written as the request holds it.
+    # messages.mtsv › request.5: a client tool with a name is a
+    # function; any other tool is written as the request holds it.
     client = isinstance(tool, dict) and tool.get("type", "custom") == "custom"
     if not client or "name" not in tool:
         return tool
@@ -263,7 +198,7 @@ def _tool(tool: Any) -> Any:
 
 
 def _response_attributes(response: dict[str, Any]) -> _Attributes:
-    # anthropic.mtsv › response.1 to response.4.
+    # messages.mtsv › response.1 to response.4.
     found: _Attributes = []
     for member, key, kind in _RESPONSE:
         found += _typed(key, response.get(member), kind)
@@ -282,7 +217,7 @@ def _response_attributes(response: dict[str, Any]) -> _Attributes:
 
 
 def _usage(value: Any) -> tuple[Any, _Attributes]:
-    # anthropic.mtsv › response.2: the rest of usage, and what it
+    # messages.mtsv › response.2: the rest of usage, and what it
     # writes; the rest is None when nothing is left.
     if not isinstance(value, dict):
         return value, []
@@ -307,19 +242,36 @@ def _usage(value: Any) -> tuple[Any, _Attributes]:
     return (rest or None), found
 
 
-def _output_messages(response: dict[str, Any]) -> Any:
-    # anthropic.mtsv › response.3: one output message.
-    if "content" not in response:
-        return None
-    message: dict[str, Any] = {}
-    if "role" in response:
-        message["role"] = response["role"]
-    message["parts"] = _parts(response["content"])
-    return [message]
+def _output_messages(response: dict[str, Any]) -> list[dict[str, Any]]:
+    # messages.mtsv › response.3, event.5: one output message, from a
+    # response with a role and a content.
+    for member in ("role", "content"):
+        if member not in response:
+            raise ValueError(f"a response has no {member}")
+    return [{"role": response["role"], "parts": _parts(response["content"])}]
+
+
+def _compacted(request: _Document, response: _Document) -> bool:
+    # messages.mtsv › event.6: a compaction block in a message of the
+    # request or in the response, a stop_reason of compaction, or an
+    # iteration of that type in usage.
+    blocks = []
+    for message in (request or {}).get("messages", []):
+        if isinstance(message["content"], list):
+            blocks += message["content"]
+    response = response or {}
+    if isinstance(response.get("content"), list):
+        blocks += response["content"]
+    usage = response.get("usage")
+    iterations = usage.get("iterations") if isinstance(usage, dict) else None
+    if isinstance(iterations, list):
+        blocks += iterations
+    kinds = {block.get("type") for block in blocks if isinstance(block, dict)}
+    return _COMPACTION in kinds or response.get("stop_reason") == _COMPACTION
 
 
 def _part(block: Any) -> Any:
-    # anthropic.mtsv › block.1 to block.9.
+    # messages.mtsv › block.1 to block.9.
     if not isinstance(block, dict):
         return block
     kind = block.get("type")
@@ -345,7 +297,7 @@ def _part(block: Any) -> Any:
 def _renamed(
     block: dict[str, Any], kind: str, names: dict[str, str]
 ) -> dict[str, Any]:
-    # anthropic.mtsv › block.1: consumed members under the part's names,
+    # messages.mtsv › block.1: consumed members under the part's names,
     # the rest as the part's own members.
     part: dict[str, Any] = {"type": kind}
     for name, value in block.items():
@@ -355,7 +307,7 @@ def _renamed(
 
 
 def _media(block: dict[str, Any], kind: str) -> Any:
-    # anthropic.mtsv › block.3.
+    # messages.mtsv › block.3.
     source = block.get("source")
     if not isinstance(source, dict) or source.get("type") not in _SOURCES:
         return block
@@ -377,7 +329,7 @@ def _media(block: dict[str, Any], kind: str) -> Any:
 
 
 def _server_tool_call(block: dict[str, Any]) -> dict[str, Any]:
-    # anthropic.mtsv › block.7.
+    # messages.mtsv › block.7.
     details = {"type": block["name"]}
     if "input" in block:
         details["input"] = block["input"]
@@ -388,7 +340,7 @@ def _server_tool_call(block: dict[str, Any]) -> dict[str, Any]:
 
 
 def _server_tool_call_response(block: dict[str, Any]) -> dict[str, Any]:
-    # anthropic.mtsv › block.8.
+    # messages.mtsv › block.8.
     details = {"type": block["type"]}
     if "content" in block:
         details["content"] = block["content"]
@@ -399,40 +351,23 @@ def _server_tool_call_response(block: dict[str, Any]) -> dict[str, Any]:
 
 
 def _typed(key: str, value: Any, kind: str) -> _Attributes:
-    # anthropic.mtsv › event.3, event.5: an attribute only where the
-    # raw API bodies hold its value, of the Value Type its table gives.
+    # messages.mtsv › event.2, event.4: an attribute only where the
+    # request and response hold its value, of the Value Type its table
+    # gives.
     if value is None:
         return []
-    return [_attribute(key, value, kind)]
-
-
-def _attribute(key: str, value: Any, kind: str) -> dict[str, Any]:
-    # anthropic.mtsv › event.5, index.4.
-    if kind == "string" and isinstance(value, str) and not isinstance(value, Number):
-        return {"key": key, "value": {"stringValue": value}}
-    if kind == "boolean" and isinstance(value, bool):
-        return {"key": key, "value": {"boolValue": value}}
-    if kind == "int" and isinstance(value, Number) and _is_integer(value):
-        return {"key": key, "value": _any_value(value)}
-    if kind == "double" and isinstance(value, Number):
-        return {"key": key, "value": {"doubleValue": value}}
-    if kind == "string[]" and _strings(value):
-        return {"key": key, "value": _any_value(value)}
-    if kind == "any":
-        return {"key": key, "value": _any_value(value)}
-    raise ValueError(f"{key} is not a {kind}")
+    return [attribute(key, value, kind)]
 
 
 def _namespaced(namespace: str, members: dict[str, Any]) -> _Attributes:
-    # anthropic.mtsv › index.2, request.6, response.4.
+    # messages.mtsv › request.6, response.4.
     return [
-        _attribute(namespace + name, value, "any")
-        for name, value in members.items()
+        attribute(namespace + name, value, "any") for name, value in members.items()
     ]
 
 
 def _any_value(value: Any) -> dict[str, Any]:
-    # anthropic.mtsv › event.5; OTEL-COMMON, Converting to AnyValue.
+    # messages.mtsv › event.4; OTEL-COMMON, Converting to AnyValue.
     if isinstance(value, dict):
         pairs = [{"key": name, "value": _any_value(v)} for name, v in value.items()]
         return {"kvlistValue": {"values": pairs}}
@@ -448,23 +383,35 @@ def _any_value(value: Any) -> dict[str, Any]:
 
 
 def _number(value: Number) -> dict[str, Any]:
-    # anthropic.mtsv › event.5; OTEL-COMMON, Integer Values and Floating
+    # messages.mtsv › event.4; OTEL-COMMON, Integer Values and Floating
     # Point Values; JSON-SCHEMA-07 validation, 6.1.1.
-    if _is_integer(value):
-        low, high = _INT64
-        if low <= Decimal(value) <= high:
-            return {"intValue": str(value)}
-        return {"stringValue": str(value)}
-    if math.isinf(float(value)):
+    if _is_int64(value):
+        return {"intValue": str(int(Decimal(value)))}
+    if _is_integer(value) or not _is_double(value):
         return {"stringValue": str(value)}
     return {"doubleValue": value}
 
 
 def _integer(value: Any) -> int:
-    # anthropic.mtsv › response.2, index.4.
+    # messages.mtsv › response.2, event.5.
     if not isinstance(value, Number) or not _is_integer(value):
         raise ValueError(f"{value!r} is not an integer")
     return int(Decimal(value))
+
+
+def _is_int64(value: Any) -> bool:
+    # messages.mtsv › event.4: a zero fractional part, within the 64-bit
+    # signed range.
+    if not isinstance(value, Number) or not _is_integer(value):
+        return False
+    low, high = _INT64
+    return low <= Decimal(value) <= high
+
+
+def _is_double(value: Any) -> bool:
+    # messages.mtsv › event.4: within the range of an IEEE 754 64-bit
+    # double.
+    return isinstance(value, Number) and not math.isinf(float(value))
 
 
 def _is_integer(value: Number) -> bool:
@@ -479,23 +426,7 @@ def _strings(value: Any) -> bool:
 
 
 def _array(value: Any, name: str) -> list[Any]:
-    # anthropic.mtsv › index.4.
+    # messages.mtsv › event.5.
     if not isinstance(value, list):
         raise ValueError(f"{name} is not an array")
     return value
-
-
-def _encode(value: Any) -> str:
-    # anthropic.mtsv › event.5: a number as the raw API bodies write it;
-    # RFC 8259.
-    if isinstance(value, Number):
-        return str(value)
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        return "null"
-    if isinstance(value, list):
-        return "[" + ",".join(_encode(v) for v in value) + "]"
-    return "{" + ",".join(f"{_encode(k)}:{_encode(v)}" for k, v in value.items()) + "}"

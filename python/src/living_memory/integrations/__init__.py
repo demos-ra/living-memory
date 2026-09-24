@@ -1,6 +1,6 @@
 """Which reader reads which input."""
 
-__all__ = ["load", "lookup", "lookup_directory", "JSONL"]
+__all__ = ["load", "lookup", "lookup_directory", "lookup_plugin", "JSONL"]
 
 import importlib
 from pathlib import Path
@@ -34,8 +34,16 @@ def lookup(suffix: str) -> ModuleType:
 
 
 def lookup_directory(directory: Path) -> ModuleType:
-    """Return the module of the provider whose directory this is.
+    """Return the module of the product whose directory this is.
 
     Raise LookupError for a directory of no provider.
     """
     return providers.lookup(directory)
+
+
+def lookup_plugin(name: str) -> ModuleType:
+    """Return the module that installs a plugin.
+
+    Raise LookupError for a name that is no plugin's.
+    """
+    return providers.lookup_plugin(name)

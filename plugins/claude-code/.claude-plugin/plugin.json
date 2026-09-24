@@ -1,0 +1,16 @@
+{
+  "name": "claude-code",
+  "description": "Converts Claude Code's raw API bodies to MTSV after each response, and names the file at the start of each session",
+  "author": {
+    "name": "Demos Ra"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "data_dir": {
+      "type": "directory",
+      "title": "Data directory",
+      "description": "living-memory's data directory, where Claude Code's raw API bodies and their MTSV file are kept",
+      "required": true
+    }
+  }
+}

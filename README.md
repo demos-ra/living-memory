@@ -15,17 +15,22 @@ their own in normal form.
 
 ## Layout
 
-| Folder         | Contents                                                |
-|----------------|---------------------------------------------------------|
-| `spec/`        | The mapping, as MTSV: its rules and its sheets          |
-| `conformance/` | Test files shared by every implementation               |
-| `python/`      | Python implementation                                   |
+| Folder            | Contents                                             |
+|-------------------|------------------------------------------------------|
+| `spec/`           | The mapping, as MTSV: its rules and its sheets       |
+| `conformance/`    | Test files shared by every implementation            |
+| `python/`         | Python implementation                                |
+| `plugins/`        | A plugin for each product it installs into          |
+| `.claude-plugin/` | The catalog Claude Code reads the plugins from       |
 
 The specification states the mapping; the conformance files check an
 implementation against it; each language folder holds one implementation.
 Conformance is the same for every language, so it sits beside them rather
-than inside one. A provider's own format is read by an integration of its
-own, and the mapping names no provider.
+than inside one. A provider's own format, and each of its products', is
+read by an integration of its own, and the mapping names no provider. A
+product that records conversations has a plugin of its own, which runs
+the conversion there; Claude Code requires its catalog at the root of the
+repository.
 
 `spec/living-memory.mtsv` states the mapping: its conformance clause,
 each rule, each sheet with its fields, and the references it cites.

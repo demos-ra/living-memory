@@ -7,7 +7,10 @@ from pathlib import Path
 
 from living_memory import integrations
 from living_memory.integrations import otlp_json
-from living_memory.integrations.providers import anthropic
+from living_memory.integrations.providers.anthropic.claude_code import (
+    install,
+    raw_api_bodies,
+)
 
 
 class TestLookup(unittest.TestCase):
@@ -24,7 +27,10 @@ class TestLookup(unittest.TestCase):
             with self.assertRaises(LookupError):
                 integrations.lookup_directory(folder)
             (folder / "index.jsonl").write_text("", encoding="utf-8")
-            self.assertIs(integrations.lookup_directory(folder), anthropic)
+            self.assertIs(integrations.lookup_directory(folder), raw_api_bodies)
+
+    def test_plugin(self):
+        self.assertIs(integrations.lookup_plugin("claude-code"), install)
 
 
 class TestLoad(unittest.TestCase):

@@ -18,11 +18,19 @@ LINE = (
 )
 
 
-def run(argv, stdin=b""):
+class Terminal(io.TextIOWrapper):
+    """Standard input that is a terminal."""
+
+    def isatty(self):
+        return True
+
+
+def run(argv, stdin=b"", tty=False):
     stdout = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
     stderr = io.StringIO()
     code = 0
-    with mock.patch("sys.stdin", io.TextIOWrapper(io.BytesIO(stdin))):
+    wrapper = Terminal if tty else io.TextIOWrapper
+    with mock.patch("sys.stdin", wrapper(io.BytesIO(stdin))):
         with mock.patch("sys.stdout", stdout), contextlib.redirect_stderr(stderr):
             try:
                 _command.run(argv)
@@ -103,10 +111,70 @@ class TestRun(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("living-memory: no provider for", stderr)
 
+    def test_output_replaced_whole(self):
+        # POSIX.1-2017 XSH rename: nothing is left beside the output.
+        self.assertEqual(run([str(self.input)])[0], 0)
+        self.assertEqual(
+            sorted(p.name for p in Path(self.folder.name).iterdir()),
+            ["trace.jsonl", "trace.mtsv"],
+        )
+
     def test_version(self):
         code, stdout, _ = run(["--version"])
         self.assertEqual(code, 0)
         self.assertTrue(stdout.decode("utf-8").startswith("living-memory "))
+
+
+class TestInstall(unittest.TestCase):
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        self.patches = [
+            mock.patch("pathlib.Path.home", return_value=Path(self.home.name)),
+            mock.patch("sys.platform", "linux"),
+            mock.patch.dict("os.environ", {"XDG_DATA_HOME": ""}),
+        ]
+        for patch in self.patches:
+            patch.start()
+
+    def tearDown(self):
+        for patch in self.patches:
+            patch.stop()
+        self.home.cleanup()
+
+    def test_no_such_plugin(self):
+        code, _, stderr = run(["--install=x"])
+        self.assertEqual(code, 2)
+        self.assertIn("living-memory: no plugin 'x'", stderr)
+
+    def test_no_input_with_install(self):
+        self.assertEqual(run(["--install=claude-code", "a.jsonl"])[0], 2)
+
+    def test_no_terminal_no_change(self):
+        code = run(["--install=claude-code"])[0]
+        self.assertEqual(
+            code, "living-memory: --install asks first, and needs a terminal"
+        )
+        self.assertEqual(list(Path(self.home.name).iterdir()), [])
+
+    def test_no_by_default(self):
+        with mock.patch("builtins.input", return_value=""):
+            with mock.patch("subprocess.run") as commands:
+                self.assertEqual(run(["--install=claude-code"], tty=True)[0], 0)
+        commands.assert_not_called()
+        self.assertEqual(list(Path(self.home.name).iterdir()), [])
+
+    def test_yes(self):
+        home = Path(self.home.name)
+        data = home / ".local" / "share" / "living-memory"
+        with mock.patch("builtins.input", return_value="y"):
+            with mock.patch("subprocess.run") as commands:
+                self.assertEqual(run(["--install=claude-code"], tty=True)[0], 0)
+        self.assertEqual(commands.call_count, 2)
+        bodies = data / "anthropic" / "claude_code" / "raw_api_bodies"
+        self.assertEqual((bodies / "index.jsonl").read_bytes(), b"")
+        self.assertEqual(oct(data.stat().st_mode & 0o777), "0o700")
+        settings = (home / ".claude" / "settings.json").read_text()
+        self.assertIn(f"file:{bodies}", settings)
 
 
 if __name__ == "__main__":
