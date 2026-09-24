@@ -3,7 +3,6 @@
 import unittest
 
 from living_memory import _retrieval_documents as module
-from living_memory._json_schema import validates
 from living_memory._json import Number
 
 from support import spec_sheets
@@ -14,11 +13,11 @@ VALUE = [{"id": "doc_123", "score": Number("0.950")}, {"id": "d", "title": "T"}]
 
 class TestRetrievalDocuments(unittest.TestCase):
     def test_sheets(self):
-        self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
+        self.assertEqual(module.sheets(), spec_sheets(module.ATTRIBUTE))
 
     def test_schema(self):
-        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
-        self.assertFalse(validates([{"score": "high"}], module.SCHEMA, module.SCHEMA))
+        self.assertTrue(module.validates(VALUE))
+        self.assertFalse(module.validates([{"score": "high"}]))
 
     def test_rows(self):
         self.assertEqual(

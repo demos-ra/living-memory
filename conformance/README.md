@@ -20,3 +20,18 @@ rule case by its rule and assertion, as `file.1.metrics-data`.
 
 An expected file is derived from the spec's rules, never from an
 implementation's output.
+
+A rule with no case of its own is asserted by the sheet cases it
+governs:
+
+| Rule         | Asserted by                                                                 |
+|--------------|-----------------------------------------------------------------------------|
+| `resource.2` | `resourceSpans.resource.entityRefs.idKeys`                                  |
+| `scope.1`    | `resourceSpans.scopeSpans`, `resourceSpans.scopeSpans.scope`                |
+| `span.1`     | `resourceSpans.scopeSpans.spans.status`, `…spans.events`, `…spans.links`    |
+| `set.2`      | `gen_ai.input.messages`, `gen_ai.output.messages`                           |
+| `item.2`     | every case whose name begins `gen_ai.`                                      |
+| `field.1`    | `gen_ai.input.messages` (role), `gen_ai.input.messages.parts.blob.modality` |
+| `nested.1`   | `gen_ai.input.messages.parts.server_tool_call.server_tool_call`             |
+| `nested.3`   | every sheet case, each named by the sheet it fills                          |
+| `node.2`     | every case whose name ends `.additionalProperties`                          |

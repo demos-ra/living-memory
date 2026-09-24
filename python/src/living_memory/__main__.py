@@ -6,7 +6,7 @@ from living_memory import _command
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Convert an OTLP JSON Lines file to an MTSV file."""
+    """Convert a file or a provider's directory, or install a plugin."""
     _command.run(argv)
 
 

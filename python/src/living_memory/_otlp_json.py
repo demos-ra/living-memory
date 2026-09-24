@@ -5,13 +5,12 @@ __all__ = ["OTLPDecodeError", "load", "loads"]
 import logging
 from typing import Any, BinaryIO
 
-from living_memory import _relations, _telemetry_data
-from living_memory._json import decode
+from living_memory import _json_lines, _relations, _telemetry_data
+from living_memory._json import decode, replace_unpaired
 
-_logger = logging.getLogger("living_memory.integrations")
-
-# JSON Lines, 1. UTF-8 Encoding.
-_SIGNATURE = chr(0xFEFF)
+# A library names its logger after its module and attaches no handler
+# (Logging HOWTO, Configuring Logging for a Library).
+_logger = logging.getLogger(__name__)
 
 
 class OTLPDecodeError(ValueError):
@@ -37,7 +36,7 @@ def load(fp: BinaryIO, /) -> list[dict[str, Any]]:
     file opened in text mode, and OTLPDecodeError for a file that is not
     OTLP JSON Lines.
     """
-    # spec › file.1.
+    # A decoder replaces invalid UTF-8 with U+FFFD (spec › file.1).
     b = fp.read()
     try:
         s = b.decode("utf-8", errors="replace")
@@ -56,17 +55,21 @@ def loads(s: str, /) -> list[dict[str, Any]]:
     names. Raise TypeError for anything but a string, and
     OTLPDecodeError for a file that is not OTLP JSON Lines.
     """
-    # spec › file.2, file.5, set.3.
+    # The lines are read in the file's order, a file of two kinds of
+    # data is rejected, and the first line is line 1 (spec › file.2,
+    # file.5, set.3).
     if not isinstance(s, str):
         raise TypeError(f"Expected str object, not '{type(s).__qualname__}'")
-    if s.startswith(_SIGNATURE):
-        raise OTLPDecodeError("a byte order mark is not written", 1)
+    try:
+        lines = _json_lines.lines(s)
+    except ValueError as error:
+        raise OTLPDecodeError(str(error), 1) from None
     found: list[tuple[str, list[str]]] = []
     left: set[str] = set()
     kind = ""
-    for index, line in enumerate(_lines(s)):
+    for index, line in enumerate(lines):
         try:
-            data = decode(line)
+            data = replace_unpaired(decode(line))
             _telemetry_data.check(data)
         except ValueError as error:
             raise OTLPDecodeError(str(error), index + 1) from None
@@ -77,22 +80,15 @@ def loads(s: str, /) -> list[dict[str, Any]]:
         kind = kind or this
         left |= _telemetry_data.left_behind(data)
         found += _telemetry_data.rows(index, data)
-    sheets, emptied = _relations.assemble(_telemetry_data.SHEETS, found)
+    sheets, emptied = _relations.assemble(_telemetry_data.sheets(), found)
     _report(left | emptied)
     return sheets
 
 
-def _lines(s: str) -> list[str]:
-    # OTEL-FILE-EXPORTER, JSON lines file; JSON Lines, 3. Line
-    # Terminator is '\n'.
-    found = s.split("\n")
-    if found[-1] == "":
-        found.pop()
-    return found
-
-
 def _report(names: set[str]) -> None:
-    # Logging HOWTO, When to use logging; logging, Logger.debug.
+    # What is left behind is a warning, the software still working as
+    # expected, and the record carries the names in left_behind
+    # (Logging HOWTO, When to use logging; logging, Logger.debug).
     if not names:
         return
     ordered = sorted(names)

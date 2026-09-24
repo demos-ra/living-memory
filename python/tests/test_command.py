@@ -9,7 +9,7 @@ from unittest import mock
 
 import mtsv
 from living_memory import _command
-from living_memory.integrations import otlp_json
+from living_memory import _otlp_json as otlp_json
 
 LINE = (
     '{"resourceSpans":[{"scopeSpans":[{"spans":[{'
@@ -105,6 +105,13 @@ class TestRun(unittest.TestCase):
         self.assertEqual(run([str(directory)])[0], 0)
         with directory.with_suffix(".mtsv").open("rb") as file:
             self.assertEqual(mtsv.load(file), otlp_json.loads(""))
+
+    def test_directory_output_takes_its_whole_name(self):
+        directory = Path(self.folder.name) / "v1.2"
+        directory.mkdir()
+        (directory / "index.jsonl").write_text("", encoding="utf-8")
+        self.assertEqual(run([str(directory)])[0], 0)
+        self.assertTrue((Path(self.folder.name) / "v1.2.mtsv").exists())
 
     def test_directory_of_no_provider(self):
         code, _, stderr = run([self.folder.name])

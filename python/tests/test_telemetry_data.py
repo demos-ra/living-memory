@@ -35,7 +35,7 @@ def attribute_rows(value):
 
 class TestSheets(unittest.TestCase):
     def test_sheets(self):
-        self.assertEqual(module.SHEETS, spec_sheets())
+        self.assertEqual(module.sheets(), spec_sheets())
 
 
 class TestCheck(unittest.TestCase):

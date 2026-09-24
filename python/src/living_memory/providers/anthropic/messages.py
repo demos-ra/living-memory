@@ -1,25 +1,28 @@
 """How a Messages API call becomes the attributes of an event."""
 
-__all__ = ["attribute", "attributes"]
+__all__ = ["attributes"]
 
-import math
 from decimal import Decimal
 from typing import Any
 
-from living_memory._json import Number
+from living_memory import _any_value
+from living_memory._event import attribute, namespaced, typed
+from living_memory._json import Number, array
 
-# messages.mtsv › event.1.
+# The operation is a chat completion, and the provider is Anthropic
+# (messages.mtsv › event.1).
 _OPERATION = "chat"
 _PROVIDER = "anthropic"
-# messages.mtsv › request.6, response.4.
+# A field with no GenAI attribute is written under Anthropic's own
+# namespaces (messages.mtsv › request.6, response.4).
 _REQUEST_NAMESPACE = "anthropic.request."
 _RESPONSE_NAMESPACE = "anthropic.response."
-# messages.mtsv › event.4: OTEL-COMMON, Integer Values.
-_INT64 = (-(2**63), 2**63 - 1)
-# messages.mtsv › event.6.
+# Compaction is shown by a block, a stop reason or a usage iteration
+# of this type (messages.mtsv › event.6).
 _COMPACTION = "compaction"
 
-# messages.mtsv › request.1: member, attribute and Value Type.
+# These request members are written as GenAI attributes, each with
+# its Value Type (messages.mtsv › request.1).
 _REQUEST = (
     ("model", "gen_ai.request.model", "string"),
     ("max_tokens", "gen_ai.request.max_tokens", "int"),
@@ -28,12 +31,14 @@ _REQUEST = (
     ("top_p", "gen_ai.request.top_p", "double"),
     ("stop_sequences", "gen_ai.request.stop_sequences", "string[]"),
 )
-# messages.mtsv › response.1.
+# These response members are written as GenAI attributes
+# (messages.mtsv › response.1).
 _RESPONSE = (
     ("id", "gen_ai.response.id", "string"),
     ("model", "gen_ai.response.model", "string"),
 )
-# messages.mtsv › response.2.
+# These usage members are written as GenAI attributes, and the input
+# tokens are the sum of the three counts (messages.mtsv › response.2).
 _USAGE = (
     ("cache_read_input_tokens", "gen_ai.usage.cache_read.input_tokens"),
     ("cache_creation_input_tokens", "gen_ai.usage.cache_write.input_tokens"),
@@ -44,7 +49,7 @@ _INPUT_TOKENS = (
     "cache_creation_input_tokens",
     "cache_read_input_tokens",
 )
-# messages.mtsv › block.8.
+# These blocks are server tool results (messages.mtsv › block.8).
 _SERVER_TOOL_RESULTS = frozenset(
     {
         "web_search_tool_result",
@@ -55,8 +60,9 @@ _SERVER_TOOL_RESULTS = frozenset(
         "tool_search_tool_result",
     }
 )
-# messages.mtsv › block.3: source type, part type, member taken, and
-# the part's name for it.
+# Each source type gives the part it becomes, the member taken from the
+# source, and the part's name for that member (messages.mtsv ›
+# block.3).
 _SOURCES = {
     "base64": ("blob", "data", "content"),
     "url": ("uri", "url", "uri"),
@@ -73,8 +79,8 @@ def attributes(request: _Document, response: _Document) -> _Attributes:
     A request or response that was not recorded is None.
     Raise ValueError for a request or response that does not conform.
     """
-    # messages.mtsv › conformance.1, event.1; event.2: nothing of what
-    # was not recorded.
+    # The operation and provider are always written, and nothing of what
+    # was not recorded (messages.mtsv › event.1, event.2).
     found = [
         attribute("gen_ai.operation.name", _OPERATION, "string"),
         attribute("gen_ai.provider.name", _PROVIDER, "string"),
@@ -88,75 +94,60 @@ def attributes(request: _Document, response: _Document) -> _Attributes:
     return found
 
 
-def attribute(key: str, value: Any, kind: str) -> dict[str, Any]:
-    """Return an attribute of a Value Type, any for an AnyValue.
-
-    Raise ValueError for a value that is not of that type.
-    """
-    # messages.mtsv › event.4, event.5.
-    if kind == "string" and isinstance(value, str) and not isinstance(value, Number):
-        return {"key": key, "value": {"stringValue": value}}
-    if kind == "boolean" and isinstance(value, bool):
-        return {"key": key, "value": {"boolValue": value}}
-    if kind == "int" and _is_int64(value):
-        return {"key": key, "value": _any_value(value)}
-    if kind == "double" and _is_double(value):
-        return {"key": key, "value": {"doubleValue": value}}
-    if kind == "string[]" and _strings(value):
-        return {"key": key, "value": _any_value(value)}
-    if kind == "any":
-        return {"key": key, "value": _any_value(value)}
-    raise ValueError(f"{key} is not a {kind}")
-
-
 def _request_attributes(request: dict[str, Any]) -> _Attributes:
-    # messages.mtsv › request.1 to request.6.
+    # The request's members are written by their rules, and the rest
+    # under Anthropic's namespace (messages.mtsv › request.1 to
+    # request.6).
     found: _Attributes = []
-    for member, key, kind in _REQUEST:
-        found += _typed(key, request.get(member), kind)
+    for member, key, value_type in _REQUEST:
+        found += typed(key, request.get(member), value_type)
     found += _stream(request.get("stream"))
     rest, output_config = _output_config(request.get("output_config"))
     found += output_config
-    found += _typed("gen_ai.input.messages", _messages(request), "any")
-    found += _typed("gen_ai.system_instructions", _system(request), "any")
-    found += _typed("gen_ai.tool.definitions", _tools(request), "any")
+    found += typed("gen_ai.input.messages", _messages(request), "any")
+    found += typed("gen_ai.system_instructions", _system(request), "any")
+    found += typed("gen_ai.tool.definitions", _tools(request), "any")
     consumed = {member for member, _, _ in _REQUEST}
     consumed |= {"stream", "output_config", "messages", "system", "tools"}
     others = {name: value for name, value in request.items() if name not in consumed}
     if rest is not None:
         others["output_config"] = rest
-    return found + _namespaced(_REQUEST_NAMESPACE, others)
+    return found + namespaced(_REQUEST_NAMESPACE, others)
 
 
 def _stream(value: Any) -> _Attributes:
-    # messages.mtsv › request.1: only when the request is streaming.
+    # The stream attribute is set only when the request is streaming
+    # (messages.mtsv › request.1).
     if value is None or value is False:
         return []
-    return _typed("gen_ai.request.stream", value, "boolean")
+    return typed("gen_ai.request.stream", value, "boolean")
 
 
 def _output_config(value: Any) -> tuple[Any, _Attributes]:
-    # messages.mtsv › request.2: the rest of output_config, and what it
-    # writes; the rest is None when nothing is left.
+    # The effort is the reasoning level, and a format asks for JSON; the
+    # rest of output_config, None when nothing is left, is Anthropic's
+    # own (messages.mtsv › request.2).
     if not isinstance(value, dict):
         return value, []
-    found = _typed("gen_ai.request.reasoning.level", value.get("effort"), "string")
+    found = typed("gen_ai.request.reasoning.level", value.get("effort"), "string")
     if value.get("format") is not None:
-        found += _typed("gen_ai.output.type", "json", "string")
+        found += typed("gen_ai.output.type", "json", "string")
     rest = {name: member for name, member in value.items() if name != "effort"}
     return (rest or None), found
 
 
 def _messages(request: dict[str, Any]) -> Any:
-    # messages.mtsv › request.3.
+    # The messages are the input messages, in the order sent
+    # (messages.mtsv › request.3).
     if "messages" not in request:
         return None
     return [_message(message) for message in _array(request["messages"], "messages")]
 
 
 def _message(message: Any) -> dict[str, Any]:
-    # messages.mtsv › request.3, event.5: a role and a content; the role
-    # as written, the rest its own.
+    # A message has a role and a content; the role is kept as written,
+    # and the rest of the message is its own (messages.mtsv › request.3,
+    # event.5).
     if not isinstance(message, dict):
         raise ValueError("a message is not an object")
     for member in ("role", "content"):
@@ -168,29 +159,31 @@ def _message(message: Any) -> dict[str, Any]:
 
 
 def _system(request: dict[str, Any]) -> Any:
-    # messages.mtsv › request.4.
+    # The system prompt is the system instructions
+    # (messages.mtsv › request.4).
     if "system" not in request:
         return None
     return _parts(request["system"])
 
 
 def _parts(content: Any) -> list[Any]:
-    # messages.mtsv › request.3, request.4, response.3.
+    # A string content is one text part, and an array one part per block
+    # (messages.mtsv › request.3, request.4, response.3).
     if isinstance(content, str):
         return [{"type": "text", "content": content}]
     return [_part(block) for block in _array(content, "content")]
 
 
 def _tools(request: dict[str, Any]) -> Any:
-    # messages.mtsv › request.5.
+    # The tools are the tool definitions (messages.mtsv › request.5).
     if "tools" not in request:
         return None
     return [_tool(tool) for tool in _array(request["tools"], "tools")]
 
 
 def _tool(tool: Any) -> Any:
-    # messages.mtsv › request.5: a client tool with a name is a
-    # function; any other tool is written as the request holds it.
+    # A client tool with a name is a function; any other tool is written
+    # as the request holds it (messages.mtsv › request.5).
     client = isinstance(tool, dict) and tool.get("type", "custom") == "custom"
     if not client or "name" not in tool:
         return tool
@@ -198,44 +191,50 @@ def _tool(tool: Any) -> Any:
 
 
 def _response_attributes(response: dict[str, Any]) -> _Attributes:
-    # messages.mtsv › response.1 to response.4.
+    # The response's members are written by their rules, and the rest
+    # under Anthropic's namespace (messages.mtsv › response.1 to
+    # response.4).
     found: _Attributes = []
-    for member, key, kind in _RESPONSE:
-        found += _typed(key, response.get(member), kind)
+    for member, key, value_type in _RESPONSE:
+        found += typed(key, response.get(member), value_type)
     stop_reason = response.get("stop_reason")
     if stop_reason is not None:
-        found += _typed("gen_ai.response.finish_reasons", [stop_reason], "string[]")
+        found += typed("gen_ai.response.finish_reasons", [stop_reason], "string[]")
     rest, usage = _usage(response.get("usage"))
     found += usage
-    found += _typed("gen_ai.output.messages", _output_messages(response), "any")
+    found += typed("gen_ai.output.messages", _output_messages(response), "any")
     consumed = {member for member, _, _ in _RESPONSE}
     consumed |= {"stop_reason", "usage", "content", "role"}
     others = {name: value for name, value in response.items() if name not in consumed}
     if rest is not None:
         others["usage"] = rest
-    return found + _namespaced(_RESPONSE_NAMESPACE, others)
+    return found + namespaced(_RESPONSE_NAMESPACE, others)
 
 
 def _usage(value: Any) -> tuple[Any, _Attributes]:
-    # messages.mtsv › response.2: the rest of usage, and what it
-    # writes; the rest is None when nothing is left.
+    # The input tokens are the sum of the three counts, and the thinking
+    # tokens the reasoning output tokens; the rest of usage, None when
+    # nothing is left, is Anthropic's own (messages.mtsv › response.2).
     if not isinstance(value, dict):
         return value, []
     counts = [value[name] for name in _INPUT_TOKENS if value.get(name) is not None]
     found = []
     if counts:
         total = sum(_integer(count) for count in counts)
-        found += _typed("gen_ai.usage.input_tokens", Number(str(total)), "int")
+        found += typed("gen_ai.usage.input_tokens", Number(str(total)), "int")
     for member, key in _USAGE:
-        found += _typed(key, value.get(member), "int")
+        found += typed(key, value.get(member), "int")
     rest = {name: member for name, member in value.items() if name not in _INPUT_TOKENS}
     rest.pop("output_tokens", None)
     details = rest.get("output_tokens_details")
     if isinstance(details, dict) and "thinking_tokens" in details:
-        found += _typed(
-            "gen_ai.usage.reasoning.output_tokens", details["thinking_tokens"], "int"
-        )
-        details = {n: m for n, m in details.items() if n != "thinking_tokens"}
+        thinking = details["thinking_tokens"]
+        found += typed("gen_ai.usage.reasoning.output_tokens", thinking, "int")
+        details = {
+            name: member
+            for name, member in details.items()
+            if name != "thinking_tokens"
+        }
         rest["output_tokens_details"] = details
         if not details:
             del rest["output_tokens_details"]
@@ -243,8 +242,8 @@ def _usage(value: Any) -> tuple[Any, _Attributes]:
 
 
 def _output_messages(response: dict[str, Any]) -> list[dict[str, Any]]:
-    # messages.mtsv › response.3, event.5: one output message, from a
-    # response with a role and a content.
+    # A response with a role and a content is one output message
+    # (messages.mtsv › response.3, event.5).
     for member in ("role", "content"):
         if member not in response:
             raise ValueError(f"a response has no {member}")
@@ -252,84 +251,85 @@ def _output_messages(response: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _compacted(request: _Document, response: _Document) -> bool:
-    # messages.mtsv › event.6: a compaction block in a message of the
-    # request or in the response, a stop_reason of compaction, or an
-    # iteration of that type in usage.
-    blocks = []
-    for message in (request or {}).get("messages", []):
-        if isinstance(message["content"], list):
-            blocks += message["content"]
+    # A compaction block in a message of the request or in the response,
+    # a stop_reason of compaction, or an iteration of that type in usage
+    # (messages.mtsv › event.6).
+    blocks: list[Any] = []
+    for message in array((request or {}).get("messages")):
+        if isinstance(message, dict):
+            blocks += array(message.get("content"))
     response = response or {}
-    if isinstance(response.get("content"), list):
-        blocks += response["content"]
+    blocks += array(response.get("content"))
     usage = response.get("usage")
-    iterations = usage.get("iterations") if isinstance(usage, dict) else None
-    if isinstance(iterations, list):
-        blocks += iterations
+    if isinstance(usage, dict):
+        blocks += array(usage.get("iterations"))
     kinds = {block.get("type") for block in blocks if isinstance(block, dict)}
     return _COMPACTION in kinds or response.get("stop_reason") == _COMPACTION
 
 
 def _part(block: Any) -> Any:
-    # messages.mtsv › block.1 to block.9.
+    # A content block becomes the part a block rule names, and any other
+    # block is carried whole (messages.mtsv › block.1 to block.9).
     if not isinstance(block, dict):
         return block
-    kind = block.get("type")
-    if kind == "text" and "text" in block:
+    block_type = block.get("type")
+    if block_type == "text" and "text" in block:
         return _renamed(block, "text", {"text": "content"})
-    if kind in ("image", "document"):
-        return _media(block, kind)
-    if kind == "thinking" and "thinking" in block:
+    if block_type in ("image", "document"):
+        return _media(block, block_type)
+    if block_type == "thinking" and "thinking" in block:
         return _renamed(block, "reasoning", {"thinking": "content"})
-    if kind == "tool_use" and "name" in block:
+    if block_type == "tool_use" and "name" in block:
         return _renamed(block, "tool_call", {"input": "arguments"})
-    if kind == "tool_result" and "content" in block:
+    if block_type == "tool_result" and "content" in block:
         return _renamed(
             block, "tool_call_response", {"tool_use_id": "id", "content": "response"}
         )
-    if kind == "server_tool_use" and "name" in block:
+    if block_type == "server_tool_use" and "name" in block:
         return _server_tool_call(block)
-    if kind in _SERVER_TOOL_RESULTS:
+    if block_type in _SERVER_TOOL_RESULTS:
         return _server_tool_call_response(block)
     return block
 
 
 def _renamed(
-    block: dict[str, Any], kind: str, names: dict[str, str]
+    block: dict[str, Any], part_type: str, names: dict[str, str]
 ) -> dict[str, Any]:
-    # messages.mtsv › block.1: consumed members under the part's names,
-    # the rest as the part's own members.
-    part: dict[str, Any] = {"type": kind}
+    # The consumed members take the part's names, and the rest of the
+    # block are the part's own members (messages.mtsv › block.1).
+    part: dict[str, Any] = {"type": part_type}
     for name, value in block.items():
         if name != "type":
             part[names.get(name, name)] = value
     return part
 
 
-def _media(block: dict[str, Any], kind: str) -> Any:
-    # messages.mtsv › block.3.
+def _media(block: dict[str, Any], modality: str) -> Any:
+    # An image or a document becomes a blob, uri or file part by its
+    # source's type (messages.mtsv › block.3).
     source = block.get("source")
     if not isinstance(source, dict) or source.get("type") not in _SOURCES:
         return block
     part_type, member, name = _SOURCES[source["type"]]
     if member not in source:
         return block
-    part: dict[str, Any] = {"type": part_type, "modality": kind}
+    part: dict[str, Any] = {"type": part_type, "modality": modality}
     if part_type == "blob" and "media_type" in source:
         part["mime_type"] = source["media_type"]
     part[name] = source[member]
     consumed = {"type", "media_type", member}
-    rest = {n: value for n, value in source.items() if n not in consumed}
-    for n, value in block.items():
-        if n not in ("type", "source"):
-            part[n] = value
+    rest = {key: value for key, value in source.items() if key not in consumed}
+    for key, value in block.items():
+        if key not in ("type", "source"):
+            part[key] = value
     if rest:
         part["source"] = rest
     return part
 
 
 def _server_tool_call(block: dict[str, Any]) -> dict[str, Any]:
-    # messages.mtsv › block.7.
+    # A server tool use becomes a server tool call, its details typed by
+    # the tool's name (messages.mtsv › block.7).
     details = {"type": block["name"]}
     if "input" in block:
         details["input"] = block["input"]
@@ -340,7 +340,8 @@ def _server_tool_call(block: dict[str, Any]) -> dict[str, Any]:
 
 
 def _server_tool_call_response(block: dict[str, Any]) -> dict[str, Any]:
-    # messages.mtsv › block.8.
+    # A server tool result becomes a server tool call response, its
+    # details typed by the block's type (messages.mtsv › block.8).
     details = {"type": block["type"]}
     if "content" in block:
         details["content"] = block["content"]
@@ -350,83 +351,17 @@ def _server_tool_call_response(block: dict[str, Any]) -> dict[str, Any]:
     return part
 
 
-def _typed(key: str, value: Any, kind: str) -> _Attributes:
-    # messages.mtsv › event.2, event.4: an attribute only where the
-    # request and response hold its value, of the Value Type its table
-    # gives.
-    if value is None:
-        return []
-    return [attribute(key, value, kind)]
-
-
-def _namespaced(namespace: str, members: dict[str, Any]) -> _Attributes:
-    # messages.mtsv › request.6, response.4.
-    return [
-        attribute(namespace + name, value, "any") for name, value in members.items()
-    ]
-
-
-def _any_value(value: Any) -> dict[str, Any]:
-    # messages.mtsv › event.4; OTEL-COMMON, Converting to AnyValue.
-    if isinstance(value, dict):
-        pairs = [{"key": name, "value": _any_value(v)} for name, v in value.items()]
-        return {"kvlistValue": {"values": pairs}}
-    if isinstance(value, list):
-        return {"arrayValue": {"values": [_any_value(v) for v in value]}}
-    if isinstance(value, bool):
-        return {"boolValue": value}
-    if value is None:
-        return {}
-    if isinstance(value, Number):
-        return _number(value)
-    return {"stringValue": value}
-
-
-def _number(value: Number) -> dict[str, Any]:
-    # messages.mtsv › event.4; OTEL-COMMON, Integer Values and Floating
-    # Point Values; JSON-SCHEMA-07 validation, 6.1.1.
-    if _is_int64(value):
-        return {"intValue": str(int(Decimal(value)))}
-    if _is_integer(value) or not _is_double(value):
-        return {"stringValue": str(value)}
-    return {"doubleValue": value}
-
-
 def _integer(value: Any) -> int:
-    # messages.mtsv › response.2, event.5.
-    if not isinstance(value, Number) or not _is_integer(value):
+    # A count that is not an integer is non-conforming
+    # (messages.mtsv › response.2, event.5).
+    if not isinstance(value, Number) or not _any_value.is_integer(value):
         raise ValueError(f"{value!r} is not an integer")
     return int(Decimal(value))
 
 
-def _is_int64(value: Any) -> bool:
-    # messages.mtsv › event.4: a zero fractional part, within the 64-bit
-    # signed range.
-    if not isinstance(value, Number) or not _is_integer(value):
-        return False
-    low, high = _INT64
-    return low <= Decimal(value) <= high
-
-
-def _is_double(value: Any) -> bool:
-    # messages.mtsv › event.4: within the range of an IEEE 754 64-bit
-    # double.
-    return isinstance(value, Number) and not math.isinf(float(value))
-
-
-def _is_integer(value: Number) -> bool:
-    number = Decimal(value)
-    return number == number.to_integral()
-
-
-def _strings(value: Any) -> bool:
-    return isinstance(value, list) and all(
-        isinstance(v, str) and not isinstance(v, Number) for v in value
-    )
-
-
 def _array(value: Any, name: str) -> list[Any]:
-    # messages.mtsv › event.5.
+    # A member the Messages API holds as an array is non-conforming as
+    # anything else (messages.mtsv › event.5).
     if not isinstance(value, list):
         raise ValueError(f"{name} is not an array")
     return value

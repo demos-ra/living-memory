@@ -6,19 +6,28 @@ from importlib.resources import files
 from pathlib import Path
 
 import mtsv
-from living_memory.integrations.providers.anthropic.claude_code import install
+from living_memory.providers.anthropic.claude_code import install
 
 from support import ROOT
 
 HOME = Path("/home/u")
 BODIES = Path("anthropic", "claude_code", "raw_api_bodies")
 DATA = HOME / ".local" / "share" / "living-memory"
+SETTINGS = HOME / ".claude" / "settings.json"
 PLUGIN = ROOT / "plugins" / "claude-code"
 
 
 def spec():
     with files(install.__package__).joinpath("install.mtsv").open("rb") as f:
         return {sheet["sheet name"]: sheet for sheet in mtsv.load(f)}
+
+
+def plan(environ=None, system="linux"):
+    return install.plan(environ or {}, system, HOME)
+
+
+def steps(action):
+    return [step[1:] for step in plan()[1] if step[0] == action]
 
 
 class TestSpecification(unittest.TestCase):
@@ -39,6 +48,15 @@ class TestSpecification(unittest.TestCase):
         )
 
 
+class TestOrder(unittest.TestCase):
+    def test_directory_plugin_then_capture_last(self):
+        actions = [step[0] for step in plan()[1]]
+        self.assertEqual(
+            actions,
+            ["directory"] * 4 + ["file", "run", "run", "directory", "replace"],
+        )
+
+
 class TestDirectory(unittest.TestCase):
     def test_1_linux(self):
         cases = [
@@ -49,52 +67,46 @@ class TestDirectory(unittest.TestCase):
         ]
         for environ, expected in cases:
             with self.subTest(environ):
-                self.assertEqual(
-                    install.data_directory(environ, "linux", HOME), expected
-                )
+                first = plan(environ)[1][0]
+                self.assertEqual(first, ("directory", expected, 0o700))
 
     def test_1_macos(self):
-        self.assertEqual(
-            install.data_directory({}, "darwin", HOME),
-            HOME / "Library" / "Application Support" / "living-memory",
-        )
+        first = plan(system="darwin")[1][0]
+        data = HOME / "Library" / "Application Support" / "living-memory"
+        self.assertEqual(first, ("directory", data, 0o700))
 
     def test_1_any_other_system_refused(self):
         with self.assertRaises(LookupError):
-            install.data_directory({}, "win32", HOME)
+            plan(system="win32")
 
-    def test_2_directories(self):
+    def test_2_directories_private_and_an_empty_index(self):
         self.assertEqual(
-            install.directories(DATA),
+            steps("directory")[:4],
             [
-                DATA,
-                DATA / "anthropic",
-                DATA / "anthropic" / "claude_code",
-                DATA / BODIES,
+                (DATA, 0o700),
+                (DATA / "anthropic", 0o700),
+                (DATA / "anthropic" / "claude_code", 0o700),
+                (DATA / BODIES, 0o700),
             ],
         )
-
-    def test_2_index_file(self):
-        self.assertEqual(
-            install.index_file(DATA), DATA / BODIES / "index.jsonl"
-        )
+        self.assertEqual(steps("file"), [(DATA / BODIES / "index.jsonl", None)])
 
 
 class TestPrompt(unittest.TestCase):
     def test_1_each_change_stated(self):
-        found = install.changes(DATA, HOME)
+        found = plan()[0]
         self.assertIn(str(DATA / BODIES), found)
         self.assertIn(str(DATA / BODIES) + ".mtsv", found)
-        for command in install.commands(DATA):
+        for command, _ in steps("run"):
             self.assertIn(" ".join(command), found)
         self.assertIn("OTEL_LOG_RAW_API_BODIES", found)
-        self.assertIn(str(HOME / ".claude" / "settings.json"), found)
+        self.assertIn(str(SETTINGS), found)
 
 
 class TestPlugin(unittest.TestCase):
     def test_1_marketplace_then_plugin(self):
         self.assertEqual(
-            install.commands(DATA),
+            [command for command, _ in steps("run")],
             [
                 ["claude", "plugin", "marketplace", "add", "demos-ra/living-memory"],
                 [
@@ -110,9 +122,14 @@ class TestPlugin(unittest.TestCase):
 
 
 class TestCapture(unittest.TestCase):
+    def rewrite(self, document):
+        ((path, rewrite),) = steps("replace")
+        self.assertEqual(path, SETTINGS)
+        return rewrite(document)
+
     def test_1_set_and_the_rest_kept(self):
         document = '{"model": "x", "env": {"A": "1"}}'
-        found = json.loads(install.settings(document, DATA))
+        found = json.loads(self.rewrite(document))
         self.assertEqual(found["model"], "x")
         self.assertEqual(
             found["env"],
@@ -120,14 +137,14 @@ class TestCapture(unittest.TestCase):
         )
 
     def test_1_a_file_that_does_not_exist(self):
-        found = json.loads(install.settings(None, DATA))
+        found = json.loads(self.rewrite(None))
         self.assertEqual(list(found), ["env"])
 
     def test_1_not_an_object(self):
         for document in ("[]", '{"env": []}', "x", '{"a": NaN}'):
             with self.subTest(document):
                 with self.assertRaises(ValueError):
-                    install.settings(document, DATA)
+                    self.rewrite(document)
 
 
 class TestHook(unittest.TestCase):
@@ -165,9 +182,7 @@ class TestHook(unittest.TestCase):
         )
 
     def test_the_catalog_lists_the_plugin(self):
-        catalog = json.loads(
-            (ROOT / ".claude-plugin" / "marketplace.json").read_text()
-        )
+        catalog = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text())
         self.assertEqual(catalog["name"], "living-memory")
         (entry,) = catalog["plugins"]
         self.assertEqual(

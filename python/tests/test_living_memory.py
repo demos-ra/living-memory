@@ -4,7 +4,7 @@ import io
 import unittest
 
 import living_memory
-from living_memory.integrations import otlp_json
+from living_memory import _otlp_json as otlp_json
 
 LINE = '{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"eventName":"e"}]}]}]}\n'
 

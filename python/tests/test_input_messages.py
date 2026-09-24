@@ -3,7 +3,6 @@
 import unittest
 
 from living_memory import _input_messages as module
-from living_memory._json_schema import validates
 
 from support import spec_sheets
 
@@ -16,13 +15,13 @@ VALUE = [
 
 class TestInputMessages(unittest.TestCase):
     def test_sheets(self):
-        self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
+        self.assertEqual(module.sheets(), spec_sheets(module.ATTRIBUTE))
 
     def test_schema(self):
-        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
+        self.assertTrue(module.validates(VALUE))
         for invalid in ([{"role": "user"}], [{"role": 1, "parts": []}], {}):
             with self.subTest(invalid):
-                self.assertFalse(validates(invalid, module.SCHEMA, module.SCHEMA))
+                self.assertFalse(module.validates(invalid))
 
     def test_rows(self):
         self.assertEqual(

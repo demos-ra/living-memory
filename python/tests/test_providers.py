@@ -1,11 +1,11 @@
-"""Tests of integrations/providers: which providers' products exist."""
+"""Tests of providers: which providers' products exist."""
 
 import tempfile
 import unittest
 from pathlib import Path
 
-from living_memory.integrations import providers
-from living_memory.integrations.providers.anthropic.claude_code import (
+from living_memory import providers
+from living_memory.providers.anthropic.claude_code import (
     install,
     raw_api_bodies,
 )
@@ -14,12 +14,13 @@ from living_memory.integrations.providers.anthropic.claude_code import (
 class TestProviders(unittest.TestCase):
     def test_providers(self):
         self.assertEqual(
-            providers.PROVIDERS, {"index.jsonl": "anthropic.claude_code.raw_api_bodies"}
+            providers._DIRECTORIES,
+            {"index.jsonl": "anthropic.claude_code.raw_api_bodies"},
         )
 
     def test_plugins(self):
         self.assertEqual(
-            providers.PLUGINS, {"claude-code": "anthropic.claude_code.install"}
+            providers._PLUGINS, {"claude-code": "anthropic.claude_code.install"}
         )
 
     def test_lookup(self):

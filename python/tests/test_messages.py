@@ -6,7 +6,7 @@ from importlib.resources import files
 
 import mtsv
 from living_memory._json import decode
-from living_memory.integrations.providers.anthropic import messages
+from living_memory.providers.anthropic import messages
 
 from support import SPEC
 
@@ -111,9 +111,7 @@ class TestSpecification(unittest.TestCase):
         for key, field, _ in spec()["Attributes"]["records"]:
             if field:
                 with self.subTest(key=key, field=field):
-                    self.assertTrue(
-                        [key, field] in core or f"{key}.{field}" in names
-                    )
+                    self.assertTrue([key, field] in core or f"{key}.{field}" in names)
 
     def test_attributes_written_and_absent(self):
         # event.2, event.3: each key is written by its rules or absent.
@@ -193,8 +191,10 @@ class TestEvent(unittest.TestCase):
     def test_6_compacted(self):
         compaction = {"type": "compaction", "content": "c"}
         cases = [
-            (dict(REQUEST, messages=[{"role": "user", "content": [compaction]}]),
-             RESPONSE),
+            (
+                dict(REQUEST, messages=[{"role": "user", "content": [compaction]}]),
+                RESPONSE,
+            ),
             (REQUEST, dict(RESPONSE, stop_reason="compaction")),
             (REQUEST, dict(RESPONSE, content=[compaction])),
             (REQUEST, dict(RESPONSE, usage={"iterations": [{"type": "compaction"}]})),

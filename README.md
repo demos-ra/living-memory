@@ -27,13 +27,15 @@ The specification states the mapping; the conformance files check an
 implementation against it; each language folder holds one implementation.
 Conformance is the same for every language, so it sits beside them rather
 than inside one. A provider's own format, and each of its products', is
-read by an integration of its own, and the mapping names no provider. A
+read by a module of its own among the providers, and the mapping names
+no provider. A
 product that records conversations has a plugin of its own, which runs
 the conversion there; Claude Code requires its catalog at the root of the
 repository.
 
 `spec/living-memory.mtsv` states the mapping: its conformance clause,
-each rule, each sheet with its fields, and the references it cites.
+each rule, each sheet with its fields, and the references it cites; its
+event rules state what every provider's reader writes.
 
 ## Conformance
 

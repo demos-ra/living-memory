@@ -7,11 +7,13 @@ from importlib.resources import files
 from pathlib import Path
 
 import mtsv
-from living_memory.integrations.providers.anthropic.claude_code import (
+from living_memory.providers.anthropic.claude_code import (
     raw_api_bodies,
 )
 
 from test_messages import REQUEST, RESPONSE
+
+LOGGER = raw_api_bodies.__name__
 
 ENTRY = {
     "timestamp": "2026-09-24T02:01:56Z",
@@ -158,18 +160,22 @@ class TestIndex(unittest.TestCase):
         documents = {"a.request.json": REQUEST, "req_1.response.json": RESPONSE}
         with tempfile.TemporaryDirectory() as directory:
             write(directory, lines(no_request, not_yet), documents)
-            with self.assertLogs("living_memory.integrations", "WARNING") as logs:
+            with self.assertLogs("living_memory", "WARNING") as logs:
                 first, second = raw_api_bodies.logs_data(directory)
         self.assertEqual(
             logs.output,
             [
-                "WARNING:living_memory.integrations:line 1: request_file not held",
-                "WARNING:living_memory.integrations:line 2: response_file not held",
+                f"WARNING:{LOGGER}:line 1: request_file not held",
+                f"WARNING:{LOGGER}:line 2: response_file not held",
             ],
         )
         keys = [
-            {a["key"] for a in data["resourceLogs"][0]["scopeLogs"][0]
-             ["logRecords"][0]["attributes"]}
+            {
+                a["key"]
+                for a in data["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0][
+                    "attributes"
+                ]
+            }
             for data in (first, second)
         ]
         self.assertNotIn("gen_ai.input.messages", keys[0])
@@ -177,10 +183,49 @@ class TestIndex(unittest.TestCase):
         self.assertIn("gen_ai.input.messages", keys[1])
         self.assertNotIn("gen_ai.output.messages", keys[1])
 
-    def test_5_of_members_sharing_a_name_the_last(self):
-        text = json.dumps(REQUEST)[:-1] + ', "model": "last"}'
+    def test_5_members_sharing_a_name_hold_every_value(self):
+        # A repeated member is an array; carried whole it is an
+        # arrayValue, and where a rule writes a string it is rejected
+        # (spec › event.4, event.6).
+        text = json.dumps(REQUEST)[:-1] + ', "metadata": {"user_id": "v"}}'
         _, attributes = event(request=text)
-        self.assertEqual(attributes["gen_ai.request.model"], {"stringValue": "last"})
+        self.assertEqual(
+            attributes["anthropic.request.metadata"],
+            {
+                "arrayValue": {
+                    "values": [
+                        {
+                            "kvlistValue": {
+                                "values": [
+                                    {"key": "user_id", "value": {"stringValue": "u"}}
+                                ]
+                            }
+                        },
+                        {
+                            "kvlistValue": {
+                                "values": [
+                                    {"key": "user_id", "value": {"stringValue": "v"}}
+                                ]
+                            }
+                        },
+                    ]
+                }
+            },
+        )
+        text = json.dumps(REQUEST)[:-1] + ', "model": "last"}'
+        for error in rejected(self, lines(ENTRY), {"a.request.json": text}):
+            self.assertEqual(error.lineno, 1)
+
+    def test_5_a_string_not_valid_unicode_is_bytes(self):
+        # spec › event.3: carried whole it is a bytesValue; where a rule
+        # writes a string it is rejected.
+        request = json.dumps(dict(REQUEST, metadata={"note": "a\ud800b"}))
+        _, attributes = event(request=request)
+        (pair,) = attributes["anthropic.request.metadata"]["kvlistValue"]["values"]
+        self.assertEqual(pair["value"], {"bytesValue": "Ye2ggGI="})
+        text = json.dumps(dict(REQUEST, model="a\ud800b"))
+        for error in rejected(self, lines(ENTRY), {"a.request.json": text}):
+            self.assertEqual(error.lineno, 1)
 
 
 class TestEvent(unittest.TestCase):

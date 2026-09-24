@@ -3,7 +3,6 @@
 import unittest
 
 from living_memory import _tool_call_arguments as module
-from living_memory._json_schema import validates
 from living_memory._json import Number
 
 from support import spec_sheets
@@ -14,11 +13,11 @@ VALUE = {"location": "Paris", "days": [Number("1")]}
 
 class TestToolCallArguments(unittest.TestCase):
     def test_sheets(self):
-        self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
+        self.assertEqual(module.sheets(), spec_sheets(module.ATTRIBUTE))
 
     def test_schema(self):
-        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
-        self.assertFalse(validates([], module.SCHEMA, module.SCHEMA))
+        self.assertTrue(module.validates(VALUE))
+        self.assertFalse(module.validates([]))
 
     def test_rows(self):
         self.assertEqual(

@@ -1,4 +1,4 @@
-"""Tests of _json: how a JSON text is read, and a value's type."""
+"""Tests of _json: how a JSON text is read and written."""
 
 import unittest
 
@@ -44,6 +44,15 @@ class TestKind(unittest.TestCase):
         for value, expected in cases:
             with self.subTest(value):
                 self.assertEqual(module.type(value), expected)
+
+
+class TestEncode(unittest.TestCase):
+    def test_written_as_read(self):
+        for text in ('{"a":[1.50,true,null,"é"],"b":{}}', "4e1", '"\\u0009"'):
+            with self.subTest(text):
+                value = module.decode(text)
+                self.assertEqual(module.decode(module.encode(value)), value)
+        self.assertEqual(module.encode(module.decode("1.50")), "1.50")
 
 
 if __name__ == "__main__":

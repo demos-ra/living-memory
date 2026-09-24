@@ -3,11 +3,11 @@
 OTEL-GENAI model/gen-ai/gen-ai-tool-definitions.json.
 """
 
-__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
+__all__ = ["rows", "sheets", "validates", "ATTRIBUTE"]
 
 from typing import Any
 
-from living_memory import _parts
+from living_memory import _json_schema, _parts
 from living_memory._relations import Definition, Key, Variants
 
 ATTRIBUTE = "gen_ai.tool.definitions"
@@ -22,9 +22,10 @@ _GENERIC = Definition(
     lines=frozenset({"type", "name"}),
     properties=frozenset({"type", "name"}),
 )
-# OTEL-GENAI model/gen-ai/gen-ai-tool-definitions.json, written out by
-# hand without its title and description annotations.
-SCHEMA: dict[str, Any] = {
+# The schema is written out by hand, without its title and
+# description annotations (OTEL-GENAI,
+# model/gen-ai/gen-ai-tool-definitions.json).
+_SCHEMA: dict[str, Any] = {
     "$defs": {
         "FunctionToolDefinition": {
             "additionalProperties": True,
@@ -64,9 +65,16 @@ SCHEMA: dict[str, Any] = {
 
 _TOOLS = Variants(
     {"function": _FUNCTION, "generic": _GENERIC},
-    _parts.belongs_to({"function": "FunctionToolDefinition"}, SCHEMA),
+    _parts.belongs_to({"function": "FunctionToolDefinition"}, _SCHEMA),
 )
-SHEETS = _TOOLS.sheets(ATTRIBUTE)
+
+
+def sheets() -> list[tuple[str, list[str]]]:
+    return _TOOLS.sheets(ATTRIBUTE)
+
+
+def validates(value: Any) -> bool:
+    return _json_schema.validates(value, _SCHEMA, _SCHEMA)
 
 
 def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:

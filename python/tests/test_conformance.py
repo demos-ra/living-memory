@@ -4,7 +4,7 @@ import logging
 import unittest
 
 import mtsv
-from living_memory.integrations import otlp_json
+from living_memory import _otlp_json as otlp_json
 
 from support import CONFORMANCE, cases
 

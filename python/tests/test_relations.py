@@ -9,22 +9,6 @@ from living_memory._relations import Definition, Key, Variants
 A = "/0/resourceSpans/0/scopeSpans/0/spans/0"
 
 
-class TestText(unittest.TestCase):
-    def test_text(self):
-        cases = [
-            ("x", "x"),
-            (Number("0.950"), "0.950"),
-            (True, "true"),
-            (False, "false"),
-            (None, ""),
-            ({}, ""),
-            ([], ""),
-        ]
-        for value, expected in cases:
-            with self.subTest(repr(value)):
-                self.assertEqual(_relations.text(value), expected)
-
-
 class TestLineRows(unittest.TestCase):
     def test_lines_split_at_lf_and_crlf_only(self):
         cases = [
@@ -45,12 +29,6 @@ class TestLineRows(unittest.TestCase):
             _relations.line_rows("s", Key((A,)), "one\ntwo"),
             [("s", [A, "0", "one"]), ("s", [A, "1", "two"])],
         )
-
-
-class TestPointer(unittest.TestCase):
-    def test_escapes_tilde_and_slash(self):
-        self.assertEqual(_relations.pointer("", "a/b~c"), "/a~1b~0c")
-        self.assertEqual(_relations.pointer("/0", 2), "/0/2")
 
 
 class TestKey(unittest.TestCase):

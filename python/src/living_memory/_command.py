@@ -14,26 +14,27 @@ from typing import Any, NoReturn
 
 import mtsv
 
-from living_memory import OTLPDecodeError, integrations
+from living_memory import _otlp_json, providers
 
-# POSIX.1-2017 XBD 12.2, Guideline 13.
+# The operand "-" is standard input, or standard output where an output
+# is meant (POSIX.1-2017 XBD 12.2, Guideline 13).
 _STDIO = Path("-")
 
-# GNU Coding Standards 4.8.1.
+# The program's name is a constant string (GNU Coding Standards 4.8.1).
 _PROG = "living-memory"
 
-# The draft, Media Type Registration.
+# A file of this extension is OTLP JSON Lines, and an output takes
+# MTSV's extension (JSONL, Conventions; MTSV-DRAFT, Media Type
+# Registration).
+_JSONL = ".jsonl"
 _MTSV = ".mtsv"
 
-# install.mtsv › prompt.1.
+# Only y acts on the question (install.mtsv › prompt.1).
 _YES = "y"
-# install.mtsv › directory.2; XDG Base Directory, Referencing this
-# specification, block 9.
-_PRIVATE = 0o700
 
 
-# GNU Coding Standards 4.4.
 class _Parser(argparse.ArgumentParser):
+    # An error reads "PROGRAM: MESSAGE" (GNU Coding Standards 4.4).
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         self.exit(2, f"{self.prog}: {message}\n")
@@ -48,10 +49,11 @@ def run(argv: list[str] | None = None) -> None:
     if args.input is None:
         parser.error("an input file or directory is required")
     output = _output(args, parser)
-    source = _format(args.input, parser)
-    # Logging HOWTO, Configuring Logging for a Library.
+    _check_input(args.input, parser)
+    # The application, not the library, configures the handler
+    # (Logging HOWTO, Configuring Logging for a Library).
     logging.basicConfig(format=f"{_PROG}: %(message)s", force=True)
-    _convert(args.input, output, source)
+    _convert(args.input, output)
 
 
 def _build_parser() -> _Parser:
@@ -71,7 +73,9 @@ def _build_parser() -> _Parser:
 
 
 def _notice() -> str:
-    # GNU Coding Standards 4.8.1.
+    # The name and version, then the copyright, the licence, that it is
+    # free software, and that there is no warranty (GNU Coding Standards
+    # 4.8.1).
     package = metadata("living-memory")
     return (
         f"{_PROG} {package['Version']}\n"
@@ -90,33 +94,43 @@ def _output(args: argparse.Namespace, parser: _Parser) -> Path:
     if output is None:
         if args.input == _STDIO:
             parser.error("an output file is required to read standard input")
-        output = args.input.with_suffix(_MTSV)
+        output = _derived(args.input)
     return output
 
 
-def _format(path: Path, parser: _Parser) -> str:
-    source = integrations.JSONL if path == _STDIO else path.suffix
-    try:
-        if _is_directory(path):
-            integrations.lookup_directory(path)
-        else:
-            integrations.lookup(source)
-    except LookupError as error:
-        parser.error(str(error))
-    return source
+def _derived(path: Path) -> Path:
+    # The output is named after the input, beside it: a file's extension
+    # is replaced by MTSV's, and a directory, having none, takes it
+    # after its whole name.
+    if _is_directory(path):
+        return path.with_name(path.name + _MTSV)
+    return path.with_suffix(_MTSV)
+
+
+def _check_input(path: Path, parser: _Parser) -> None:
+    # A file is read by its extension, a directory by the provider whose
+    # directory it is, and a stream as OTLP JSON Lines (PANDOC,
+    # Specifying formats).
+    if _is_directory(path):
+        try:
+            providers.lookup(path)
+        except LookupError as error:
+            parser.error(str(error))
+    elif path != _STDIO and path.suffix != _JSONL:
+        parser.error(f"no format for {path.suffix!r}")
 
 
 def _is_directory(path: Path) -> bool:
-    # A file is read by its extension, a directory by its provider.
     return path != _STDIO and path.is_dir()
 
 
-def _convert(path: Path, output: Path, source: str) -> None:
-    # GNU Coding Standards 4.4.
+def _convert(path: Path, output: Path) -> None:
+    # A file's error names the file and line, a stream's the line only
+    # (GNU Coding Standards 4.4).
     try:
-        sheets = _read(source, path)
+        sheets = _read(path)
         _put(output, mtsv.dumps(sheets).encode("utf-8"))
-    except OTLPDecodeError as error:
+    except _otlp_json.OTLPDecodeError as error:
         if path == _STDIO:
             raise SystemExit(f"{_PROG}: {error}")
         raise SystemExit(f"{_PROG}:{path}:{error.lineno}: {error.msg}")
@@ -126,37 +140,33 @@ def _convert(path: Path, output: Path, source: str) -> None:
         raise SystemExit(_os_error(error))
 
 
-def _read(source: str, path: Path) -> list[dict[str, Any]]:
+def _read(path: Path) -> list[dict[str, Any]]:
     if _is_directory(path):
-        return integrations.lookup_directory(path).load(path)
+        return providers.lookup(path).load(path)
     if path == _STDIO:
         data = sys.stdin.buffer.read()
     else:
         data = path.read_bytes()
     with io.BytesIO(data) as fp:
-        return integrations.load(source, fp)
+        return _otlp_json.load(fp)
 
 
 def _install(args: argparse.Namespace, parser: _Parser) -> None:
-    # install.mtsv › conformance.2: prompt, directory, plugin,
-    # capture.
+    # The plugin's plan is stated, asked about, then carried out step by
+    # step, stopping at the first that fails (install.mtsv ›
+    # conformance.2, plugin.1).
     if args.input is not None or args.operand is not None or args.output:
         parser.error("--install takes no input or output")
     try:
-        plugin = integrations.lookup_plugin(args.install)
-        data = plugin.data_directory(os.environ, sys.platform, Path.home())
+        plugin = providers.lookup_plugin(args.install)
+        changes, steps = plugin.plan(os.environ, sys.platform, Path.home())
     except LookupError as error:
         parser.error(str(error))
-    if not _proceed(plugin.changes(data, Path.home())):
+    if not _proceed(changes):
         return
     try:
-        _prepare(plugin.directories(data), plugin.index_file(data))
-        for command in plugin.commands(data):
-            subprocess.run(command, check=True)
-        settings = Path.home() / plugin.SETTINGS
-        settings.parent.mkdir(parents=True, exist_ok=True)
-        document = settings.read_text("utf-8") if settings.exists() else None
-        _put(settings, plugin.settings(document, data).encode("utf-8"))
+        for step in steps:
+            _carry_out(*step)
     except subprocess.CalledProcessError as error:
         raise SystemExit(f"{_PROG}: {' '.join(error.cmd)}: exit {error.returncode}")
     except ValueError as error:
@@ -166,25 +176,32 @@ def _install(args: argparse.Namespace, parser: _Parser) -> None:
 
 
 def _proceed(changes: str) -> bool:
-    # install.mtsv › prompt.1: No by default, only y acts; no terminal,
-    # no question.
+    # No is the default and only y acts; with no terminal, nothing is
+    # asked and nothing changes (install.mtsv › prompt.1).
     if not sys.stdin.isatty():
         raise SystemExit(f"{_PROG}: --install asks first, and needs a terminal")
     print(changes)
     return input("Proceed? [y/N] ").strip() == _YES
 
 
-def _prepare(directories: list[Path], index: Path) -> None:
-    # install.mtsv › directory.2: the directories private, an empty
-    # index file.
-    for directory in directories:
-        directory.mkdir(mode=_PRIVATE, parents=True, exist_ok=True)
-    index.touch(exist_ok=True)
+def _carry_out(action: str, target: Any, detail: Any) -> None:
+    if action == "directory":
+        mode = 0o777 if detail is None else detail
+        target.mkdir(mode=mode, parents=True, exist_ok=True)
+    elif action == "file":
+        target.touch(exist_ok=True)
+    elif action == "run":
+        subprocess.run(target, check=True)
+    elif action == "replace":
+        document = target.read_text("utf-8") if target.exists() else None
+        _put(target, detail(document).encode("utf-8"))
+    else:
+        raise ValueError(f"no such step {action!r}")
 
 
 def _put(path: Path, data: bytes) -> None:
-    # POSIX.1-2017 XSH rename: the file replaced whole, written beside
-    # its name in the same folder and renamed onto it.
+    # A file is replaced whole: written beside its name in the same
+    # folder and renamed onto it (POSIX.1-2017 XSH rename).
     if path == _STDIO:
         sys.stdout.buffer.write(data)
         return
@@ -197,6 +214,7 @@ def _put(path: Path, data: bytes) -> None:
 
 
 def _os_error(error: OSError) -> str:
-    # GNU Coding Standards 4.4.
+    # A system error names the file, its message not capitalized
+    # (GNU Coding Standards 4.4).
     reason = error.strerror[:1].lower() + error.strerror[1:]
     return f"{_PROG}: {error.filename}: {reason}"

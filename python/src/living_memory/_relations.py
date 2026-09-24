@@ -8,22 +8,19 @@ __all__ = [
     "node_sheets",
     "node_rows",
     "line_rows",
-    "text",
-    "pointer",
 ]
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from living_memory import _json
+from living_memory import _fields, _json
+from living_memory._json_pointer import pointer
 
-# spec › item.2, line.1.
+# A lines sheet and a node sheet have these columns (spec › item.2,
+# line.1, node.1).
 _LINES = ["address", "pointer", "line", "value"]
-# spec › node.1.
 _NODE = ["address", "pointer", "type", "value"]
-# The draft, Generators.
-_SEPARATORS = frozenset("\t\n\f\r")
 
 _Row = tuple[str, list[str]]
 _Sheet = tuple[str, list[str]]
@@ -31,7 +28,9 @@ _Sheet = tuple[str, list[str]]
 
 @dataclass(frozen=True)
 class Key:
-    # spec › item.2, attributes.1, nested.1.
+    # A row is keyed by its address and a pointer; a child's key extends
+    # its parent's last field, so the parent's key is carried in it
+    # (spec › item.2, attributes.1, nested.1).
     fields: tuple[str, ...]
 
     def extend(self, token: str | int) -> "Key":
@@ -40,7 +39,11 @@ class Key:
 
 @dataclass(frozen=True)
 class Definition:
-    # spec › field.1, line.1, node.1, nested.1, item.1, node.2.
+    # In a schema definition, simple properties are columns, a text
+    # column has a lines sheet, a value of any shape is a node sheet, a
+    # nested object is a child sheet, and parts or tools named by their
+    # type value are variants (spec › field.1, line.1, node.1, nested.1,
+    # item.1, node.2).
     columns: tuple[str, ...] = ()
     lines: frozenset[str] = frozenset()
     nodes: tuple[str, ...] = ()
@@ -49,7 +52,8 @@ class Definition:
     properties: frozenset[str] = field(default_factory=frozenset)
 
     def sheets(self, sheet: str) -> list[_Sheet]:
-        # spec › file.4.
+        # A sheet is followed by its lines sheets, then by its child
+        # sheets (spec › file.4).
         sheets = [(sheet, ["address", "pointer", *self.columns])]
         for name in self.columns:
             if name in self.lines:
@@ -64,17 +68,18 @@ class Definition:
         return sheets
 
     def array_rows(self, sheet: str, key: Key, value: Any) -> list[_Row]:
-        # spec › nested.2.
+        # An array keeps its order in the pointer (spec › nested.2).
         rows: list[_Row] = []
-        for index, item in enumerate(_list(value)):
+        for index, item in enumerate(_json.array(value)):
             rows += self.item_rows(sheet, key.extend(index), item)
         return rows
 
     def item_rows(self, sheet: str, key: Key, value: Any) -> list[_Row]:
-        # spec › nested.1, node.1, node.2.
+        # A property beyond the definition goes to additionalProperties
+        # (spec › nested.1, node.1, node.2).
         if not isinstance(value, dict):
             return []
-        row = [*key.fields] + [text(value.get(name)) for name in self.columns]
+        row = [*key.fields] + [_fields.text(value.get(name)) for name in self.columns]
         rows: list[_Row] = [(sheet, row)]
         for name in self.columns:
             if name in self.lines:
@@ -100,7 +105,9 @@ class Definition:
 
 @dataclass(frozen=True)
 class Variants:
-    # spec › item.1.
+    # A part or tool belongs to the definition its type value names only
+    # when it validates against it; any other is generic
+    # (spec › item.1).
     definitions: dict[str, Definition]
     belongs: Callable[[str, Any], bool]
 
@@ -112,7 +119,7 @@ class Variants:
 
     def array_rows(self, sheet: str, key: Key, value: Any) -> list[_Row]:
         rows: list[_Row] = []
-        for index, item in enumerate(_list(value)):
+        for index, item in enumerate(_json.array(value)):
             name = self._named(item)
             rows += self.definitions[name].item_rows(
                 f"{sheet}.{name}", key.extend(index), item
@@ -128,7 +135,10 @@ class Variants:
 def assemble(
     headers: list[_Sheet], rows: list[_Row]
 ) -> tuple[list[dict[str, Any]], set[str]]:
-    # spec › file.4, character.1, line.1.
+    # Every sheet is written, in order, each with its header; a field
+    # MTSV cannot hold is left empty and reported, unless its line
+    # breaks are carried by a lines sheet (spec › file.4, character.1,
+    # line.1).
     names = {name for name, _ in headers}
     header_of = dict(headers)
     records: dict[str, list[list[str]]] = {name: [] for name, _ in headers}
@@ -136,7 +146,7 @@ def assemble(
     for name, row in rows:
         fields = []
         for column, value in zip(header_of[name], row):
-            written = _write_cell(value)
+            written = _fields.field(value)
             carried = "\n" in value and f"{name}.{column}" in names
             if written != value and not carried:
                 left.add(f"{name}.{column}")
@@ -150,13 +160,15 @@ def assemble(
 
 
 def node_sheets(sheet: str) -> list[_Sheet]:
-    # spec › line.1.
+    # A node sheet is followed by the lines sheet of its value column
+    # (spec › line.1).
     return [(sheet, _NODE), (f"{sheet}.value", _LINES)]
 
 
 def node_rows(sheet: str, key: Key, value: Any) -> list[_Row]:
-    # spec › node.1.
-    rows: list[_Row] = [(sheet, [*key.fields, _json.type(value), text(value)])]
+    # Each node is a row, a node before the nodes within it
+    # (spec › node.1).
+    rows: list[_Row] = [(sheet, [*key.fields, _json.type(value), _fields.text(value)])]
     rows += line_rows(f"{sheet}.value", key, value)
     if isinstance(value, dict):
         for name, member in value.items():
@@ -168,38 +180,9 @@ def node_rows(sheet: str, key: Key, value: Any) -> list[_Row]:
 
 
 def line_rows(sheet: str, key: Key, value: Any) -> list[_Row]:
-    # spec › line.1.
+    # Each line is a row of the lines sheet, keyed by its position
+    # (spec › line.1).
     return [
         (sheet, [*key.fields, str(index), line])
-        for index, line in enumerate(_split_lines(text(value)))
+        for index, line in enumerate(_fields.lines(value))
     ]
-
-
-def text(value: Any) -> str:
-    # spec › node.1, text.1; RFC 8259, Section 3.
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return value if isinstance(value, str) else ""
-
-
-def pointer(at: str, token: str | int) -> str:
-    # RFC 6901, Section 3.
-    escaped = str(token).replace("~", "~0").replace("/", "~1")
-    return f"{at}/{escaped}"
-
-
-def _write_cell(value: str) -> str:
-    # spec › character.1.
-    return "" if not _SEPARATORS.isdisjoint(value) else value
-
-
-def _split_lines(value: str) -> list[str]:
-    # spec › line.1.
-    if "\n" not in value:
-        return []
-    found = value.split("\n")
-    return [line.removesuffix("\r") for line in found[:-1]] + found[-1:]
-
-
-def _list(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []

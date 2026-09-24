@@ -27,7 +27,7 @@ class TestSheets(unittest.TestCase):
 class TestDefinitions(unittest.TestCase):
     def test_definitions(self):
         self.assertEqual(
-            _parts.DEFINITIONS,
+            _parts._DEFINITIONS,
             {
                 "blob": "BlobPart",
                 "compaction": "CompactionPart",
@@ -42,7 +42,8 @@ class TestDefinitions(unittest.TestCase):
             },
         )
         self.assertEqual(
-            set(_parts.DEFINITIONS) | {"generic"}, set(_parts.MESSAGE_PARTS.definitions)
+            set(_parts._DEFINITIONS) | {"generic"},
+            set(_parts.MESSAGE_PARTS.definitions),
         )
 
 

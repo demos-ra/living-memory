@@ -3,10 +3,11 @@
 OTEL-GENAI model/gen-ai/gen-ai-memory-records.json.
 """
 
-__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
+__all__ = ["rows", "sheets", "validates", "ATTRIBUTE"]
 
 from typing import Any
 
+from living_memory import _json_schema
 from living_memory._relations import Definition, Key
 
 ATTRIBUTE = "gen_ai.memory.records"
@@ -16,11 +17,11 @@ _RECORD = Definition(
     nodes=("content", "metadata"),
     properties=frozenset({"content", "id", "metadata", "score"}),
 )
-SHEETS = _RECORD.sheets(ATTRIBUTE)
 
-# OTEL-GENAI model/gen-ai/gen-ai-memory-records.json, written out by
-# hand without its title and description annotations.
-SCHEMA: dict[str, Any] = {
+# The schema is written out by hand, without its title and
+# description annotations (OTEL-GENAI,
+# model/gen-ai/gen-ai-memory-records.json).
+_SCHEMA: dict[str, Any] = {
     "$defs": {
         "MemoryRecord": {
             "additionalProperties": True,
@@ -49,6 +50,15 @@ SCHEMA: dict[str, Any] = {
     "items": {"$ref": "#/$defs/MemoryRecord"},
     "type": "array",
 }
+
+
+def sheets() -> list[tuple[str, list[str]]]:
+    return _RECORD.sheets(ATTRIBUTE)
+
+
+def validates(value: Any) -> bool:
+    return _json_schema.validates(value, _SCHEMA, _SCHEMA)
+
 
 def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
     return _RECORD.array_rows(ATTRIBUTE, Key((address, "")), value)

@@ -6,12 +6,11 @@ gen-ai-output-messages.json and gen-ai-system-instructions.json.
 
 __all__ = [
     "belongs_to",
+    "definitions",
+    "items",
     "TEXT",
     "GENERIC",
     "MESSAGE_PARTS",
-    "DEFS",
-    "ITEMS",
-    "DEFINITIONS",
 ]
 
 from collections.abc import Callable
@@ -37,7 +36,9 @@ _TOOL_CALL_RESPONSE = Definition(
     nodes=("response",),
     properties=frozenset({"type", "id", "response"}),
 )
-# GenericServerToolCall and GenericServerToolCallResponse.
+# A server tool call's details and its response's details share one
+# definition: GenericServerToolCall and GenericServerToolCallResponse
+# each hold a type.
 _SERVER_TOOL_DETAILS = Definition(
     columns=("type",),
     lines=frozenset({"type"}),
@@ -103,9 +104,10 @@ _MESSAGE_PARTS = {
 _STRING_OR_NULL = {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None}
 _MODALITY = {"anyOf": [{"$ref": "#/$defs/Modality"}, {"type": "string"}]}
 
-# OTEL-GENAI model/gen-ai/gen-ai-input-messages.json, "$defs", written
-# out by hand without their title and description annotations.
-DEFS: dict[str, Any] = {
+# The part definitions are written out by hand, without their title
+# and description annotations (OTEL-GENAI,
+# model/gen-ai/gen-ai-input-messages.json, "$defs").
+_DEFS: dict[str, Any] = {
     "BlobPart": {
         "properties": {
             "type": {"const": "blob", "type": "string"},
@@ -234,9 +236,10 @@ DEFS: dict[str, Any] = {
     },
 }
 
-# OTEL-GENAI gen-ai-input-messages.json, ChatMessage, parts: the items,
-# as gen-ai-output-messages.json repeats them.
-ITEMS = {
+# A message's parts are these items, which the output messages schema
+# repeats (OTEL-GENAI, model/gen-ai/gen-ai-input-messages.json,
+# ChatMessage).
+_ITEMS = {
     "anyOf": [
         {"$ref": "#/$defs/TextPart"},
         {"$ref": "#/$defs/ToolCallRequestPart"},
@@ -252,25 +255,37 @@ ITEMS = {
     ]
 }
 
-# spec › item.1.
-DEFINITIONS = {
+# A part's type value names its definition (spec › item.1).
+_DEFINITIONS = {
     definition["properties"]["type"]["const"]: name
-    for name, definition in DEFS.items()
+    for name, definition in _DEFS.items()
     if "const" in definition.get("properties", {}).get("type", {})
 }
 
 
+def definitions(*names: str) -> dict[str, Any]:
+    # A schema holds the part definitions it names, or all of them,
+    # under "$defs".
+    return {name: _DEFS[name] for name in names or _DEFS}
+
+
+def items() -> dict[str, Any]:
+    # A schema whose messages hold parts takes these items.
+    return _ITEMS
+
+
 def belongs_to(
-    definitions: dict[str, str], root: dict[str, Any]
+    definition_names: dict[str, str], root: dict[str, Any]
 ) -> Callable[[str, Any], bool]:
-    # spec › item.1.
+    # A part or tool belongs to the definition its type value names only
+    # when it validates against that definition (spec › item.1).
     def belongs(name: str, item: Any) -> bool:
-        if name not in definitions:
+        if name not in definition_names:
             return False
-        reference = {"$ref": f"#/$defs/{definitions[name]}"}
+        reference = {"$ref": f"#/$defs/{definition_names[name]}"}
         return _json_schema.validates(item, reference, root)
 
     return belongs
 
 
-MESSAGE_PARTS = Variants(_MESSAGE_PARTS, belongs_to(DEFINITIONS, {"$defs": DEFS}))
+MESSAGE_PARTS = Variants(_MESSAGE_PARTS, belongs_to(_DEFINITIONS, {"$defs": _DEFS}))

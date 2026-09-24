@@ -3,11 +3,11 @@
 OTEL-GENAI model/gen-ai/gen-ai-output-messages.json.
 """
 
-__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
+__all__ = ["rows", "sheets", "validates", "ATTRIBUTE"]
 
 from typing import Any
 
-from living_memory import _parts
+from living_memory import _json_schema, _parts
 from living_memory._relations import Definition, Key
 
 ATTRIBUTE = "gen_ai.output.messages"
@@ -17,13 +17,13 @@ _MESSAGE = Definition(
     variants=(("parts", _parts.MESSAGE_PARTS),),
     properties=frozenset({"role", "parts", "name", "finish_reason"}),
 )
-SHEETS = _MESSAGE.sheets(ATTRIBUTE)
 
-# OTEL-GENAI model/gen-ai/gen-ai-output-messages.json, written out by
-# hand without its title and description annotations.
-SCHEMA: dict[str, Any] = {
+# The schema is written out by hand, without its title and
+# description annotations (OTEL-GENAI,
+# model/gen-ai/gen-ai-output-messages.json).
+_SCHEMA: dict[str, Any] = {
     "$defs": {
-        **_parts.DEFS,
+        **_parts.definitions(),
         "FinishReason": {
             "enum": [
                 "stop",
@@ -39,7 +39,7 @@ SCHEMA: dict[str, Any] = {
             "additionalProperties": True,
             "properties": {
                 "role": {"anyOf": [{"$ref": "#/$defs/Role"}, {"type": "string"}]},
-                "parts": {"items": _parts.ITEMS, "type": "array"},
+                "parts": {"items": _parts.items(), "type": "array"},
                 "name": {
                     "anyOf": [{"type": "string"}, {"type": "null"}],
                     "default": None,
@@ -65,6 +65,15 @@ SCHEMA: dict[str, Any] = {
     "items": {"$ref": "#/$defs/OutputMessage"},
     "type": "array",
 }
+
+
+def sheets() -> list[tuple[str, list[str]]]:
+    return _MESSAGE.sheets(ATTRIBUTE)
+
+
+def validates(value: Any) -> bool:
+    return _json_schema.validates(value, _SCHEMA, _SCHEMA)
+
 
 def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
     return _MESSAGE.array_rows(ATTRIBUTE, Key((address, "")), value)

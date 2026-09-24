@@ -1,9 +1,9 @@
-"""Tests of integrations/otlp_json: how an OTLP file is read."""
+"""Tests of _otlp_json: how an OTLP JSON Lines file is read."""
 
 import io
 import unittest
 
-from living_memory.integrations import otlp_json
+from living_memory import _otlp_json as otlp_json
 
 SPANS = (
     '{"resourceSpans":[{"scopeSpans":[{"spans":[{'
