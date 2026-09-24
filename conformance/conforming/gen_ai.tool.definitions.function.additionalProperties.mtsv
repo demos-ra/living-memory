@@ -168,7 +168,7 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.tool.definitions.function.additionalProperties
 address	pointer	type	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/strict	true	
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0/strict	boolean	true
 gen_ai.tool.definitions.function.additionalProperties.value
 address	pointer	line	value
 gen_ai.tool.definitions.generic

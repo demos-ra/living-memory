@@ -55,7 +55,7 @@ address	line	value
 address	key	pointer	type	value
 /0/resourceSpans/0/scopeSpans/0/spans/0	gen_ai.request.model		string	m
 /0/resourceSpans/0/scopeSpans/0/spans/0	s		string	x
-/0/resourceSpans/0/scopeSpans/0/spans/0	b		true	
+/0/resourceSpans/0/scopeSpans/0/spans/0	b		boolean	true
 /0/resourceSpans/0/scopeSpans/0/spans/0	i		number	5
 /0/resourceSpans/0/scopeSpans/0/spans/0	d		number	0.5
 /0/resourceSpans/0/scopeSpans/0/spans/0	y		string	aGk=

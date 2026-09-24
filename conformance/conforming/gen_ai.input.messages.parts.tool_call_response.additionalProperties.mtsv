@@ -224,7 +224,7 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.input.messages.parts.tool_call_response.additionalProperties
 address	pointer	type	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/is_error	false	
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/is_error	boolean	false
 gen_ai.input.messages.parts.tool_call_response.additionalProperties.value
 address	pointer	line	value
 gen_ai.input.messages.parts.server_tool_call

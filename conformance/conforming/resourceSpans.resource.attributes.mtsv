@@ -12,7 +12,7 @@ address	key	pointer	type	value
 /0/resourceSpans/0/resource	host.cpus		number	8
 /0/resourceSpans/0/resource	tags		array	
 /0/resourceSpans/0/resource	tags	/0	string	a
-/0/resourceSpans/0/resource	tags	/1	false	
+/0/resourceSpans/0/resource	tags	/1	boolean	false
 /0/resourceSpans/0/resource	env		object	
 /0/resourceSpans/0/resource	env	/k	number	1.5
 resourceSpans.resource.attributes.key

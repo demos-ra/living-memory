@@ -181,6 +181,7 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.input.messages
 address	pointer	role	name
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0	user	
 gen_ai.input.messages.role
 address	pointer	line	value
 gen_ai.input.messages.name
@@ -259,6 +260,7 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.input.messages.parts.blob
 address	pointer	mime_type	modality	content
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0		image	not base64!
 gen_ai.input.messages.parts.blob.mime_type
 address	pointer	line	value
 gen_ai.input.messages.parts.blob.modality
@@ -321,7 +323,6 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.output.messages
 address	pointer	role	name	finish_reason
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0	user		
 gen_ai.output.messages.role
 address	pointer	line	value
 gen_ai.output.messages.name
@@ -356,15 +357,10 @@ address	pointer	type	value
 address	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response
 address	pointer	id
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0	c1
 gen_ai.output.messages.parts.tool_call_response.id
 address	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response.response
 address	pointer	type	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response	object	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/temp	number	57
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/ok	boolean	true
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/note	null	
 gen_ai.output.messages.parts.tool_call_response.response.value
 address	pointer	line	value
 gen_ai.output.messages.parts.tool_call_response.additionalProperties

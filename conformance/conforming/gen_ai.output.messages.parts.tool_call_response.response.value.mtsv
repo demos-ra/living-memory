@@ -363,7 +363,7 @@ address	pointer	line	value
 address	pointer	type	value
 /0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response	object	
 /0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/temp	string	
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/ok	true	
+/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/ok	boolean	true
 /0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/response/note	null	
 gen_ai.output.messages.parts.tool_call_response.response.value
 address	pointer	line	value
