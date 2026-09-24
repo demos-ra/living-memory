@@ -1,1 +1,2 @@
+include src/living_memory/integrations/providers/*.mtsv
 prune tests

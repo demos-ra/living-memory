@@ -59,6 +59,26 @@ a `ValueError` whose `lineno` is the line. What is left behind is logged
 as a warning on the `living_memory` logger, the record's `left_behind`
 attribute holding the names.
 
+## Read Claude Code's record
+
+With `OTEL_LOG_RAW_API_BODIES=file:<dir>`, Claude Code writes the
+Messages API request and response of every successful call into
+`<dir>`, with an index, `index.jsonl`. The `anthropic` provider reads
+that directory:
+
+```python
+from living_memory.integrations.providers import anthropic
+
+sheets = anthropic.load("path/to/dir")
+```
+
+Each call becomes one OpenTelemetry GenAI event, read into the same
+sheets as an OTLP file. `anthropic.logs_data` returns the events
+themselves. What the provider reads and writes, and what is absent, is
+stated in `src/living_memory/integrations/providers/anthropic.mtsv`. A
+record that does not conform raises `anthropic.RecordDecodeError`, a
+`ValueError` whose `lineno` is the line of the index.
+
 ## Layout
 
 Each module hides one decision, named beside it; a module uses only the
@@ -84,6 +104,7 @@ src/living_memory/
     __init__             which reader reads which input
     otlp_json            how an OTLP JSON Lines file is read: its lines, their order and number, UTF-8, what is rejected and what is reported
     providers/__init__   which provider formats exist
+    providers/anthropic  how Claude Code's record of Messages API calls is read, as its module specification, providers/anthropic.mtsv, states
   _command               level 7  how a person runs a conversion
   __main__               level 7  the command's entry point
   __init__               the public interface: load, loads, OTLPDecodeError
