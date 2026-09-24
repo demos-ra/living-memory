@@ -1,30 +1,21 @@
 """The tool call result schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-tool-call-result.json: an object of any
-properties, so a value of any shape.
-
-Functions:
-entries -- return the rows of a gen_ai.tool.call.result value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-tool-call-result.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _relations
+from living_memory._relations import Key, node_rows, node_sheets
 
 ATTRIBUTE = "gen_ai.tool.call.result"
-SHEETS = _relations.node_sheets(ATTRIBUTE)
+SHEETS = node_sheets(ATTRIBUTE)
+
+# OTEL-GENAI model/gen-ai/gen-ai-tool-call-result.json, written out by
+# hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {"additionalProperties": True, "type": "object"}
 
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.tool.call.result value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.node_entries(ATTRIBUTE, [address], value, "")
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return node_rows(ATTRIBUTE, Key((address, "")), value)

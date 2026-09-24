@@ -30,8 +30,14 @@ living-memory -o out.mtsv trace.jsonl
 living-memory - out.mtsv < trace.jsonl
 ```
 
-A line that is not JSON stops the conversion, and the message names the
-line by its number.
+A file that is not OTLP JSON Lines stops the conversion, and the message
+names the line by its number, the first line being line 1: a line that
+is not JSON, a blank line, a byte order mark, a value not in the OTLP
+JSON encoding, a key repeated in one list of attributes, more than one
+kind of data in the file, or one of the eight that does not validate
+against its schema. What the file holds but the sheets do not carry is reported as a
+warning: a member with an unknown name, a field used only by Profiling,
+a MetricsData line, and a field MTSV cannot represent.
 
 ## Read and write in Python
 
@@ -47,7 +53,11 @@ with open("trace.mtsv", "wb") as file:
 ```
 
 `loads` works on a string. Every sheet of the mapping is returned, in the
-order of the Sheets of `spec/living-memory.mtsv`, each with its header.
+order of the Sheets of `spec/living-memory.mtsv`, each with its header. A
+file that is not OTLP JSON Lines raises `living_memory.OTLPDecodeError`,
+a `ValueError` whose `lineno` is the line. What is left behind is logged
+as a warning on the `living_memory` logger, the record's `left_behind`
+attribute holding the names.
 
 ## Layout
 
@@ -56,24 +66,27 @@ modules above it.
 
 ```
 src/living_memory/
-  _relations             level 1  how a value becomes keyed sheets
-  _parts                 level 2  the message part types, shared by the schemas that repeat them
-  _system_instructions   level 3  the system instructions schema
-  _tool_definitions      level 3  the tool definitions schema
-  _input_messages        level 3  the input messages schema
-  _output_messages       level 3  the output messages schema
-  _tool_call_arguments   level 3  the tool call arguments schema
-  _tool_call_result      level 3  the tool call result schema
-  _memory_records        level 3  the memory records schema
-  _retrieval_documents   level 3  the retrieval documents schema
-  _telemetry_data        level 4  the OTLP data tree, and where the eight are among its attributes
-  integrations/          level 5
+  _json                  level 1  how a JSON text is read, and the type of a JSON value
+  _relations             level 2  how a value becomes keyed sheets
+  _json_schema           level 2  whether a value validates against a JSON Schema of draft-07
+  _protojson             level 2  how a simple value of an OTLP message is written in JSON
+  _parts                 level 3  the message part types, shared by the schemas that repeat them
+  _system_instructions   level 4  the system instructions schema
+  _tool_definitions      level 4  the tool definitions schema
+  _input_messages        level 4  the input messages schema
+  _output_messages       level 4  the output messages schema
+  _tool_call_arguments   level 4  the tool call arguments schema
+  _tool_call_result      level 4  the tool call result schema
+  _memory_records        level 4  the memory records schema
+  _retrieval_documents   level 4  the retrieval documents schema
+  _telemetry_data        level 5  the OTLP data tree, and where the eight are among its attributes
+  integrations/          level 6
     __init__             which reader reads which input
-    otlp_json            how an OTLP JSON Lines file is read: its lines, their order and index, and UTF-8
+    otlp_json            how an OTLP JSON Lines file is read: its lines, their order and number, UTF-8, what is rejected and what is reported
     providers/__init__   which provider formats exist
-  _command               level 6  how a person runs a conversion
-  __main__               level 6  the command's entry point
-  __init__               the public interface: load, loads
+  _command               level 7  how a person runs a conversion
+  __main__               level 7  the command's entry point
+  __init__               the public interface: load, loads, OTLPDecodeError
 tests/                   one file per module, and the conformance runner
 ```
 

@@ -1,38 +1,54 @@
 """The memory records schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-memory-records.json: an array of
-MemoryRecord.
-
-Functions:
-entries -- return the rows of a gen_ai.memory.records value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-RECORD -- MemoryRecord
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-memory-records.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "RECORD", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _relations
-from living_memory._relations import Shape
+from living_memory._relations import Definition, Key
 
 ATTRIBUTE = "gen_ai.memory.records"
-RECORD = Shape(
+_RECORD = Definition(
     columns=("id", "score"),
     lines=frozenset({"id"}),
     nodes=("content", "metadata"),
-    known=frozenset({"content", "id", "metadata", "score"}),
+    properties=frozenset({"content", "id", "metadata", "score"}),
 )
-SHEETS = _relations.shape_sheets(ATTRIBUTE, RECORD)
+SHEETS = _RECORD.sheets(ATTRIBUTE)
 
+# OTEL-GENAI model/gen-ai/gen-ai-memory-records.json, written out by
+# hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {
+    "$defs": {
+        "MemoryRecord": {
+            "additionalProperties": True,
+            "properties": {
+                "content": {},
+                "id": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
+                "metadata": {
+                    "anyOf": [
+                        {"additionalProperties": True, "type": "object"},
+                        {"type": "null"},
+                    ],
+                    "default": None,
+                },
+                "score": {
+                    "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "default": None,
+                },
+            },
+            "required": ["content"],
+            "type": "object",
+        }
+    },
+    "items": {"$ref": "#/$defs/MemoryRecord"},
+    "type": "array",
+}
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.memory.records value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.array_entries(ATTRIBUTE, RECORD, address, "", value)
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return _RECORD.array_rows(ATTRIBUTE, Key((address, "")), value)

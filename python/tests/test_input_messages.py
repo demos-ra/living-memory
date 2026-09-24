@@ -3,32 +3,33 @@
 import unittest
 
 from living_memory import _input_messages as module
+from living_memory._json_schema import validates
 
 from support import spec_sheets
 
 A = "/0/resourceSpans/0/scopeSpans/0/spans/0"
+VALUE = [
+    {"role": "user", "parts": [{"type": "text", "content": "a\nb"}], "name": None},
+    {"role": "assistant", "parts": []},
+]
 
 
 class TestInputMessages(unittest.TestCase):
-    """The set's sheets and rows follow its schema."""
-
     def test_sheets(self):
         self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
 
-    def test_entries(self):
-        value = [
-            {
-                "role": "user",
-                "parts": [{"type": "text", "content": "a\nb"}],
-                "name": None,
-            },
-            {"role": "assistant", "parts": []},
-        ]
+    def test_schema(self):
+        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
+        for invalid in ([{"role": "user"}], [{"role": 1, "parts": []}], {}):
+            with self.subTest(invalid):
+                self.assertFalse(validates(invalid, module.SCHEMA, module.SCHEMA))
+
+    def test_rows(self):
         self.assertEqual(
-            module.entries(A, value),
+            module.rows(A, VALUE),
             [
                 ("gen_ai.input.messages", [A, "/0", "user", ""]),
-                ("gen_ai.input.messages.parts.text", [A, "/0/parts/0", ""]),
+                ("gen_ai.input.messages.parts.text", [A, "/0/parts/0", "a\nb"]),
                 (
                     "gen_ai.input.messages.parts.text.content",
                     [A, "/0/parts/0/content", "0", "a"],

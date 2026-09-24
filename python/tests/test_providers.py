@@ -6,8 +6,6 @@ from living_memory.integrations import providers
 
 
 class TestProviders(unittest.TestCase):
-    """No provider format exists yet."""
-
     def test_none(self):
         self.assertEqual(providers.PROVIDERS, {})
 

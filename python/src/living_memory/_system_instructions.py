@@ -1,32 +1,36 @@
 """The system instructions schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-system-instructions.json: an array of
-parts, each a TextPart or a GenericPart.
-
-Functions:
-entries -- return the rows of a gen_ai.system_instructions value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-PARTS -- the parts, by type value
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-system-instructions.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "PARTS", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _parts, _relations
+from living_memory import _parts
+from living_memory._relations import Key, Variants
 
 ATTRIBUTE = "gen_ai.system_instructions"
-PARTS = {"text": _parts.TEXT, "generic": _parts.GENERIC}
-SHEETS = _relations.variant_sheets(ATTRIBUTE, PARTS)
+
+# OTEL-GENAI model/gen-ai/gen-ai-system-instructions.json, written out
+# by hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {
+    "$defs": {
+        "GenericPart": _parts.DEFS["GenericPart"],
+        "TextPart": _parts.DEFS["TextPart"],
+    },
+    "items": {
+        "anyOf": [{"$ref": "#/$defs/TextPart"}, {"$ref": "#/$defs/GenericPart"}]
+    },
+    "type": "array",
+}
+
+_PARTS = Variants(
+    {"text": _parts.TEXT, "generic": _parts.GENERIC},
+    _parts.belongs_to({"text": "TextPart"}, SCHEMA),
+)
+SHEETS = _PARTS.sheets(ATTRIBUTE)
 
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.system_instructions value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.variant_entries(ATTRIBUTE, PARTS, address, "", value)
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return _PARTS.array_rows(ATTRIBUTE, Key((address, "")), value)

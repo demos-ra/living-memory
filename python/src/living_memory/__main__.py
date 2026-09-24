@@ -1,8 +1,4 @@
-"""The command's entry point.
-
-Functions:
-main -- convert an OTLP JSON Lines file to an MTSV file
-"""
+"""The command's entry point."""
 
 __all__ = ["main"]
 
@@ -10,10 +6,7 @@ from living_memory import _command
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Convert an OTLP JSON Lines file to an MTSV file.
-
-    argv -- the arguments, or None for those of the process
-    """
+    """Convert an OTLP JSON Lines file to an MTSV file."""
     _command.run(argv)
 
 

@@ -1,38 +1,50 @@
 """The input messages schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-input-messages.json: an array of
-ChatMessage, each with its parts.
-
-Functions:
-entries -- return the rows of a gen_ai.input.messages value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-MESSAGE -- ChatMessage
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-input-messages.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "MESSAGE", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _parts, _relations
-from living_memory._relations import Shape
+from living_memory import _parts
+from living_memory._relations import Definition, Key
 
 ATTRIBUTE = "gen_ai.input.messages"
-MESSAGE = Shape(
+_MESSAGE = Definition(
     columns=("role", "name"),
     lines=frozenset({"role", "name"}),
     variants=(("parts", _parts.MESSAGE_PARTS),),
-    known=frozenset({"role", "parts", "name"}),
+    properties=frozenset({"role", "parts", "name"}),
 )
-SHEETS = _relations.shape_sheets(ATTRIBUTE, MESSAGE)
+SHEETS = _MESSAGE.sheets(ATTRIBUTE)
 
+# OTEL-GENAI model/gen-ai/gen-ai-input-messages.json, written out by
+# hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {
+    "$defs": {
+        **_parts.DEFS,
+        "ChatMessage": {
+            "additionalProperties": True,
+            "properties": {
+                "role": {"anyOf": [{"$ref": "#/$defs/Role"}, {"type": "string"}]},
+                "parts": {"items": _parts.ITEMS, "type": "array"},
+                "name": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
+            },
+            "required": ["role", "parts"],
+            "type": "object",
+        },
+        "Role": {
+            "enum": ["system", "user", "assistant", "tool"],
+            "type": "string",
+        },
+    },
+    "items": {"$ref": "#/$defs/ChatMessage"},
+    "type": "array",
+}
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.input.messages value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.array_entries(ATTRIBUTE, MESSAGE, address, "", value)
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return _MESSAGE.array_rows(ATTRIBUTE, Key((address, "")), value)

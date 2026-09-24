@@ -12,13 +12,13 @@ from living_memory import _command
 from living_memory.integrations import otlp_json
 
 LINE = (
-    '{"resourceSpans":[{"scopeSpans":[{"spans":[{"traceId":"t","spanId":"s",'
+    '{"resourceSpans":[{"scopeSpans":[{"spans":[{'
+    '"traceId":"5b8efff798038103d269b633813fc60c","spanId":"eee19b7ec3c1b174",'
     '"name":"n"}]}]}]}\n'
 )
 
 
 def run(argv, stdin=b""):
-    """Run the command; return its exit code, output and error."""
     stdout = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
     stderr = io.StringIO()
     code = 0
@@ -33,8 +33,6 @@ def run(argv, stdin=b""):
 
 
 class TestRun(unittest.TestCase):
-    """run converts a file, or a stream, to MTSV."""
-
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.input = Path(self.folder.name) / "trace.jsonl"
@@ -74,7 +72,18 @@ class TestRun(unittest.TestCase):
     def test_line_not_json(self):
         self.input.write_text("x\n", encoding="utf-8")
         code = run([str(self.input)])[0]
-        self.assertTrue(code.startswith(f"living-memory:{self.input}: line 1: "))
+        self.assertTrue(code.startswith(f"living-memory:{self.input}:1: "))
+
+    def test_line_not_json_from_standard_input(self):
+        code = run(["-", "-"], b"x\n")[0]
+        self.assertTrue(code.startswith("living-memory: "))
+        self.assertTrue(code.endswith(": line 1"))
+
+    def test_left_behind_is_reported(self):
+        self.input.write_text(LINE.replace('"name"', '"extra":1,"name"'))
+        code, _, stderr = run([str(self.input)])
+        self.assertEqual(code, 0)
+        self.assertIn("living-memory: left behind: extra", stderr)
 
     def test_missing_file(self):
         missing = Path(self.folder.name) / "missing.jsonl"

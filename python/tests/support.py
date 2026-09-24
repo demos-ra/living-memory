@@ -10,10 +10,6 @@ SPEC = ROOT / "spec" / "living-memory.mtsv"
 
 
 def spec_sheets(prefix=""):
-    """Return the spec's Sheets whose names start with a prefix.
-
-    Each is a pair of its name and its header, in the spec's order.
-    """
     with SPEC.open("rb") as file:
         spec = {sheet["sheet name"]: sheet for sheet in mtsv.load(file)}
     headers = {}
@@ -24,9 +20,8 @@ def spec_sheets(prefix=""):
     ]
 
 
-def cases():
-    """Return the input of every conformance case, sorted."""
-    found = sorted(CONFORMANCE.glob("*/*.jsonl"))
+def cases(folder):
+    found = sorted((CONFORMANCE / folder).glob("*.jsonl"))
     if not found:
-        raise FileNotFoundError(CONFORMANCE)
+        raise FileNotFoundError(CONFORMANCE / folder)
     return found

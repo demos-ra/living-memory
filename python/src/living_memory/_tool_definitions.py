@@ -1,46 +1,73 @@
 """The tool definitions schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-tool-definitions.json: an array of
-tools, each a FunctionToolDefinition or a GenericToolDefinition.
-
-Functions:
-entries -- return the rows of a gen_ai.tool.definitions value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-FUNCTION -- FunctionToolDefinition
-GENERIC -- GenericToolDefinition
-TOOLS -- the tools, by type value
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-tool-definitions.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "FUNCTION", "GENERIC", "TOOLS", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _relations
-from living_memory._relations import Shape
+from living_memory import _parts
+from living_memory._relations import Definition, Key, Variants
 
 ATTRIBUTE = "gen_ai.tool.definitions"
-FUNCTION = Shape(
+_FUNCTION = Definition(
     columns=("name", "description"),
     lines=frozenset({"name", "description"}),
     nodes=("parameters",),
-    known=frozenset({"type", "name", "description", "parameters"}),
+    properties=frozenset({"type", "name", "description", "parameters"}),
 )
-GENERIC = Shape(
+_GENERIC = Definition(
     columns=("type", "name"),
     lines=frozenset({"type", "name"}),
-    known=frozenset({"type", "name"}),
+    properties=frozenset({"type", "name"}),
 )
-TOOLS = {"function": FUNCTION, "generic": GENERIC}
-SHEETS = _relations.variant_sheets(ATTRIBUTE, TOOLS)
+# OTEL-GENAI model/gen-ai/gen-ai-tool-definitions.json, written out by
+# hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {
+    "$defs": {
+        "FunctionToolDefinition": {
+            "additionalProperties": True,
+            "properties": {
+                "type": {"const": "function", "type": "string"},
+                "name": {"type": "string"},
+                "description": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
+                "parameters": {
+                    "anyOf": [
+                        {"$ref": "http://json-schema.org/draft-07/schema#"},
+                        {"type": "null"},
+                    ],
+                    "default": None,
+                },
+            },
+            "required": ["type", "name"],
+            "type": "object",
+        },
+        "GenericToolDefinition": {
+            "additionalProperties": True,
+            "properties": {"type": {"type": "string"}, "name": {"type": "string"}},
+            "required": ["type", "name"],
+            "type": "object",
+        },
+    },
+    "items": {
+        "anyOf": [
+            {"$ref": "#/$defs/FunctionToolDefinition"},
+            {"$ref": "#/$defs/GenericToolDefinition"},
+        ]
+    },
+    "type": "array",
+}
+
+_TOOLS = Variants(
+    {"function": _FUNCTION, "generic": _GENERIC},
+    _parts.belongs_to({"function": "FunctionToolDefinition"}, SCHEMA),
+)
+SHEETS = _TOOLS.sheets(ATTRIBUTE)
 
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.tool.definitions value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.variant_entries(ATTRIBUTE, TOOLS, address, "", value)
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return _TOOLS.array_rows(ATTRIBUTE, Key((address, "")), value)

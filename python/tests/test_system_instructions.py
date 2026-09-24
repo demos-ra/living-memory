@@ -3,22 +3,25 @@
 import unittest
 
 from living_memory import _system_instructions as module
+from living_memory._json_schema import validates
 
 from support import spec_sheets
 
 A = "/0/resourceSpans/0/scopeSpans/0/spans/0"
+VALUE = [{"type": "text", "content": "Hi", "lang": "en"}, {"type": "note"}]
 
 
 class TestSystemInstructions(unittest.TestCase):
-    """The set's sheets and rows follow its schema."""
-
     def test_sheets(self):
         self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
 
-    def test_entries(self):
-        value = [{"type": "text", "content": "Hi", "lang": "en"}, {"type": "note"}]
+    def test_schema(self):
+        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
+        self.assertFalse(validates([{"content": "Hi"}], module.SCHEMA, module.SCHEMA))
+
+    def test_rows(self):
         self.assertEqual(
-            module.entries(A, value),
+            module.rows(A, VALUE),
             [
                 ("gen_ai.system_instructions.text", [A, "/0", "Hi"]),
                 (

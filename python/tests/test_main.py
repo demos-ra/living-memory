@@ -7,8 +7,6 @@ from living_memory import __main__
 
 
 class TestMain(unittest.TestCase):
-    """main runs the command with its arguments."""
-
     def test_main(self):
         with mock.patch("living_memory._command.run") as run:
             __main__.main(["in.jsonl"])

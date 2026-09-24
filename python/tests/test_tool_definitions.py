@@ -3,25 +3,44 @@
 import unittest
 
 from living_memory import _tool_definitions as module
+from living_memory._json_schema import validates
+from living_memory._json import decode
 
 from support import spec_sheets
 
 A = "/0/resourceSpans/0/scopeSpans/0/spans/0"
+VALUE = [
+    {"type": "function", "name": "f", "parameters": {"required": ["a"]}},
+    {"type": "web_search", "name": "search"},
+]
 
 
 class TestToolDefinitions(unittest.TestCase):
-    """The set's sheets and rows follow its schema."""
-
     def test_sheets(self):
         self.assertEqual(module.SHEETS, spec_sheets(module.ATTRIBUTE))
 
-    def test_entries(self):
-        value = [
-            {"type": "function", "name": "f", "parameters": {"required": ["a"]}},
-            {"type": "web_search", "name": "search"},
-        ]
+    def test_schema(self):
+        self.assertTrue(validates(VALUE, module.SCHEMA, module.SCHEMA))
+        invalid = [{"type": "web_search"}]
+        self.assertFalse(validates(invalid, module.SCHEMA, module.SCHEMA))
+
+    def test_invalid_function_is_generic(self):
+        value = decode('[{"type": "function", "name": "f", "parameters": 1}]')
+        self.assertTrue(validates(value, module.SCHEMA, module.SCHEMA))
         self.assertEqual(
-            module.entries(A, value),
+            module.rows(A, value),
+            [
+                ("gen_ai.tool.definitions.generic", [A, "/0", "function", "f"]),
+                (
+                    "gen_ai.tool.definitions.generic.additionalProperties",
+                    [A, "/0/parameters", "number", "1"],
+                ),
+            ],
+        )
+
+    def test_rows(self):
+        self.assertEqual(
+            module.rows(A, VALUE),
             [
                 ("gen_ai.tool.definitions.function", [A, "/0", "f", ""]),
                 (

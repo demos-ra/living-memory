@@ -1,38 +1,70 @@
 """The output messages schema.
 
-OTEL-GENAI model/gen-ai/gen-ai-output-messages.json: an array of
-OutputMessage, each with its parts.
-
-Functions:
-entries -- return the rows of a gen_ai.output.messages value
-
-Constants:
-ATTRIBUTE -- the attribute's key, and the name its sheets start from
-MESSAGE -- OutputMessage
-SHEETS -- the set's sheets, in order, with their headers
+OTEL-GENAI model/gen-ai/gen-ai-output-messages.json.
 """
 
-__all__ = ["entries", "ATTRIBUTE", "MESSAGE", "SHEETS"]
+__all__ = ["rows", "ATTRIBUTE", "SHEETS", "SCHEMA"]
 
 from typing import Any
 
-from living_memory import _parts, _relations
-from living_memory._relations import Shape
+from living_memory import _parts
+from living_memory._relations import Definition, Key
 
 ATTRIBUTE = "gen_ai.output.messages"
-MESSAGE = Shape(
+_MESSAGE = Definition(
     columns=("role", "name", "finish_reason"),
     lines=frozenset({"role", "name", "finish_reason"}),
     variants=(("parts", _parts.MESSAGE_PARTS),),
-    known=frozenset({"role", "parts", "name", "finish_reason"}),
+    properties=frozenset({"role", "parts", "name", "finish_reason"}),
 )
-SHEETS = _relations.shape_sheets(ATTRIBUTE, MESSAGE)
+SHEETS = _MESSAGE.sheets(ATTRIBUTE)
 
+# OTEL-GENAI model/gen-ai/gen-ai-output-messages.json, written out by
+# hand without its title and description annotations.
+SCHEMA: dict[str, Any] = {
+    "$defs": {
+        **_parts.DEFS,
+        "FinishReason": {
+            "enum": [
+                "stop",
+                "length",
+                "content_filter",
+                "tool_call",
+                "compaction",
+                "error",
+            ],
+            "type": "string",
+        },
+        "OutputMessage": {
+            "additionalProperties": True,
+            "properties": {
+                "role": {"anyOf": [{"$ref": "#/$defs/Role"}, {"type": "string"}]},
+                "parts": {"items": _parts.ITEMS, "type": "array"},
+                "name": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
+                "finish_reason": {
+                    "anyOf": [
+                        {"$ref": "#/$defs/FinishReason"},
+                        {"type": "string"},
+                        {"type": "null"},
+                    ],
+                    "default": None,
+                    "deprecated": True,
+                },
+            },
+            "required": ["role", "parts"],
+            "type": "object",
+        },
+        "Role": {
+            "enum": ["system", "user", "assistant", "tool"],
+            "type": "string",
+        },
+    },
+    "items": {"$ref": "#/$defs/OutputMessage"},
+    "type": "array",
+}
 
-def entries(address: str, value: Any) -> list[tuple[str, list[str]]]:
-    """Return the rows of a gen_ai.output.messages value.
-
-    address -- the address of the span or log record that holds it
-    value -- the decoded attribute value
-    """
-    return _relations.array_entries(ATTRIBUTE, MESSAGE, address, "", value)
+def rows(address: str, value: Any) -> list[tuple[str, list[str]]]:
+    return _MESSAGE.array_rows(ATTRIBUTE, Key((address, "")), value)

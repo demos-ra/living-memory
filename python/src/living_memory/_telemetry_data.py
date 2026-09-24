@@ -1,182 +1,53 @@
 """The OTLP data tree, and where the eight are among its attributes.
 
-The TracesData and LogsData of OTLP opentelemetry/proto/trace/v1/
-trace.proto, logs/v1/logs.proto, common/v1/common.proto and resource/v1/
-resource.proto, in OTLP JSON encoding.
-
-Classes:
-Message -- the fields of an OTLP message, and its child sheets
-
-Functions:
-entries -- return the rows of one line's TracesData or LogsData
-message_sheets -- return the sheets of a message, in order
-message_entries -- return the rows of a message and its children
-attribute_entries -- return the rows of a list of attributes
-set_entries -- return the rows of one of the eight
-any_value -- return the JSON value an AnyValue maps to
-
-Constants:
-RESOURCE_SPANS -- ResourceSpans, and the traces tree below it
-RESOURCE_LOGS -- ResourceLogs, and the logs tree below it
-SETS -- the eight, by attribute key: each set's module
-SHEETS -- every sheet of the output, in order, with its header
+OTLP opentelemetry/proto/trace/v1/trace.proto, logs/v1/logs.proto,
+metrics/v1/metrics.proto, common/v1/common.proto and
+resource/v1/resource.proto, in the OTLP JSON encoding.
 """
 
-__all__ = [
-    "Message",
-    "entries",
-    "message_sheets",
-    "message_entries",
-    "attribute_entries",
-    "set_entries",
-    "any_value",
-    "RESOURCE_SPANS",
-    "RESOURCE_LOGS",
-    "SETS",
-    "SHEETS",
-]
+__all__ = ["check", "kind_of_data", "left_behind", "rows", "SHEETS"]
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 from living_memory import (
     _input_messages,
+    _json_schema,
     _memory_records,
     _output_messages,
-    _relations,
+    _protojson,
     _retrieval_documents,
     _system_instructions,
     _tool_call_arguments,
     _tool_call_result,
     _tool_definitions,
 )
-from living_memory._relations import Number, cell, pointer, text
+from living_memory._json import Number, decode
+from living_memory._protojson import NON_FINITE
+from living_memory._relations import (
+    Key,
+    line_rows,
+    node_rows,
+    node_sheets,
+    pointer,
+    text,
+)
 
-Entry = tuple[str, list[str]]
+_Row = tuple[str, list[str]]
+_Sheet = tuple[str, list[str]]
+_Field = tuple[str, str]
+_Check = Callable[[Any, str], None]
 
-# spec › attributes.1: keyed by the owner's address, the attribute's
-# key, and a pointer within its value.
+# spec › attributes.1.
 _ATTRIBUTES = ["address", "key", "pointer", "type", "value"]
 _KEY_LINES = ["address", "key", "line", "value"]
 _VALUE_LINES = ["address", "key", "pointer", "line", "value"]
-# spec › envelope.1, line.1: a structure row is keyed by its address; a
-# line by the address of its text value and its position.
+# spec › envelope.1, line.1.
 _LINES = ["address", "line", "value"]
 
-
-@dataclass(frozen=True)
-class Message:
-    """The fields of an OTLP message, and its child sheets.
-
-    columns -- the simple fields, by OTLP JSON key (spec › record.1)
-    lines -- the columns the proto types as string (spec › line.1)
-    parts -- the child sheets, in order, each a kind and a key:
-        "one" and "many" a message of one row or of a row per element
-        (spec › resource.1, span.1), "strings" a list of simple values
-        (spec › resource.2), "attributes" the attributes (spec ›
-        attributes.1), "eight" the attributes where the eight are found
-        (spec › set.1), "body" a value of any shape (spec › body.1)
-    messages -- the message of each "one" and "many" part, by its key
-    """
-
-    columns: tuple[str, ...] = ()
-    lines: frozenset[str] = frozenset()
-    parts: tuple[tuple[str, str], ...] = ()
-    messages: tuple[tuple[str, "Message"], ...] = ()
-
-
-_ENTITY_REF = Message(
-    columns=("schemaUrl", "type"),
-    lines=frozenset({"schemaUrl", "type"}),
-    parts=(("strings", "idKeys"), ("strings", "descriptionKeys")),
-)
-_RESOURCE = Message(
-    columns=("droppedAttributesCount",),
-    parts=(("attributes", "attributes"), ("many", "entityRefs")),
-    messages=(("entityRefs", _ENTITY_REF),),
-)
-_SCOPE = Message(
-    columns=("name", "version", "droppedAttributesCount"),
-    lines=frozenset({"name", "version"}),
-    parts=(("attributes", "attributes"),),
-)
-_STATUS = Message(columns=("message", "code"), lines=frozenset({"message"}))
-_EVENT = Message(
-    columns=("timeUnixNano", "name", "droppedAttributesCount"),
-    lines=frozenset({"name"}),
-    parts=(("attributes", "attributes"),),
-)
-_LINK = Message(
-    columns=("traceId", "spanId", "traceState", "droppedAttributesCount", "flags"),
-    lines=frozenset({"traceState"}),
-    parts=(("attributes", "attributes"),),
-)
-_SPAN = Message(
-    columns=(
-        "traceId",
-        "spanId",
-        "traceState",
-        "parentSpanId",
-        "flags",
-        "name",
-        "kind",
-        "startTimeUnixNano",
-        "endTimeUnixNano",
-        "droppedAttributesCount",
-        "droppedEventsCount",
-        "droppedLinksCount",
-    ),
-    lines=frozenset({"traceState", "name"}),
-    parts=(
-        ("eight", "attributes"),
-        ("one", "status"),
-        ("many", "events"),
-        ("many", "links"),
-    ),
-    messages=(("status", _STATUS), ("events", _EVENT), ("links", _LINK)),
-)
-_SCOPE_SPANS = Message(
-    columns=("schemaUrl",),
-    lines=frozenset({"schemaUrl"}),
-    parts=(("one", "scope"), ("many", "spans")),
-    messages=(("scope", _SCOPE), ("spans", _SPAN)),
-)
-RESOURCE_SPANS = Message(
-    columns=("schemaUrl",),
-    lines=frozenset({"schemaUrl"}),
-    parts=(("one", "resource"), ("many", "scopeSpans")),
-    messages=(("resource", _RESOURCE), ("scopeSpans", _SCOPE_SPANS)),
-)
-_LOG_RECORD = Message(
-    columns=(
-        "timeUnixNano",
-        "observedTimeUnixNano",
-        "severityNumber",
-        "severityText",
-        "droppedAttributesCount",
-        "flags",
-        "traceId",
-        "spanId",
-        "eventName",
-    ),
-    lines=frozenset({"severityText", "eventName"}),
-    parts=(("eight", "attributes"), ("body", "body")),
-)
-_SCOPE_LOGS = Message(
-    columns=("schemaUrl",),
-    lines=frozenset({"schemaUrl"}),
-    parts=(("one", "scope"), ("many", "logRecords")),
-    messages=(("scope", _SCOPE), ("logRecords", _LOG_RECORD)),
-)
-RESOURCE_LOGS = Message(
-    columns=("schemaUrl",),
-    lines=frozenset({"schemaUrl"}),
-    parts=(("one", "resource"), ("many", "scopeLogs")),
-    messages=(("resource", _RESOURCE), ("scopeLogs", _SCOPE_LOGS)),
-)
-
-# spec › set.1: each of the eight is found by its attribute key.
-SETS = {
+# spec › set.1.
+_SETS = {
     module.ATTRIBUTE: module
     for module in (
         _system_instructions,
@@ -190,223 +61,607 @@ SETS = {
     )
 }
 
-
-def message_sheets(sheet: str, message: Message) -> list[tuple[str, list[str]]]:
-    """Return the sheets of a message, in order, with their headers.
-
-    sheet -- the message's sheet name
-    message -- the message
-
-    spec › file.4: each sheet is followed by its lines sheets, then by
-    its child sheets. spec › nested.3: a structure sheet's name is the
-    full path of its OTLP JSON keys.
-    """
-    sheets = [(sheet, ["address", *message.columns])]
-    for name in message.columns:
-        if name in message.lines:
-            sheets.append((f"{sheet}.{name}", _LINES))
-    children = dict(message.messages)
-    for kind, key in message.parts:
-        name = f"{sheet}.{key}"
-        if kind in ("one", "many"):
-            sheets += message_sheets(name, children[key])
-        elif kind in ("attributes", "eight"):
-            sheets.append((name, _ATTRIBUTES))
-            sheets.append((f"{name}.key", _KEY_LINES))
-            sheets.append((f"{name}.value", _VALUE_LINES))
-        elif kind == "strings":
-            sheets.append((name, ["address", "value"]))
-            sheets.append((f"{name}.value", _LINES))
-        else:
-            sheets += _relations.node_sheets(name)
-    return sheets
+# OTLP common.proto: AnyValue and KeyValue.
+_ANY_VALUE = {
+    "stringValue": "string",
+    "boolValue": "bool",
+    "intValue": "int64",
+    "doubleValue": "double",
+    "arrayValue": "ArrayValue",
+    "kvlistValue": "KeyValueList",
+    "bytesValue": "bytes",
+    "stringValueStrindex": "int32",
+}
+_KEY_VALUE = {"key": "string", "value": "AnyValue", "keyStrindex": "int32"}
 
 
-_TREES = (("resourceSpans", RESOURCE_SPANS), ("resourceLogs", RESOURCE_LOGS))
+@dataclass(frozen=True)
+class _Message:
+    # spec › record.1, line.1; lists, spec › file.5.
+    fields: tuple[_Field, ...] = ()
+    parts: tuple["_Part", ...] = ()
+    lists: tuple[_Field, ...] = ()
 
-# spec › file.4: the traces tree, then the logs tree, then the eight's
-# sheets.
-SHEETS = (
-    message_sheets("resourceSpans", RESOURCE_SPANS)
-    + message_sheets("resourceLogs", RESOURCE_LOGS)
-    + [sheet for module in SETS.values() for sheet in module.SHEETS]
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        # spec › file.4, nested.3.
+        sheets = [(sheet, ["address", *(name for name, _ in self.fields)])]
+        for name, proto in self.fields:
+            if proto == "string":
+                sheets.append((f"{sheet}.{name}", _LINES))
+        for part in self.parts:
+            sheets += part.sheets(f"{sheet}.{part.key}")
+        return sheets
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        # spec › record.1, resource.1.
+        if not isinstance(value, dict):
+            return []
+        row = [address] + [text(value.get(name)) for name, _ in self.fields]
+        rows: list[_Row] = [(sheet, row)]
+        for name, proto in self.fields:
+            if proto == "string":
+                key = Key((address,)).extend(name)
+                rows += line_rows(f"{sheet}.{name}", key, value.get(name))
+        for part in self.parts:
+            rows += part.rows(f"{sheet}.{part.key}", address, value.get(part.key))
+        return rows
+
+    def check(self, value: Any, at: str) -> None:
+        # PROTOJSON, Null values.
+        if value is None:
+            return
+        _check_object(value, at)
+        for scalar in self.fields:
+            _check_scalar(value.get(scalar[0]), scalar, pointer(at, scalar[0]))
+        for scalar in self.lists:
+            where = pointer(at, scalar[0])
+            _check_repeated(value.get(scalar[0]), where, _scalar_check(scalar))
+        for part in self.parts:
+            part.check(value.get(part.key), pointer(at, part.key))
+
+    def left_behind(self, value: Any) -> set[str]:
+        if not isinstance(value, dict):
+            return set()
+        known = {name for name, _ in self.fields} | {part.key for part in self.parts}
+        found = {name for name in value if name not in known}
+        for part in self.parts:
+            found |= part.left_behind(value.get(part.key))
+        return found
+
+
+@dataclass(frozen=True)
+class _Child:
+    # spec › resource.1.
+    key: str
+    message: _Message
+
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        return self.message.sheets(sheet)
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        return self.message.rows(sheet, pointer(address, self.key), value)
+
+    def check(self, value: Any, at: str) -> None:
+        self.message.check(value, at)
+
+    def left_behind(self, value: Any) -> set[str]:
+        return self.message.left_behind(value)
+
+
+@dataclass(frozen=True)
+class _Children:
+    # spec › resource.1, scope.1, span.1.
+    key: str
+    message: _Message
+
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        return self.message.sheets(sheet)
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        at = pointer(address, self.key)
+        rows: list[_Row] = []
+        for index, element in enumerate(_list(value)):
+            rows += self.message.rows(sheet, pointer(at, index), element)
+        return rows
+
+    def check(self, value: Any, at: str) -> None:
+        _check_repeated(value, at, self.message.check)
+
+    def left_behind(self, value: Any) -> set[str]:
+        found: set[str] = set()
+        for element in _list(value):
+            found |= self.message.left_behind(element)
+        return found
+
+
+@dataclass(frozen=True)
+class _SimpleValues:
+    # spec › resource.2.
+    key: str
+
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        return [(sheet, ["address", "value"]), (f"{sheet}.value", _LINES)]
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        at = pointer(address, self.key)
+        rows: list[_Row] = []
+        for index, element in enumerate(_list(value)):
+            key = Key((pointer(at, index),))
+            rows.append((sheet, [*key.fields, text(element)]))
+            rows += line_rows(f"{sheet}.value", key, element)
+        return rows
+
+    def check(self, value: Any, at: str) -> None:
+        _check_repeated(value, at, _scalar_check((self.key, "string")))
+
+    def left_behind(self, value: Any) -> set[str]:
+        return set()
+
+
+@dataclass(frozen=True)
+class _Attributes:
+    # spec › attributes.1; sets, spec › set.1.
+    key: str
+    sets: dict[str, Any] = field(default_factory=dict)
+
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        return [
+            (sheet, _ATTRIBUTES),
+            (f"{sheet}.key", _KEY_LINES),
+            (f"{sheet}.value", _VALUE_LINES),
+        ]
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        rows: list[_Row] = []
+        for pair in _list(value):
+            if not isinstance(pair, dict):
+                continue
+            name = text(pair.get("key"))
+            if name in self.sets:
+                rows += self.sets[name].rows(address, _set_value(pair.get("value")))
+                continue
+            rows += line_rows(f"{sheet}.key", Key((address, name)), name)
+            key = Key((address, name, ""))
+            rows += node_rows(sheet, key, _any_value(pair.get("value")))
+        return rows
+
+    def check(self, value: Any, at: str) -> None:
+        _check_repeated(value, at, _pair_check(self.sets))
+        _check_keys(value, at)
+
+    def left_behind(self, value: Any) -> set[str]:
+        found: set[str] = set()
+        for pair in _list(value):
+            found |= _pair_left(pair)
+        return found
+
+
+@dataclass(frozen=True)
+class _Body:
+    # spec › body.1.
+    key: str
+
+    def sheets(self, sheet: str) -> list[_Sheet]:
+        return node_sheets(sheet)
+
+    def rows(self, sheet: str, address: str, value: Any) -> list[_Row]:
+        if value is None:
+            return []
+        return node_rows(sheet, Key((address, "")), _any_value(value))
+
+    def check(self, value: Any, at: str) -> None:
+        _check_any_value(value, at)
+
+    def left_behind(self, value: Any) -> set[str]:
+        return _any_value_left(value)
+
+
+_Part = _Child | _Children | _SimpleValues | _Attributes | _Body
+
+# OTLP common.proto: KeyValueList.
+_KEY_VALUE_LIST = _Attributes("values")
+
+_ENTITY_REF = _Message(
+    fields=(("schemaUrl", "string"), ("type", "string")),
+    parts=(_SimpleValues("idKeys"), _SimpleValues("descriptionKeys")),
+)
+_RESOURCE = _Message(
+    fields=(("droppedAttributesCount", "uint32"),),
+    parts=(_Attributes("attributes"), _Children("entityRefs", _ENTITY_REF)),
+)
+_SCOPE = _Message(
+    fields=(
+        ("name", "string"),
+        ("version", "string"),
+        ("droppedAttributesCount", "uint32"),
+    ),
+    parts=(_Attributes("attributes"),),
+)
+_STATUS = _Message(fields=(("message", "string"), ("code", "enum")))
+_EVENT = _Message(
+    fields=(
+        ("timeUnixNano", "fixed64"),
+        ("name", "string"),
+        ("droppedAttributesCount", "uint32"),
+    ),
+    parts=(_Attributes("attributes"),),
+)
+_LINK = _Message(
+    fields=(
+        ("traceId", "bytes"),
+        ("spanId", "bytes"),
+        ("traceState", "string"),
+        ("droppedAttributesCount", "uint32"),
+        ("flags", "fixed32"),
+    ),
+    parts=(_Attributes("attributes"),),
+)
+_SPAN = _Message(
+    fields=(
+        ("traceId", "bytes"),
+        ("spanId", "bytes"),
+        ("traceState", "string"),
+        ("parentSpanId", "bytes"),
+        ("flags", "fixed32"),
+        ("name", "string"),
+        ("kind", "enum"),
+        ("startTimeUnixNano", "fixed64"),
+        ("endTimeUnixNano", "fixed64"),
+        ("droppedAttributesCount", "uint32"),
+        ("droppedEventsCount", "uint32"),
+        ("droppedLinksCount", "uint32"),
+    ),
+    parts=(
+        _Attributes("attributes", _SETS),
+        _Child("status", _STATUS),
+        _Children("events", _EVENT),
+        _Children("links", _LINK),
+    ),
+)
+_SCOPE_SPANS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("scope", _SCOPE), _Children("spans", _SPAN)),
+)
+_RESOURCE_SPANS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("resource", _RESOURCE), _Children("scopeSpans", _SCOPE_SPANS)),
+)
+_LOG_RECORD = _Message(
+    fields=(
+        ("timeUnixNano", "fixed64"),
+        ("observedTimeUnixNano", "fixed64"),
+        ("severityNumber", "enum"),
+        ("severityText", "string"),
+        ("droppedAttributesCount", "uint32"),
+        ("flags", "fixed32"),
+        ("traceId", "bytes"),
+        ("spanId", "bytes"),
+        ("eventName", "string"),
+    ),
+    parts=(_Attributes("attributes", _SETS), _Body("body")),
+)
+_SCOPE_LOGS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("scope", _SCOPE), _Children("logRecords", _LOG_RECORD)),
+)
+_RESOURCE_LOGS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("resource", _RESOURCE), _Children("scopeLogs", _SCOPE_LOGS)),
 )
 
+# OTLP opentelemetry/proto/metrics/v1/metrics.proto: checked, never
+# written (spec › file.1, file.5).
+_EXEMPLAR = _Message(
+    fields=(
+        ("timeUnixNano", "fixed64"),
+        ("asDouble", "double"),
+        ("asInt", "sfixed64"),
+        ("spanId", "bytes"),
+        ("traceId", "bytes"),
+    ),
+    parts=(_Attributes("filteredAttributes"),),
+)
+_NUMBER_POINT = _Message(
+    fields=(
+        ("startTimeUnixNano", "fixed64"),
+        ("timeUnixNano", "fixed64"),
+        ("asDouble", "double"),
+        ("asInt", "sfixed64"),
+        ("flags", "uint32"),
+    ),
+    parts=(_Attributes("attributes"), _Children("exemplars", _EXEMPLAR)),
+)
+_HISTOGRAM_POINT = _Message(
+    fields=(
+        ("startTimeUnixNano", "fixed64"),
+        ("timeUnixNano", "fixed64"),
+        ("count", "fixed64"),
+        ("sum", "double"),
+        ("flags", "uint32"),
+        ("min", "double"),
+        ("max", "double"),
+    ),
+    parts=(_Attributes("attributes"), _Children("exemplars", _EXEMPLAR)),
+    lists=(("bucketCounts", "fixed64"), ("explicitBounds", "double")),
+)
+_BUCKETS = _Message(
+    fields=(("offset", "sint32"),), lists=(("bucketCounts", "uint64"),)
+)
+_EXPONENTIAL_HISTOGRAM_POINT = _Message(
+    fields=(
+        ("startTimeUnixNano", "fixed64"),
+        ("timeUnixNano", "fixed64"),
+        ("count", "fixed64"),
+        ("sum", "double"),
+        ("scale", "sint32"),
+        ("zeroCount", "fixed64"),
+        ("flags", "uint32"),
+        ("min", "double"),
+        ("max", "double"),
+        ("zeroThreshold", "double"),
+    ),
+    parts=(
+        _Attributes("attributes"),
+        _Child("positive", _BUCKETS),
+        _Child("negative", _BUCKETS),
+        _Children("exemplars", _EXEMPLAR),
+    ),
+)
+_VALUE_AT_QUANTILE = _Message(
+    fields=(("quantile", "double"), ("value", "double"))
+)
+_SUMMARY_POINT = _Message(
+    fields=(
+        ("startTimeUnixNano", "fixed64"),
+        ("timeUnixNano", "fixed64"),
+        ("count", "fixed64"),
+        ("sum", "double"),
+        ("flags", "uint32"),
+    ),
+    parts=(
+        _Attributes("attributes"),
+        _Children("quantileValues", _VALUE_AT_QUANTILE),
+    ),
+)
+_GAUGE = _Message(parts=(_Children("dataPoints", _NUMBER_POINT),))
+_SUM = _Message(
+    fields=(("aggregationTemporality", "enum"), ("isMonotonic", "bool")),
+    parts=(_Children("dataPoints", _NUMBER_POINT),),
+)
+_HISTOGRAM = _Message(
+    fields=(("aggregationTemporality", "enum"),),
+    parts=(_Children("dataPoints", _HISTOGRAM_POINT),),
+)
+_EXPONENTIAL_HISTOGRAM = _Message(
+    fields=(("aggregationTemporality", "enum"),),
+    parts=(_Children("dataPoints", _EXPONENTIAL_HISTOGRAM_POINT),),
+)
+_SUMMARY = _Message(parts=(_Children("dataPoints", _SUMMARY_POINT),))
+_METRIC = _Message(
+    fields=(("name", "string"), ("description", "string"), ("unit", "string")),
+    parts=(
+        _Attributes("metadata"),
+        _Child("gauge", _GAUGE),
+        _Child("sum", _SUM),
+        _Child("histogram", _HISTOGRAM),
+        _Child("exponentialHistogram", _EXPONENTIAL_HISTOGRAM),
+        _Child("summary", _SUMMARY),
+    ),
+)
+_SCOPE_METRICS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("scope", _SCOPE), _Children("metrics", _METRIC)),
+)
+_RESOURCE_METRICS = _Message(
+    fields=(("schemaUrl", "string"),),
+    parts=(_Child("resource", _RESOURCE), _Children("scopeMetrics", _SCOPE_METRICS)),
+)
 
-def entries(index: int, data: Any) -> list[Entry]:
-    """Return the rows of one line's TracesData or LogsData.
+# spec › file.1.
+_TREES = (
+    _Children("resourceSpans", _RESOURCE_SPANS),
+    _Children("resourceLogs", _RESOURCE_LOGS),
+)
+# OTEL-FILE-EXPORTER, Telemetry data requirements.
+_METRICS = _Children("resourceMetrics", _RESOURCE_METRICS)
+_KINDS = (_TREES[0], _METRICS, _TREES[1])
 
-    index -- the zero-based index of the line in the file
-    data -- the line's decoded JSON value
 
-    spec › envelope.1: every row carries an address whose first token is
-    the index of its line. spec › file.1: a MetricsData line holds none
-    of the eight and yields no rows; spec › file.3, a field with an
-    unknown name is ignored.
-    """
+def check(data: Any) -> None:
+    # spec › file.5, set.3.
     if not isinstance(data, dict):
-        return []
-    found: list[Entry] = []
-    for key, message in _TREES:
-        found += _many(key, message, pointer(f"/{index}", key), data.get(key))
+        raise ValueError("a line is a TracesData, MetricsData or LogsData object")
+    kinds = [part.key for part in _KINDS if data.get(part.key) is not None]
+    if len(kinds) > 1:
+        raise ValueError(f"a line holds one kind of data, not {' and '.join(kinds)}")
+    for part in _KINDS:
+        part.check(data.get(part.key), f"/{part.key}")
+
+
+def kind_of_data(data: dict[str, Any]) -> str:
+    # spec › file.5.
+    kinds = (part.key for part in _KINDS if data.get(part.key) is not None)
+    return next(kinds, "")
+
+
+def left_behind(data: dict[str, Any]) -> set[str]:
+    # spec › file.1, file.3.
+    known = {part.key for part in _TREES}
+    found = {name for name in data if name not in known}
+    for part in _TREES:
+        found |= part.left_behind(data.get(part.key))
+    if data.get(_METRICS.key) is None:
+        found.discard(_METRICS.key)
     return found
 
 
-def message_entries(
-    sheet: str, message: Message, address: str, value: Any
-) -> list[Entry]:
-    """Return the rows of a message and of its child sheets.
-
-    sheet -- the message's sheet name
-    message -- the message
-    address -- the message's address
-    value -- the decoded JSON object; anything else has no rows
-
-    spec › record.1: the simple fields are written as the input holds
-    them. spec › resource.1: an absent object has no row.
-    """
-    if not isinstance(value, dict):
-        return []
-    row = [address] + [cell(text(value.get(name))) for name in message.columns]
-    found: list[Entry] = [(sheet, row)]
-    for name in message.columns:
-        if name in message.lines:
-            found += _relations.text_entries(
-                f"{sheet}.{name}", [pointer(address, name)], value.get(name)
-            )
-    children = dict(message.messages)
-    for kind, key in message.parts:
-        name = f"{sheet}.{key}"
-        member = value.get(key)
-        if kind == "one":
-            found += message_entries(name, children[key], pointer(address, key), member)
-        elif kind == "many":
-            found += _many(name, children[key], pointer(address, key), member)
-        elif kind in ("attributes", "eight"):
-            found += attribute_entries(name, address, member, kind == "eight")
-        elif kind == "strings":
-            found += _strings(name, pointer(address, key), member)
-        elif kind == "body" and key in value:
-            found += _relations.node_entries(name, [address], any_value(member), "")
+def rows(index: int, data: dict[str, Any]) -> list[_Row]:
+    # spec › envelope.1, file.1.
+    found: list[_Row] = []
+    for part in _TREES:
+        found += part.rows(part.key, f"/{index}", data.get(part.key))
     return found
 
 
-def attribute_entries(sheet: str, address: str, value: Any, eight: bool) -> list[Entry]:
-    """Return the rows of attributes, and of the eight among them.
-
-    sheet -- the attributes sheet's name
-    address -- the owner's address
-    value -- the decoded list of KeyValue; anything else has no rows
-    eight -- whether the eight are found among these attributes
-
-    spec › attributes.1: a row per node of each attribute's value, keyed
-    by the owner's address, the attribute's key and a pointer. spec ›
-    set.1: on spans and log records, and there only, the eight are
-    written to their own sheets and never to the attributes sheet.
-    """
-    if not isinstance(value, list):
-        return []
-    found: list[Entry] = []
-    for pair in value:
-        if not isinstance(pair, dict):
-            continue
-        key = pair.get("key") if isinstance(pair.get("key"), str) else None
-        if eight and key in SETS:
-            found += set_entries(key, address, pair.get("value"))
-            continue
-        found += _relations.text_entries(f"{sheet}.key", [address, cell(key)], key)
-        found += _relations.node_entries(
-            sheet, [address, cell(key)], any_value(pair.get("value")), ""
-        )
-    return found
+def _set_value(value: Any) -> Any:
+    # spec › set.1.
+    name, member = _winner(value)
+    if name == "stringValue":
+        return decode(member)
+    return _any_value(value)
 
 
-def set_entries(key: str, address: str, value: Any) -> list[Entry]:
-    """Return the rows of one of the eight.
-
-    key -- the attribute's key
-    address -- the address of the span or log record
-    value -- the decoded AnyValue
-
-    spec › set.1: structured, or a JSON string; both forms are read. A
-    JSON string that is not JSON yields no rows.
-    """
-    if isinstance(value, dict) and isinstance(value.get("stringValue"), str):
-        try:
-            decoded = _relations.decode(value["stringValue"])
-        except ValueError:
-            return []
-    else:
-        decoded = any_value(value)
-    return SETS[key].entries(address, decoded)
-
-
-def any_value(value: Any) -> Any:
-    """Return the JSON value an AnyValue maps to.
-
-    value -- the decoded AnyValue
-
-    OTEL-COMMON, Attribute representation for non-OTLP protocols: a
-    string a JSON string, a boolean a JSON boolean, an integer or
-    floating point number a JSON number, a byte array a Base64 JSON
-    string, an empty value null, an array a JSON array, a map a JSON
-    object. OTLP common.proto: string_value_strindex is read as absent.
-    """
-    if not isinstance(value, dict):
+def _any_value(value: Any) -> Any:
+    # OTEL-COMMON, Attribute representation for non-OTLP protocols; OTLP
+    # common.proto.
+    name, member = _winner(value)
+    if name in ("", "stringValueStrindex"):
         return None
-    if isinstance(value.get("stringValue"), str):
-        return value["stringValue"]
-    if isinstance(value.get("boolValue"), bool):
-        return value["boolValue"]
-    for name in ("intValue", "doubleValue"):
-        if isinstance(value.get(name), str):
-            return Number(value[name])
-    if isinstance(value.get("arrayValue"), dict):
-        elements = value["arrayValue"].get("values")
-        return [any_value(element) for element in _list(elements)]
-    if isinstance(value.get("kvlistValue"), dict):
-        pairs = value["kvlistValue"].get("values")
+    if name == "intValue":
+        return Number(member)
+    if name == "doubleValue":
+        if not isinstance(member, Number) and member in NON_FINITE:
+            return str(member)
+        return Number(member)
+    if name == "arrayValue":
+        return [_any_value(element) for element in _values(member)]
+    if name == "kvlistValue":
         return {
-            pair["key"]: any_value(pair.get("value"))
-            for pair in _list(pairs)
-            if isinstance(pair, dict) and isinstance(pair.get("key"), str)
+            text(pair.get("key")): _any_value(pair.get("value"))
+            for pair in _values(member)
+            if isinstance(pair, dict)
         }
-    if isinstance(value.get("bytesValue"), str):
-        return value["bytesValue"]
-    return None
+    return member
 
 
-def _many(sheet: str, message: Message, at: str, value: Any) -> list[Entry]:
-    """Return the rows of a list of messages, a row per element.
+def _scalar_check(scalar: _Field) -> _Check:
+    return lambda value, at: _check_scalar(value, scalar, at)
 
-    sheet -- the messages' sheet name
-    message -- the message of each element
-    at -- the address of the list
-    value -- the decoded list; anything else has no rows
-    """
-    found: list[Entry] = []
-    for index, element in enumerate(_list(value)):
-        found += message_entries(sheet, message, pointer(at, index), element)
+
+def _pair_check(sets: dict[str, Any]) -> _Check:
+    return lambda value, at: _check_pair(value, at, sets)
+
+
+def _check_pair(value: Any, at: str, sets: dict[str, Any]) -> None:
+    # spec › set.3.
+    _check_object(value, at)
+    for scalar in _KEY_VALUE.items():
+        if scalar[1] != "AnyValue":
+            _check_scalar(value.get(scalar[0]), scalar, pointer(at, scalar[0]))
+    _check_any_value(value.get("value"), pointer(at, "value"))
+    key = value.get("key")
+    if key in sets:
+        _check_set(key, value.get("value"), pointer(at, "value"))
+
+
+def _check_set(key: str, value: Any, at: str) -> None:
+    # spec › set.3.
+    try:
+        instance = _set_value(value)
+    except ValueError as error:
+        message = f"{at}: the JSON string of {key} is not JSON: {error}"
+        raise ValueError(message) from error
+    schema = _SETS[key].SCHEMA
+    if not _json_schema.validates(instance, schema, schema):
+        raise ValueError(f"{at}: {key} does not validate against its schema")
+
+
+def _check_any_value(value: Any, at: str) -> None:
+    if value is None:
+        return
+    _check_object(value, at)
+    for scalar in _ANY_VALUE.items():
+        name, proto = scalar
+        member = value.get(name)
+        where = pointer(at, name)
+        if member is None:
+            continue
+        if proto == "ArrayValue":
+            _check_object(member, where)
+            values = pointer(where, "values")
+            _check_repeated(member.get("values"), values, _check_any_value)
+        elif proto == "KeyValueList":
+            _check_object(member, where)
+            _KEY_VALUE_LIST.check(member.get("values"), pointer(where, "values"))
+        else:
+            _check_scalar(member, scalar, where)
+
+
+def _check_repeated(value: Any, at: str, check_element: _Check) -> None:
+    # PROTOJSON, Representation of each type.
+    if value is None:
+        return
+    if not isinstance(value, list):
+        raise ValueError(f"{at}: a repeated field is an array")
+    for index, element in enumerate(value):
+        where = pointer(at, index)
+        if element is None:
+            raise ValueError(f"{where}: null is not allowed within a repeated field")
+        check_element(element, where)
+
+
+def _check_keys(value: Any, at: str) -> None:
+    # OTLP common.proto; spec › file.5.
+    keys = [pair.get("key") for pair in _list(value) if isinstance(pair, dict)]
+    for index, key in enumerate(keys):
+        if key in keys[:index]:
+            raise ValueError(f"{pointer(at, index)}: the key {key!r} is repeated")
+
+
+def _check_object(value: Any, at: str) -> None:
+    # PROTOJSON, Representation of each type.
+    if not isinstance(value, dict):
+        raise ValueError(f"{at}: a message is an object")
+
+
+def _check_scalar(value: Any, scalar: _Field, at: str) -> None:
+    # PROTOJSON, Null values.
+    name, proto = scalar
+    if value is not None and not _protojson.valid(value, proto, name):
+        raise ValueError(f"{at}: not a valid {proto} in the OTLP JSON encoding")
+
+
+def _pair_left(value: Any) -> set[str]:
+    if not isinstance(value, dict):
+        return set()
+    found = {name for name in value if name not in _KEY_VALUE}
+    if value.get("keyStrindex") is not None:
+        found.add("keyStrindex")
+    return found | _any_value_left(value.get("value"))
+
+
+def _any_value_left(value: Any) -> set[str]:
+    if not isinstance(value, dict):
+        return set()
+    found = {name for name in value if name not in _ANY_VALUE}
+    if value.get("stringValueStrindex") is not None:
+        found.add("stringValueStrindex")
+    for element in _values(value.get("arrayValue")):
+        found |= _any_value_left(element)
+    for pair in _values(value.get("kvlistValue")):
+        found |= _pair_left(pair)
     return found
 
 
-def _strings(sheet: str, at: str, value: Any) -> list[Entry]:
-    """Return the rows of a list of simple values, one value per row.
-
-    sheet -- the list's sheet name
-    at -- the address of the list
-    value -- the decoded list; anything else has no rows
-
-    spec › resource.2: keyed by the address of the value.
-    """
-    found: list[Entry] = []
-    for index, element in enumerate(_list(value)):
-        address = pointer(at, index)
-        found.append((sheet, [address, cell(text(element))]))
-        found += _relations.text_entries(f"{sheet}.value", [address], element)
+def _winner(value: Any) -> tuple[str, Any]:
+    # PROTOJSON, Duplicate keys; Null values.
+    found: tuple[str, Any] = ("", None)
+    if isinstance(value, dict):
+        for name, member in value.items():
+            if name in _ANY_VALUE and member is not None:
+                found = (name, member)
     return found
+
+
+def _values(value: Any) -> list[Any]:
+    return _list(value.get("values")) if isinstance(value, dict) else []
 
 
 def _list(value: Any) -> list[Any]:
-    """Return a decoded list, or no elements for anything else."""
     return value if isinstance(value, list) else []
+
+
+# spec › file.4.
+SHEETS = [sheet for part in _TREES for sheet in part.sheets(part.key)] + [
+    sheet for module in _SETS.values() for sheet in module.SHEETS
+]

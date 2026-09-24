@@ -1,116 +1,276 @@
 """The message part types, shared by the schemas that repeat them.
 
-The definitions of OTEL-GENAI model/gen-ai/gen-ai-input-messages.json,
+OTEL-GENAI model/gen-ai/gen-ai-input-messages.json,
 gen-ai-output-messages.json and gen-ai-system-instructions.json.
-
-Constants:
-TEXT -- TextPart
-TOOL_CALL -- ToolCallRequestPart
-TOOL_CALL_RESPONSE -- ToolCallResponsePart
-SERVER_TOOL_CALL -- ServerToolCallPart
-SERVER_TOOL_CALL_RESPONSE -- ServerToolCallResponsePart
-BLOB -- BlobPart
-FILE -- FilePart
-URI -- UriPart
-REASONING -- ReasoningPart
-COMPACTION -- CompactionPart
-GENERIC -- GenericPart
-MESSAGE_PARTS -- the parts of a message, by type value, in schema order
 """
 
 __all__ = [
+    "belongs_to",
     "TEXT",
-    "TOOL_CALL",
-    "TOOL_CALL_RESPONSE",
-    "SERVER_TOOL_CALL",
-    "SERVER_TOOL_CALL_RESPONSE",
-    "BLOB",
-    "FILE",
-    "URI",
-    "REASONING",
-    "COMPACTION",
     "GENERIC",
     "MESSAGE_PARTS",
+    "DEFS",
+    "ITEMS",
+    "DEFINITIONS",
 ]
 
-from living_memory._relations import Shape
+from collections.abc import Callable
+from typing import Any
 
-TEXT = Shape(
+from living_memory import _json_schema
+from living_memory._relations import Definition, Variants
+
+TEXT = Definition(
     columns=("content",),
     lines=frozenset({"content"}),
-    known=frozenset({"type", "content"}),
+    properties=frozenset({"type", "content"}),
 )
-TOOL_CALL = Shape(
+_TOOL_CALL = Definition(
     columns=("id", "name"),
     lines=frozenset({"id", "name"}),
     nodes=("arguments",),
-    known=frozenset({"type", "id", "name", "arguments"}),
+    properties=frozenset({"type", "id", "name", "arguments"}),
 )
-TOOL_CALL_RESPONSE = Shape(
+_TOOL_CALL_RESPONSE = Definition(
     columns=("id",),
     lines=frozenset({"id"}),
     nodes=("response",),
-    known=frozenset({"type", "id", "response"}),
+    properties=frozenset({"type", "id", "response"}),
 )
 # GenericServerToolCall and GenericServerToolCallResponse.
-_SERVER_TOOL_DETAILS = Shape(
+_SERVER_TOOL_DETAILS = Definition(
     columns=("type",),
     lines=frozenset({"type"}),
-    known=frozenset({"type"}),
+    properties=frozenset({"type"}),
 )
-SERVER_TOOL_CALL = Shape(
+_SERVER_TOOL_CALL = Definition(
     columns=("id", "name"),
     lines=frozenset({"id", "name"}),
     children=(("server_tool_call", _SERVER_TOOL_DETAILS),),
-    known=frozenset({"type", "id", "name", "server_tool_call"}),
+    properties=frozenset({"type", "id", "name", "server_tool_call"}),
 )
-SERVER_TOOL_CALL_RESPONSE = Shape(
+_SERVER_TOOL_CALL_RESPONSE = Definition(
     columns=("id",),
     lines=frozenset({"id"}),
     children=(("server_tool_call_response", _SERVER_TOOL_DETAILS),),
-    known=frozenset({"type", "id", "server_tool_call_response"}),
+    properties=frozenset({"type", "id", "server_tool_call_response"}),
 )
-BLOB = Shape(
+_BLOB = Definition(
     columns=("mime_type", "modality", "content"),
     lines=frozenset({"mime_type", "modality", "content"}),
-    known=frozenset({"type", "mime_type", "modality", "content"}),
+    properties=frozenset({"type", "mime_type", "modality", "content"}),
 )
-FILE = Shape(
+_FILE = Definition(
     columns=("mime_type", "modality", "file_id"),
     lines=frozenset({"mime_type", "modality", "file_id"}),
-    known=frozenset({"type", "mime_type", "modality", "file_id"}),
+    properties=frozenset({"type", "mime_type", "modality", "file_id"}),
 )
-URI = Shape(
+_URI = Definition(
     columns=("mime_type", "modality", "uri"),
     lines=frozenset({"mime_type", "modality", "uri"}),
-    known=frozenset({"type", "mime_type", "modality", "uri"}),
+    properties=frozenset({"type", "mime_type", "modality", "uri"}),
 )
-REASONING = Shape(
+_REASONING = Definition(
     columns=("content",),
     lines=frozenset({"content"}),
-    known=frozenset({"type", "content"}),
+    properties=frozenset({"type", "content"}),
 )
-COMPACTION = Shape(
+_COMPACTION = Definition(
     columns=("id", "content"),
     lines=frozenset({"id", "content"}),
-    known=frozenset({"type", "id", "content"}),
+    properties=frozenset({"type", "id", "content"}),
 )
-GENERIC = Shape(
+GENERIC = Definition(
     columns=("type",),
     lines=frozenset({"type"}),
-    known=frozenset({"type"}),
+    properties=frozenset({"type"}),
 )
 
-MESSAGE_PARTS = {
+_MESSAGE_PARTS = {
     "text": TEXT,
-    "tool_call": TOOL_CALL,
-    "tool_call_response": TOOL_CALL_RESPONSE,
-    "server_tool_call": SERVER_TOOL_CALL,
-    "server_tool_call_response": SERVER_TOOL_CALL_RESPONSE,
-    "blob": BLOB,
-    "file": FILE,
-    "uri": URI,
-    "reasoning": REASONING,
-    "compaction": COMPACTION,
+    "tool_call": _TOOL_CALL,
+    "tool_call_response": _TOOL_CALL_RESPONSE,
+    "server_tool_call": _SERVER_TOOL_CALL,
+    "server_tool_call_response": _SERVER_TOOL_CALL_RESPONSE,
+    "blob": _BLOB,
+    "file": _FILE,
+    "uri": _URI,
+    "reasoning": _REASONING,
+    "compaction": _COMPACTION,
     "generic": GENERIC,
 }
+
+_STRING_OR_NULL = {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None}
+_MODALITY = {"anyOf": [{"$ref": "#/$defs/Modality"}, {"type": "string"}]}
+
+# OTEL-GENAI model/gen-ai/gen-ai-input-messages.json, "$defs", written
+# out by hand without their title and description annotations.
+DEFS: dict[str, Any] = {
+    "BlobPart": {
+        "properties": {
+            "type": {"const": "blob", "type": "string"},
+            "mime_type": _STRING_OR_NULL,
+            "modality": _MODALITY,
+            "content": {"format": "binary", "type": "string"},
+        },
+        "required": ["type", "modality", "content"],
+        "type": "object",
+    },
+    "CompactionPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "compaction", "type": "string"},
+            "id": _STRING_OR_NULL,
+            "content": _STRING_OR_NULL,
+        },
+        "required": ["type"],
+        "type": "object",
+    },
+    "FilePart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "file", "type": "string"},
+            "mime_type": _STRING_OR_NULL,
+            "modality": _MODALITY,
+            "file_id": {"type": "string"},
+        },
+        "required": ["type", "modality", "file_id"],
+        "type": "object",
+    },
+    "GenericPart": {
+        "additionalProperties": True,
+        "properties": {"type": {"type": "string"}},
+        "required": ["type"],
+        "type": "object",
+    },
+    "GenericServerToolCall": {
+        "additionalProperties": True,
+        "properties": {"type": {"type": "string"}},
+        "required": ["type"],
+        "type": "object",
+    },
+    "GenericServerToolCallResponse": {
+        "additionalProperties": True,
+        "properties": {"type": {"type": "string"}},
+        "required": ["type"],
+        "type": "object",
+    },
+    "Modality": {
+        "enum": ["image", "video", "audio", "document"],
+        "type": "string",
+    },
+    "ReasoningPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "reasoning", "type": "string"},
+            "content": {"type": "string"},
+        },
+        "required": ["type", "content"],
+        "type": "object",
+    },
+    "ServerToolCallPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "server_tool_call", "type": "string"},
+            "id": _STRING_OR_NULL,
+            "name": {"type": "string"},
+            "server_tool_call": {"$ref": "#/$defs/GenericServerToolCall"},
+        },
+        "required": ["type", "name", "server_tool_call"],
+        "type": "object",
+    },
+    "ServerToolCallResponsePart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "server_tool_call_response", "type": "string"},
+            "id": _STRING_OR_NULL,
+            "server_tool_call_response": {
+                "$ref": "#/$defs/GenericServerToolCallResponse"
+            },
+        },
+        "required": ["type", "server_tool_call_response"],
+        "type": "object",
+    },
+    "TextPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "text", "type": "string"},
+            "content": {"type": "string"},
+        },
+        "required": ["type", "content"],
+        "type": "object",
+    },
+    "ToolCallRequestPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "tool_call", "type": "string"},
+            "id": _STRING_OR_NULL,
+            "name": {"type": "string"},
+            "arguments": {"default": None},
+        },
+        "required": ["type", "name"],
+        "type": "object",
+    },
+    "ToolCallResponsePart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "tool_call_response", "type": "string"},
+            "id": _STRING_OR_NULL,
+            "response": {},
+        },
+        "required": ["type", "response"],
+        "type": "object",
+    },
+    "UriPart": {
+        "additionalProperties": True,
+        "properties": {
+            "type": {"const": "uri", "type": "string"},
+            "mime_type": _STRING_OR_NULL,
+            "modality": _MODALITY,
+            "uri": {"type": "string"},
+        },
+        "required": ["type", "modality", "uri"],
+        "type": "object",
+    },
+}
+
+# OTEL-GENAI gen-ai-input-messages.json, ChatMessage, parts: the items,
+# as gen-ai-output-messages.json repeats them.
+ITEMS = {
+    "anyOf": [
+        {"$ref": "#/$defs/TextPart"},
+        {"$ref": "#/$defs/ToolCallRequestPart"},
+        {"$ref": "#/$defs/ToolCallResponsePart"},
+        {"$ref": "#/$defs/ServerToolCallPart"},
+        {"$ref": "#/$defs/ServerToolCallResponsePart"},
+        {"$ref": "#/$defs/BlobPart"},
+        {"$ref": "#/$defs/FilePart"},
+        {"$ref": "#/$defs/UriPart"},
+        {"$ref": "#/$defs/ReasoningPart"},
+        {"$ref": "#/$defs/CompactionPart"},
+        {"$ref": "#/$defs/GenericPart"},
+    ]
+}
+
+# spec › item.1.
+DEFINITIONS = {
+    definition["properties"]["type"]["const"]: name
+    for name, definition in DEFS.items()
+    if "const" in definition.get("properties", {}).get("type", {})
+}
+
+
+def belongs_to(
+    definitions: dict[str, str], root: dict[str, Any]
+) -> Callable[[str, Any], bool]:
+    # spec › item.1.
+    def belongs(name: str, item: Any) -> bool:
+        if name not in definitions:
+            return False
+        reference = {"$ref": f"#/$defs/{definitions[name]}"}
+        return _json_schema.validates(item, reference, root)
+
+    return belongs
+
+
+MESSAGE_PARTS = Variants(_MESSAGE_PARTS, belongs_to(DEFINITIONS, {"$defs": DEFS}))

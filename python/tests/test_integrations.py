@@ -8,8 +8,6 @@ from living_memory.integrations import otlp_json
 
 
 class TestLookup(unittest.TestCase):
-    """lookup finds the reader of a file extension."""
-
     def test_jsonl(self):
         self.assertIs(integrations.lookup(".jsonl"), otlp_json)
 
@@ -19,8 +17,6 @@ class TestLookup(unittest.TestCase):
 
 
 class TestLoad(unittest.TestCase):
-    """load reads with the reader of the extension."""
-
     def test_load(self):
         self.assertEqual(
             integrations.load(".jsonl", io.BytesIO(b"")), otlp_json.loads("")
