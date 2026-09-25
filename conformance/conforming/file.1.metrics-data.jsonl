@@ -1,1 +1,0 @@
-{"resourceMetrics":[{"resource":{},"scopeMetrics":[{"scope":{},"metrics":[{"name":"gen_ai.client.token.usage","gauge":{"dataPoints":[{"asInt":"1"}]}}]}]}]}

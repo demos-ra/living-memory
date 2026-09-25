@@ -1,500 +1,0 @@
-resourceSpans
-address	schemaUrl
-/0/resourceSpans/0	
-resourceSpans.schemaUrl
-address	line	value
-resourceSpans.resource
-address	droppedAttributesCount
-/0/resourceSpans/0/resource	
-resourceSpans.resource.attributes
-address	key	pointer	type	value
-resourceSpans.resource.attributes.key
-address	key	line	value
-resourceSpans.resource.attributes.value
-address	key	pointer	line	value
-resourceSpans.resource.entityRefs
-address	schemaUrl	type
-resourceSpans.resource.entityRefs.schemaUrl
-address	line	value
-resourceSpans.resource.entityRefs.type
-address	line	value
-resourceSpans.resource.entityRefs.idKeys
-address	value
-resourceSpans.resource.entityRefs.idKeys.value
-address	line	value
-resourceSpans.resource.entityRefs.descriptionKeys
-address	value
-resourceSpans.resource.entityRefs.descriptionKeys.value
-address	line	value
-resourceSpans.scopeSpans
-address	schemaUrl
-/0/resourceSpans/0/scopeSpans/0	
-resourceSpans.scopeSpans.schemaUrl
-address	line	value
-resourceSpans.scopeSpans.scope
-address	name	version	droppedAttributesCount
-/0/resourceSpans/0/scopeSpans/0/scope			
-resourceSpans.scopeSpans.scope.name
-address	line	value
-resourceSpans.scopeSpans.scope.version
-address	line	value
-resourceSpans.scopeSpans.scope.attributes
-address	key	pointer	type	value
-resourceSpans.scopeSpans.scope.attributes.key
-address	key	line	value
-resourceSpans.scopeSpans.scope.attributes.value
-address	key	pointer	line	value
-resourceSpans.scopeSpans.spans
-address	traceId	spanId	traceState	parentSpanId	flags	name	kind	startTimeUnixNano	endTimeUnixNano	droppedAttributesCount	droppedEventsCount	droppedLinksCount
-/0/resourceSpans/0/scopeSpans/0/spans/0	5b8efff798038103d269b633813fc60c	eee19b7ec3c1b174				chat	3	1581452772000000321	1581452773000000789			
-resourceSpans.scopeSpans.spans.traceState
-address	line	value
-resourceSpans.scopeSpans.spans.name
-address	line	value
-resourceSpans.scopeSpans.spans.attributes
-address	key	pointer	type	value
-resourceSpans.scopeSpans.spans.attributes.key
-address	key	line	value
-resourceSpans.scopeSpans.spans.attributes.value
-address	key	pointer	line	value
-resourceSpans.scopeSpans.spans.status
-address	message	code
-resourceSpans.scopeSpans.spans.status.message
-address	line	value
-resourceSpans.scopeSpans.spans.events
-address	timeUnixNano	name	droppedAttributesCount
-resourceSpans.scopeSpans.spans.events.name
-address	line	value
-resourceSpans.scopeSpans.spans.events.attributes
-address	key	pointer	type	value
-resourceSpans.scopeSpans.spans.events.attributes.key
-address	key	line	value
-resourceSpans.scopeSpans.spans.events.attributes.value
-address	key	pointer	line	value
-resourceSpans.scopeSpans.spans.links
-address	traceId	spanId	traceState	droppedAttributesCount	flags
-resourceSpans.scopeSpans.spans.links.traceState
-address	line	value
-resourceSpans.scopeSpans.spans.links.attributes
-address	key	pointer	type	value
-resourceSpans.scopeSpans.spans.links.attributes.key
-address	key	line	value
-resourceSpans.scopeSpans.spans.links.attributes.value
-address	key	pointer	line	value
-resourceLogs
-address	schemaUrl
-resourceLogs.schemaUrl
-address	line	value
-resourceLogs.resource
-address	droppedAttributesCount
-resourceLogs.resource.attributes
-address	key	pointer	type	value
-resourceLogs.resource.attributes.key
-address	key	line	value
-resourceLogs.resource.attributes.value
-address	key	pointer	line	value
-resourceLogs.resource.entityRefs
-address	schemaUrl	type
-resourceLogs.resource.entityRefs.schemaUrl
-address	line	value
-resourceLogs.resource.entityRefs.type
-address	line	value
-resourceLogs.resource.entityRefs.idKeys
-address	value
-resourceLogs.resource.entityRefs.idKeys.value
-address	line	value
-resourceLogs.resource.entityRefs.descriptionKeys
-address	value
-resourceLogs.resource.entityRefs.descriptionKeys.value
-address	line	value
-resourceLogs.scopeLogs
-address	schemaUrl
-resourceLogs.scopeLogs.schemaUrl
-address	line	value
-resourceLogs.scopeLogs.scope
-address	name	version	droppedAttributesCount
-resourceLogs.scopeLogs.scope.name
-address	line	value
-resourceLogs.scopeLogs.scope.version
-address	line	value
-resourceLogs.scopeLogs.scope.attributes
-address	key	pointer	type	value
-resourceLogs.scopeLogs.scope.attributes.key
-address	key	line	value
-resourceLogs.scopeLogs.scope.attributes.value
-address	key	pointer	line	value
-resourceLogs.scopeLogs.logRecords
-address	timeUnixNano	observedTimeUnixNano	severityNumber	severityText	droppedAttributesCount	flags	traceId	spanId	eventName
-resourceLogs.scopeLogs.logRecords.severityText
-address	line	value
-resourceLogs.scopeLogs.logRecords.eventName
-address	line	value
-resourceLogs.scopeLogs.logRecords.attributes
-address	key	pointer	type	value
-resourceLogs.scopeLogs.logRecords.attributes.key
-address	key	line	value
-resourceLogs.scopeLogs.logRecords.attributes.value
-address	key	pointer	line	value
-resourceLogs.scopeLogs.logRecords.body
-address	pointer	type	value
-resourceLogs.scopeLogs.logRecords.body.value
-address	pointer	line	value
-gen_ai.system_instructions.text
-address	pointer	content
-gen_ai.system_instructions.text.content
-address	pointer	line	value
-gen_ai.system_instructions.text.additionalProperties
-address	pointer	type	value
-gen_ai.system_instructions.text.additionalProperties.value
-address	pointer	line	value
-gen_ai.system_instructions.generic
-address	pointer	type
-gen_ai.system_instructions.generic.type
-address	pointer	line	value
-gen_ai.system_instructions.generic.additionalProperties
-address	pointer	type	value
-gen_ai.system_instructions.generic.additionalProperties.value
-address	pointer	line	value
-gen_ai.tool.definitions.function
-address	pointer	name	description
-gen_ai.tool.definitions.function.name
-address	pointer	line	value
-gen_ai.tool.definitions.function.description
-address	pointer	line	value
-gen_ai.tool.definitions.function.parameters
-address	pointer	type	value
-gen_ai.tool.definitions.function.parameters.value
-address	pointer	line	value
-gen_ai.tool.definitions.function.additionalProperties
-address	pointer	type	value
-gen_ai.tool.definitions.function.additionalProperties.value
-address	pointer	line	value
-gen_ai.tool.definitions.generic
-address	pointer	type	name
-gen_ai.tool.definitions.generic.type
-address	pointer	line	value
-gen_ai.tool.definitions.generic.name
-address	pointer	line	value
-gen_ai.tool.definitions.generic.additionalProperties
-address	pointer	type	value
-gen_ai.tool.definitions.generic.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages
-address	pointer	role	name
-gen_ai.input.messages.role
-address	pointer	line	value
-gen_ai.input.messages.name
-address	pointer	line	value
-gen_ai.input.messages.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.text
-address	pointer	content
-gen_ai.input.messages.parts.text.content
-address	pointer	line	value
-gen_ai.input.messages.parts.text.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.text.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call
-address	pointer	id	name
-gen_ai.input.messages.parts.tool_call.id
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call.name
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call.arguments
-address	pointer	type	value
-gen_ai.input.messages.parts.tool_call.arguments.value
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call_response
-address	pointer	id
-gen_ai.input.messages.parts.tool_call_response.id
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call_response.response
-address	pointer	type	value
-gen_ai.input.messages.parts.tool_call_response.response.value
-address	pointer	line	value
-gen_ai.input.messages.parts.tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call
-address	pointer	id	name
-gen_ai.input.messages.parts.server_tool_call.id
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call.name
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call.server_tool_call
-address	pointer	type
-gen_ai.input.messages.parts.server_tool_call.server_tool_call.type
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.server_tool_call.server_tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.server_tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call_response
-address	pointer	id
-gen_ai.input.messages.parts.server_tool_call_response.id
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response
-address	pointer	type
-gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.type
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.server_tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.server_tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.blob
-address	pointer	mime_type	modality	content
-gen_ai.input.messages.parts.blob.mime_type
-address	pointer	line	value
-gen_ai.input.messages.parts.blob.modality
-address	pointer	line	value
-gen_ai.input.messages.parts.blob.content
-address	pointer	line	value
-gen_ai.input.messages.parts.blob.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.blob.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.file
-address	pointer	mime_type	modality	file_id
-gen_ai.input.messages.parts.file.mime_type
-address	pointer	line	value
-gen_ai.input.messages.parts.file.modality
-address	pointer	line	value
-gen_ai.input.messages.parts.file.file_id
-address	pointer	line	value
-gen_ai.input.messages.parts.file.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.file.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.uri
-address	pointer	mime_type	modality	uri
-gen_ai.input.messages.parts.uri.mime_type
-address	pointer	line	value
-gen_ai.input.messages.parts.uri.modality
-address	pointer	line	value
-gen_ai.input.messages.parts.uri.uri
-address	pointer	line	value
-gen_ai.input.messages.parts.uri.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.uri.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.reasoning
-address	pointer	content
-gen_ai.input.messages.parts.reasoning.content
-address	pointer	line	value
-gen_ai.input.messages.parts.reasoning.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.reasoning.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.compaction
-address	pointer	id	content
-gen_ai.input.messages.parts.compaction.id
-address	pointer	line	value
-gen_ai.input.messages.parts.compaction.content
-address	pointer	line	value
-gen_ai.input.messages.parts.compaction.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.compaction.additionalProperties.value
-address	pointer	line	value
-gen_ai.input.messages.parts.generic
-address	pointer	type
-gen_ai.input.messages.parts.generic.type
-address	pointer	line	value
-gen_ai.input.messages.parts.generic.additionalProperties
-address	pointer	type	value
-gen_ai.input.messages.parts.generic.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages
-address	pointer	role	name	finish_reason
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0	user		
-gen_ai.output.messages.role
-address	pointer	line	value
-gen_ai.output.messages.name
-address	pointer	line	value
-gen_ai.output.messages.finish_reason
-address	pointer	line	value
-gen_ai.output.messages.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.text
-address	pointer	content
-gen_ai.output.messages.parts.text.content
-address	pointer	line	value
-gen_ai.output.messages.parts.text.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.text.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call
-address	pointer	id	name
-gen_ai.output.messages.parts.tool_call.id
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call.name
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call.arguments
-address	pointer	type	value
-gen_ai.output.messages.parts.tool_call.arguments.value
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call_response
-address	pointer	id
-gen_ai.output.messages.parts.tool_call_response.id
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call_response.response
-address	pointer	type	value
-gen_ai.output.messages.parts.tool_call_response.response.value
-address	pointer	line	value
-gen_ai.output.messages.parts.tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call
-address	pointer	id	name
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0	s2	code
-gen_ai.output.messages.parts.server_tool_call.id
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call.name
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call.server_tool_call
-address	pointer	type
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/server_tool_call	
-gen_ai.output.messages.parts.server_tool_call.server_tool_call.type
-address	pointer	line	value
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/server_tool_call/type	0	first
-/0/resourceSpans/0/scopeSpans/0/spans/0	/0/parts/0/server_tool_call/type	1	second
-gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.server_tool_call.server_tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.server_tool_call.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call_response
-address	pointer	id
-gen_ai.output.messages.parts.server_tool_call_response.id
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response
-address	pointer	type
-gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.type
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.server_tool_call_response.server_tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.server_tool_call_response.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.server_tool_call_response.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.blob
-address	pointer	mime_type	modality	content
-gen_ai.output.messages.parts.blob.mime_type
-address	pointer	line	value
-gen_ai.output.messages.parts.blob.modality
-address	pointer	line	value
-gen_ai.output.messages.parts.blob.content
-address	pointer	line	value
-gen_ai.output.messages.parts.blob.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.blob.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.file
-address	pointer	mime_type	modality	file_id
-gen_ai.output.messages.parts.file.mime_type
-address	pointer	line	value
-gen_ai.output.messages.parts.file.modality
-address	pointer	line	value
-gen_ai.output.messages.parts.file.file_id
-address	pointer	line	value
-gen_ai.output.messages.parts.file.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.file.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.uri
-address	pointer	mime_type	modality	uri
-gen_ai.output.messages.parts.uri.mime_type
-address	pointer	line	value
-gen_ai.output.messages.parts.uri.modality
-address	pointer	line	value
-gen_ai.output.messages.parts.uri.uri
-address	pointer	line	value
-gen_ai.output.messages.parts.uri.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.uri.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.reasoning
-address	pointer	content
-gen_ai.output.messages.parts.reasoning.content
-address	pointer	line	value
-gen_ai.output.messages.parts.reasoning.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.reasoning.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.compaction
-address	pointer	id	content
-gen_ai.output.messages.parts.compaction.id
-address	pointer	line	value
-gen_ai.output.messages.parts.compaction.content
-address	pointer	line	value
-gen_ai.output.messages.parts.compaction.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.compaction.additionalProperties.value
-address	pointer	line	value
-gen_ai.output.messages.parts.generic
-address	pointer	type
-gen_ai.output.messages.parts.generic.type
-address	pointer	line	value
-gen_ai.output.messages.parts.generic.additionalProperties
-address	pointer	type	value
-gen_ai.output.messages.parts.generic.additionalProperties.value
-address	pointer	line	value
-gen_ai.tool.call.arguments
-address	pointer	type	value
-gen_ai.tool.call.arguments.value
-address	pointer	line	value
-gen_ai.tool.call.result
-address	pointer	type	value
-gen_ai.tool.call.result.value
-address	pointer	line	value
-gen_ai.memory.records
-address	pointer	id	score
-gen_ai.memory.records.id
-address	pointer	line	value
-gen_ai.memory.records.content
-address	pointer	type	value
-gen_ai.memory.records.content.value
-address	pointer	line	value
-gen_ai.memory.records.metadata
-address	pointer	type	value
-gen_ai.memory.records.metadata.value
-address	pointer	line	value
-gen_ai.memory.records.additionalProperties
-address	pointer	type	value
-gen_ai.memory.records.additionalProperties.value
-address	pointer	line	value
-gen_ai.retrieval.documents
-address	pointer	id	score
-gen_ai.retrieval.documents.id
-address	pointer	line	value
-gen_ai.retrieval.documents.additionalProperties
-address	pointer	type	value
-gen_ai.retrieval.documents.additionalProperties.value
-address	pointer	line	value

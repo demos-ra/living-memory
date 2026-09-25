@@ -1,1 +1,0 @@
-{"resourceLogs":[{"resource":{"attributes":[{"key":"note","value":{"stringValue":"first\nsecond"}}]},"scopeLogs":[{"scope":{},"logRecords":[{"timeUnixNano":"1581452773000000789","eventName":"gen_ai.client.inference.operation.details"}]}]}]}

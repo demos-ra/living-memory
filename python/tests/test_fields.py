@@ -1,48 +1,47 @@
-"""Tests of _fields: how a value is written as the text of a field."""
+"""Tests of _fields: text in MTSV fields."""
 
 import unittest
 
-from living_memory import _fields
+from living_memory import _fields as module
 from living_memory._json import Number
 
 
 class TestText(unittest.TestCase):
-    def test_text(self):
-        cases = [
-            ("x", "x"),
-            (Number("0.950"), "0.950"),
-            (True, "true"),
-            (False, "false"),
-            (None, ""),
-            ({}, ""),
-            ([], ""),
-        ]
+    def test_values(self):
+        cases = [("x", "x"), (Number("1.50"), "1.50"), (True, "true")]
+        cases += [(False, "false"), (None, ""), ({"a": "x"}, ""), (["x"], "")]
         for value, expected in cases:
-            with self.subTest(repr(value)):
-                self.assertEqual(_fields.text(value), expected)
+            with self.subTest(value=value):
+                self.assertEqual(module.text(value), expected)
 
 
-class TestLines(unittest.TestCase):
-    def test_split_at_lf_and_crlf_only(self):
-        cases = [
-            ("first\nsecond", ["first", "second"]),
-            ("first\r\nsecond", ["first", "second"]),
-            ("a\n", ["a", ""]),
-            ("a\rb", []),
-            ("x", []),
-            (None, []),
-        ]
-        for value, expected in cases:
-            with self.subTest(repr(value)):
-                self.assertEqual(_fields.lines(value), expected)
+class TestCarried(unittest.TestCase):
+    def test_lone_cr_and_surrogate_left_out(self):
+        self.assertEqual(module.carried("a\rb"), ("ab", True))
+        self.assertEqual(module.carried("a\ud800b"), ("ab", True))
+
+    def test_crlf_kept(self):
+        self.assertEqual(module.carried("a\r\nb"), ("a\r\nb", False))
+
+    def test_names_lose_separators(self):
+        self.assertEqual(module.name_carried("a\tb"), ("ab", True))
+        self.assertEqual(module.name_carried("ab"), ("ab", False))
 
 
-class TestField(unittest.TestCase):
-    def test_what_a_field_cannot_hold_is_left_empty(self):
-        for value in ("a\tb", "a\nb", "a\fb", "a\rb"):
-            with self.subTest(repr(value)):
-                self.assertEqual(_fields.field(value), "")
-        self.assertEqual(_fields.field("a b"), "a b")
+class TestRuns(unittest.TestCase):
+    def test_holds_separator(self):
+        for value, expected in [("a", False), ("a\tb", True), ("\n", True)]:
+            with self.subTest(value=value):
+                self.assertEqual(module.holds_separator(value), expected)
+
+    def test_pages_lines_positions(self):
+        found = module.runs("a\tb\nc\r\nd\fe")
+        expected = [(0, 0, 0, "a"), (0, 0, 1, "b"), (0, 1, 0, "c")]
+        expected += [(0, 2, 0, "d"), (1, 0, 0, "e")]
+        self.assertEqual(found, expected)
+
+    def test_empty_runs(self):
+        self.assertEqual(module.runs("\n"), [(0, 0, 0, ""), (0, 1, 0, "")])
 
 
 if __name__ == "__main__":

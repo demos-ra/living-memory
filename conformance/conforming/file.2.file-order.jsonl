@@ -1,2 +1,0 @@
-{"resourceSpans":[{"resource":{},"scopeSpans":[{"scope":{},"spans":[{"traceId":"5b8efff798038103d269b633813fc60c","spanId":"b7ad6b7169203332","name":"later","kind":3,"startTimeUnixNano":"1581452774000000000","endTimeUnixNano":"1581452775000000000"}]}]}]}
-{"resourceSpans":[{"resource":{},"scopeSpans":[{"scope":{},"spans":[{"traceId":"5b8efff798038103d269b633813fc60c","spanId":"b7ad6b7169203331","name":"earlier","kind":3,"startTimeUnixNano":"1581452772000000000","endTimeUnixNano":"1581452773000000000"}]}]}]}

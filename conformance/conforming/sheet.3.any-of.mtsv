@@ -1,0 +1,22 @@
+calls
+pointer
+/0
+/1
+calls.p
+calls.pointer	pointer
+/0	/0/p
+/1	/1/p
+calls.p.additionalProperties
+calls.p.pointer	pointer	type	value
+calls.p.additionalProperties.value
+calls.p.additionalProperties.pointer	page	line	position	value
+calls.p.anyOf.a
+calls.p.pointer	pointer	kind	x
+/0/p	/0/p	a	1
+calls.p.anyOf.a.kind
+calls.p.anyOf.a.pointer	page	line	position	value
+calls.p.anyOf.b
+calls.p.pointer	pointer	kind	y
+/1/p	/1/p	b	2
+calls.p.anyOf.b.kind
+calls.p.anyOf.b.pointer	page	line	position	value

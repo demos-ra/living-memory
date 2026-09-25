@@ -1,1 +1,0 @@
-{"resourceLogs":[{"resource":{},"scopeLogs":[{"scope":{},"logRecords":[{"timeUnixNano":"1581452773000000789","eventName":"gen_ai.client.inference.operation.details","attributes":[{"key":"gen_ai.output.messages","value":{"stringValue":"[{\"role\":\"assistant\",\"parts\":[]}]"}},{"key":"gen_ai.response.id","value":{"stringValue":"r1"}}]}]}]}]}

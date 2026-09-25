@@ -1,110 +1,97 @@
-"""How a JSON text is read and written, and the type of a JSON value."""
+"""How JSON texts are read, JSON strings written, and values typed."""
 
-__all__ = [
-    "Number",
-    "array",
-    "decode",
-    "decode_all_pairs",
-    "decode_strict",
-    "encode",
-    "is_unicode",
-    "replace_unpaired",
-    "type",
-]
+__all__ = ["Number", "TYPES", "decode", "encode_string", "type"]
 
-import json
-import re
 from typing import Any
+
+from living_memory import _fields
+from living_memory._json_pointer import PlacedError, pointer
+
+# The data model has six primitive types (JSON Schema, 4.2.1. Instance
+# Data Model).
+TYPES = ("null", "boolean", "object", "array", "number", "string")
+
+# Each row gives a lead byte of a UTF-8 sequence by its first and last
+# value, the number of tail bytes after it and the range of the byte
+# that follows it; every later tail byte is 0x80 to 0xBF (RFC 3629, 4.
+# Syntax of UTF-8 Byte Sequences).
+_UTF_8 = (
+    (0x00, 0x7F, 0, 0x80, 0xBF),
+    (0xC2, 0xDF, 1, 0x80, 0xBF),
+    (0xE0, 0xE0, 2, 0xA0, 0xBF),
+    (0xE1, 0xEC, 2, 0x80, 0xBF),
+    (0xED, 0xED, 2, 0x80, 0x9F),
+    (0xEE, 0xEF, 2, 0x80, 0xBF),
+    (0xF0, 0xF0, 3, 0x90, 0xBF),
+    (0xF1, 0xF3, 3, 0x80, 0xBF),
+    (0xF4, 0xF4, 3, 0x80, 0x8F),
+)
+_TAIL = range(0x80, 0xC0)
+
+# These are insignificant whitespace, the literal names, and the
+# two-character escapes of a string (RFC 8259, 2. JSON Grammar; 3.
+# Values; 7. Strings).
+_WHITESPACE = " \t\n\r"
+_LITERALS = {"false": False, "null": None, "true": True}
+_ESCAPES = {
+    '"': '"',
+    "\\": "\\",
+    "/": "/",
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+}
+_HEX_DIGITS = "0123456789abcdefABCDEF"
+_DIGITS = "0123456789"
+# U+10000 is the first code point beyond the Basic Multilingual Plane.
+_BEYOND_BMP = 0x10000
+
+# A reader returns the value, the index after it, and the start and
+# pointer of every object within it whose names repeat.
+_Read = tuple[Any, int, list[tuple[int, str]]]
 
 
 class Number(str):
-    # A number is kept as the text the input wrote, so that no digit is
-    # lost to a machine number (RFC8259, 6. Numbers; spec › node.3).
+    # A number is kept as the text written, since an implementation may
+    # limit the range and precision of numbers (RFC 8259, 6. Numbers;
+    # spec › value.2).
     pass
 
 
-# A UTF-16 surrogate encodes no Unicode character on its own; a pair
-# written as escapes is read as the one character it encodes
-# (RFC8259, 7. Strings; 8.2. Unicode Characters).
-_SURROGATE = re.compile("[\ud800-\udfff]")
-
-
-def decode(document: str) -> Any:
-    # Of members sharing a name the last is read, as ProtoJSON's parsers
-    # do (PROTOJSON, Duplicate keys; spec › file.3).
-    return json.loads(
-        document,
-        parse_int=Number,
-        parse_float=Number,
-        parse_constant=_refuse_constant,
-        object_pairs_hook=_keep_last_member,
-    )
-
-
-def decode_all_pairs(document: str) -> Any:
-    # Members sharing a name are one member holding every value, in the
-    # order written, as OpenTelemetry converts non-unique keys
-    # (OTEL-COMMON, Associative Arrays With Non-Unique Keys; spec ›
-    # event.4).
-    return json.loads(
-        document,
-        parse_int=Number,
-        parse_float=Number,
-        parse_constant=_refuse_constant,
-        object_pairs_hook=_keep_every_member,
-    )
-
-
-def decode_strict(document: str) -> Any:
-    # Strict JSON, read to be written back, keeps its numbers as
-    # numbers; NaN and Infinity are refused (RFC8259, 6. Numbers).
-    return json.loads(document, parse_constant=_refuse_constant)
-
-
-def encode(value: Any) -> str:
-    # A Number is written as its own text, and every other value as
-    # RFC8259 writes it, so that what was read is written unchanged.
-    if isinstance(value, Number):
-        return str(value)
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        return "null"
-    if isinstance(value, list):
-        return "[" + ",".join(encode(element) for element in value) + "]"
-    members = (f"{encode(name)}:{encode(member)}" for name, member in value.items())
-    return "{" + ",".join(members) + "}"
-
-
-def is_unicode(text: str) -> bool:
-    # A string is a valid Unicode sequence when it holds no unpaired
-    # surrogate (RFC8259, 8.2. Unicode Characters).
-    return _SURROGATE.search(text) is None
-
-
-def replace_unpaired(value: Any) -> Any:
-    # Every unpaired surrogate in a value's strings, names included, is
-    # replaced with U+FFFD, as an OTLP decoder replaces what is not
-    # valid UTF-8 (OTLP, UTF-8 String Handling; spec › file.1).
-    if isinstance(value, dict):
-        return {replace_unpaired(k): replace_unpaired(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [replace_unpaired(element) for element in value]
-    if isinstance(value, str) and not isinstance(value, Number):
-        return _SURROGATE.sub("\ufffd", value)
+def decode(data: bytes) -> Any:
+    # A JSON text is a value between insignificant whitespace, in UTF-8;
+    # members are read in the order written. A text that is not one
+    # fails whole, and so is placed at ""; one whose names repeat is
+    # placed at the first such object in the order written (RFC 8259,
+    # 2. JSON Grammar; 4. Objects; 8.1. Character Encoding; spec ›
+    # value.1-3).
+    try:
+        text = _utf_8(data)
+        value, end, repeated = _value(text, _whitespace(text, 0), "")
+        end = _whitespace(text, end)
+        if end != len(text):
+            raise ValueError(f"text after the value at character {end}")
+    except ValueError as error:
+        raise PlacedError(f"not a JSON text: {error}", "") from None
+    if repeated:
+        raise PlacedError("a name is repeated", min(repeated)[1])
     return value
 
 
-def array(value: Any) -> list[Any]:
-    # An array's elements are read, and any other value has none.
-    return value if isinstance(value, list) else []
+def encode_string(value: str) -> str:
+    # A string is written between quotation marks, the quotation mark,
+    # the reverse solidus and the control characters escaped (RFC 8259,
+    # 7. Strings); an unpaired surrogate, which is not text, is escaped
+    # too (8.2. Unicode Characters).
+    written = {code: f"\\{name}" for name, code in _ESCAPES.items() if name != "/"}
+    return '"' + "".join(_escaped(char, written) for char in value) + '"'
 
 
 def type(value: Any) -> str:
-    # The types are those of JSON Schema draft-07 (JSON-SCHEMA-07,
-    # validation 6.1.1. type; spec › node.1).
+    # A value has one of the six primitive types; an integer is a
+    # number (JSON Schema, 4.2.1. Instance Data Model).
     if isinstance(value, dict):
         return "object"
     if isinstance(value, list):
@@ -113,29 +100,202 @@ def type(value: Any) -> str:
         return "boolean"
     if value is None:
         return "null"
-    if isinstance(value, (Number, int, float)):
+    if isinstance(value, Number):
         return "number"
     return "string"
 
 
-def _refuse_constant(name: str) -> Any:
-    # NaN and Infinity are not JSON values (RFC8259, 6. Numbers).
-    raise ValueError(f"{name} is not a JSON value")
+def _utf_8(data: bytes) -> str:
+    # An octet sequence is UTF-8 only if every sequence in it matches
+    # the syntax of UTF-8 (RFC 3629, 4. Syntax of UTF-8 Byte Sequences).
+    chars = []
+    at = 0
+    while at < len(data):
+        lead = data[at]
+        for first, last, tails, low, high in _UTF_8:
+            if first <= lead <= last:
+                break
+        else:
+            raise ValueError(f"not UTF-8 at byte {at}")
+        sequence = data[at + 1 : at + 1 + tails]
+        if len(sequence) < tails or not all(byte in _TAIL for byte in sequence):
+            raise ValueError(f"not UTF-8 at byte {at}")
+        if tails and not low <= sequence[0] <= high:
+            raise ValueError(f"not UTF-8 at byte {at}")
+        # The lead byte holds the code point's first bits, below its
+        # length marker; each tail byte holds six more.
+        code = lead & (0xFF >> (tails + 2)) if tails else lead
+        for byte in sequence:
+            code = code << 6 | byte & 0x3F
+        chars.append(chr(code))
+        at += 1 + tails
+    return "".join(chars)
 
 
-def _keep_last_member(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+def _whitespace(text: str, at: int) -> int:
+    while at < len(text) and text[at] in _WHITESPACE:
+        at += 1
+    return at
+
+
+def _value(text: str, at: int, where: str) -> _Read:
+    # A value is an object, an array, a number, a string, or one of the
+    # three literal names (RFC 8259, 3. Values).
+    char = text[at : at + 1]
+    if char == "{":
+        return _object(text, at, where)
+    if char == "[":
+        return _array(text, at, where)
+    if char == '"':
+        string, end = _string(text, at)
+        return string, end, []
+    if char and char in "-" + _DIGITS:
+        number, end = _number(text, at)
+        return number, end, []
+    for name, literal in _LITERALS.items():
+        if text.startswith(name, at):
+            return literal, at + len(name), []
+    raise ValueError(f"no JSON value at character {at}")
+
+
+def _object(text: str, start: int, where: str) -> _Read:
+    # An object is zero or more members between curly brackets, a name
+    # and a value each, separated by commas; its names should be unique
+    # (RFC 8259, 4. Objects).
     members: dict[str, Any] = {}
-    for name, value in pairs:
-        members.pop(name, None)
+    repeated: list[tuple[int, str]] = []
+    repeats = False
+    at = _whitespace(text, start + 1)
+    if text[at : at + 1] == "}":
+        return members, at + 1, repeated
+    while True:
+        if text[at : at + 1] != '"':
+            raise ValueError(f"no name at character {at}")
+        name, at = _string(text, at)
+        at = _whitespace(text, at)
+        if text[at : at + 1] != ":":
+            raise ValueError(f"no colon at character {at}")
+        at = _whitespace(text, at + 1)
+        value, at, inner = _value(text, at, pointer(where, name))
+        repeated += inner
+        repeats = repeats or name in members
         members[name] = value
-    return members
+        at = _whitespace(text, at)
+        if text[at : at + 1] == "}":
+            if repeats:
+                repeated.append((start, where))
+            return members, at + 1, repeated
+        if text[at : at + 1] != ",":
+            raise ValueError(f"no comma or end of object at character {at}")
+        at = _whitespace(text, at + 1)
 
 
-def _keep_every_member(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    grouped: dict[str, list[Any]] = {}
-    for name, value in pairs:
-        grouped.setdefault(name, []).append(value)
-    return {
-        name: values[0] if len(values) == 1 else values
-        for name, values in grouped.items()
-    }
+def _array(text: str, start: int, where: str) -> _Read:
+    # An array is zero or more values between square brackets,
+    # separated by commas (RFC 8259, 5. Arrays).
+    elements: list[Any] = []
+    repeated: list[tuple[int, str]] = []
+    at = _whitespace(text, start + 1)
+    if text[at : at + 1] == "]":
+        return elements, at + 1, repeated
+    while True:
+        value, at, inner = _value(text, at, pointer(where, len(elements)))
+        repeated += inner
+        elements.append(value)
+        at = _whitespace(text, at)
+        if text[at : at + 1] == "]":
+            return elements, at + 1, repeated
+        if text[at : at + 1] != ",":
+            raise ValueError(f"no comma or end of array at character {at}")
+        at = _whitespace(text, at + 1)
+
+
+def _string(text: str, start: int) -> tuple[str, int]:
+    # A string is characters between quotation marks; the quotation
+    # mark, the reverse solidus and the control characters are escaped,
+    # and a character outside the Basic Multilingual Plane may be
+    # escaped as its UTF-16 surrogate pair (RFC 8259, 7. Strings).
+    chars = []
+    at = start + 1
+    while True:
+        char = text[at : at + 1]
+        if not char:
+            raise ValueError(f"the string at character {start} does not end")
+        if char == '"':
+            return "".join(chars), at + 1
+        if char < " ":
+            raise ValueError(f"a control character unescaped at character {at}")
+        if char != "\\":
+            chars.append(char)
+            at += 1
+            continue
+        escape = text[at + 1 : at + 2]
+        if escape and escape in _ESCAPES:
+            chars.append(_ESCAPES[escape])
+            at += 2
+            continue
+        code = _hex(text, at)
+        at += 6
+        if code in _fields.HIGH_SURROGATES and text.startswith("\\u", at):
+            low = _hex(text, at)
+            if low in _fields.LOW_SURROGATES:
+                code = _pair(code, low)
+                at += 6
+        chars.append(chr(code))
+
+
+def _pair(high: int, low: int) -> int:
+    # A surrogate pair encodes a code point above the Basic Multilingual
+    # Plane: ten bits from each surrogate, added to U+10000.
+    high_bits = high - _fields.HIGH_SURROGATES.start
+    low_bits = low - _fields.LOW_SURROGATES.start
+    return _BEYOND_BMP + (high_bits << 10) + low_bits
+
+
+def _hex(text: str, at: int) -> int:
+    # The escape \uXXXX is four hexadecimal digits that encode a code
+    # point (RFC 8259, 7. Strings).
+    digits = text[at + 2 : at + 6]
+    if text[at + 1 : at + 2] != "u" or len(digits) < 4:
+        raise ValueError(f"no escape at character {at}")
+    if not all(digit in _HEX_DIGITS for digit in digits):
+        raise ValueError(f"no escape at character {at}")
+    return int(digits, 16)
+
+
+def _number(text: str, start: int) -> tuple[Number, int]:
+    # A number is an optional minus sign, an integer part without
+    # leading zeros, then an optional fraction and exponent (RFC 8259,
+    # 6. Numbers).
+    at = start + 1 if text[start] == "-" else start
+    if text[at : at + 1] == "0":
+        at += 1
+    else:
+        at = _digits(text, at)
+    if text[at : at + 1] == ".":
+        at = _digits(text, at + 1)
+    if text[at : at + 1] in ("e", "E"):
+        at += 1
+        if text[at : at + 1] in ("+", "-"):
+            at += 1
+        at = _digits(text, at)
+    return Number(text[start:at]), at
+
+
+def _digits(text: str, at: int) -> int:
+    # A run of digits holds at least one digit.
+    end = at
+    while end < len(text) and text[end] in _DIGITS:
+        end += 1
+    if end == at:
+        raise ValueError(f"no digit at character {at}")
+    return end
+
+
+def _escaped(char: str, written: dict[str, str]) -> str:
+    if char in written:
+        return written[char]
+    code = ord(char)
+    if char < " " or code in _fields.HIGH_SURROGATES or code in _fields.LOW_SURROGATES:
+        return f"\\u{code:04x}"
+    return char

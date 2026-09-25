@@ -1,41 +1,25 @@
 # living-memory
 
-living-memory writes the text around an AI model as Multi-Sheet
-Tab-Separated Values (MTSV). An OpenTelemetry Protocol (OTLP) JSON Lines
-file of traces or logs becomes MTSV sheets, whole: its envelopes,
-resources, scopes, spans, log records and attributes, and the eight
-structured text sets of the OpenTelemetry GenAI semantic conventions —
-system instructions, tool definitions, input messages, output messages,
-tool call arguments, tool call result, memory records and retrieval
-documents — in sheets of their own, nested values becoming sheets of
-their own in normal form.
+living-memory converts JSON into Multi-Sheet Tab-Separated Values (MTSV).
+A JSON Schema describes the JSON: each object and array becomes a sheet of
+its own, each simple member a column, and the sheets are related by keys.
+Every value is written once, and text holding tabs, line breaks or form
+feeds is laid out by page, line and position. The module that reads a
+source supplies its schema, so the conversion names no source.
 
 * [MTSV specification](https://github.com/demos-ra/mtsv-spec)
 * [MTSV implementation](https://github.com/demos-ra/mtsv)
 
 ## Layout
 
-| Folder            | Contents                                             |
-|-------------------|------------------------------------------------------|
-| `spec/`           | The mapping, as MTSV: its rules and its sheets       |
-| `conformance/`    | Test files shared by every implementation            |
-| `python/`         | Python implementation                                |
-| `plugins/`        | A plugin for each product it installs into          |
-| `.claude-plugin/` | The catalog Claude Code reads the plugins from       |
+| Folder         | Contents                                                |
+|----------------|---------------------------------------------------------|
+| `spec/`        | The specification, as MTSV: its rules and the fields it writes |
+| `conformance/` | Test files shared by every implementation               |
+| `python/`      | The Python implementation                               |
 
-The specification states the mapping; the conformance files check an
-implementation against it; each language folder holds one implementation.
-Conformance is the same for every language, so it sits beside them rather
-than inside one. A provider's own format, and each of its products', is
-read by a module of its own among the providers, and the mapping names
-no provider. A
-product that records conversations has a plugin of its own, which runs
-the conversion there; Claude Code requires its catalog at the root of the
-repository.
-
-`spec/living-memory.mtsv` states the mapping: its conformance clause,
-each rule, each sheet with its fields, and the references it cites; its
-event rules state what every provider's reader writes.
+Conformance is the same for every language, so it sits beside the language
+folders rather than inside one.
 
 ## Conformance
 
@@ -43,13 +27,9 @@ See [conformance/README.md](conformance/README.md).
 
 ## Python
 
-See [python/README.md](python/README.md). Its version is the `version`
-field of [python/pyproject.toml](python/pyproject.toml).
-
-## Status
-
-In construction; there is no release yet. Versions will follow
-[Semantic Versioning](https://semver.org).
+See [python/README.md](python/README.md), which says how to install it. Its
+version is the `version` field of
+[python/pyproject.toml](python/pyproject.toml); there is no release yet.
 
 ## Help
 

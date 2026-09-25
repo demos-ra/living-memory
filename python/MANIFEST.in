@@ -1,2 +1,1 @@
-recursive-include src/living_memory/providers *.mtsv
-prune tests
+exclude tests/test_conformance.py

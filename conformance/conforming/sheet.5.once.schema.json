@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"p":{"anyOf":[{"title":"a","type":"object","properties":{"k":{"type":"string"}},"required":["k"]},{"title":"b","type":"object","properties":{"k":{"type":"string"},"m":{"type":"number"}},"required":["k","m"],"additionalProperties":false}]}},"required":["p"],"additionalProperties":false}

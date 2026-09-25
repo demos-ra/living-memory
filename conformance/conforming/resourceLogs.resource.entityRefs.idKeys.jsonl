@@ -1,1 +1,0 @@
-{"resourceLogs":[{"resource":{"entityRefs":[{"type":"service","idKeys":["service.name","service.namespace"]}]},"scopeLogs":[{"scope":{},"logRecords":[{"timeUnixNano":"1581452773000000789","eventName":"gen_ai.client.inference.operation.details"}]}]}]}

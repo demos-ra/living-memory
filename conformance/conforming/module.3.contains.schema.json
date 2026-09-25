@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"c":{"type":"array","items":{"type":"number"},"contains":{"type":"number","minimum":5}}},"required":["c"],"additionalProperties":false}

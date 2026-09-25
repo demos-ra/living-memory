@@ -1,0 +1,18 @@
+calls
+pointer
+/0
+calls.t
+calls.pointer	pointer
+/0	/0/t
+calls.t.items.0
+calls.t.pointer	pointer	value
+/0/t	/0/t/0	1
+calls.t.items.1
+calls.t.pointer	pointer	value
+/0/t	/0/t/1	x
+calls.t.items.1.value
+calls.t.items.1.pointer	page	line	position	value
+calls.t.additionalItems
+calls.t.pointer	pointer	value
+/0/t	/0/t/2	true
+/0/t	/0/t/3	false

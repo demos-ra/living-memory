@@ -1,11 +1,13 @@
-"""The text around AI models, as MTSV sheets.
+"""JSON described by a JSON Schema, converted to MTSV files.
 
-OTLP JSON Lines files of TracesData and LogsData, and the eight
-structured text sets of the OpenTelemetry GenAI semantic conventions
-among them, written as Multi-Sheet Tab-Separated Values (MTSV),
-draft-demosra-mtsv-01. The sheets are written with mtsv.dump.
+The specification is spec/living-memory.mtsv; MTSV is
+draft-demosra-mtsv-01.
 """
 
-__all__ = ["load", "loads", "OTLPDecodeError"]
+__all__ = ["convert", "NonConformingError", "NonConformingInputError"]
 
-from living_memory._otlp_json import OTLPDecodeError, load, loads
+from living_memory._converter import (
+    NonConformingError,
+    NonConformingInputError,
+    convert,
+)

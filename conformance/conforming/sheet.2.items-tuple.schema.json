@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"t":{"type":"array","items":[{"type":"number"},{"type":"string"}],"additionalItems":{"type":"boolean"}}},"required":["t"],"additionalProperties":false}

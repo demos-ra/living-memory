@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"p":{"$ref":"other.json#/P"}},"required":["p"],"additionalProperties":false}

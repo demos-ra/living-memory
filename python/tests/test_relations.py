@@ -1,211 +1,121 @@
-"""Tests of _relations: how a value becomes keyed sheets."""
+"""Tests of _relations: a schema and its instances as related sheets."""
 
 import unittest
 
-from living_memory import _relations
-from living_memory._json import Number
-from living_memory._relations import Definition, Key, Variants
-
-A = "/0/resourceSpans/0/scopeSpans/0/spans/0"
+from living_memory import _relations as module
+from living_memory._json import decode
+from living_memory._json_pointer import PlacedError
 
 
-class TestLineRows(unittest.TestCase):
-    def test_lines_split_at_lf_and_crlf_only(self):
-        cases = [
-            ("first\nsecond", ["first", "second"]),
-            ("first\r\nsecond", ["first", "second"]),
-            ("a\n", ["a", ""]),
-            ("a\rb", []),
-            ("x", []),
-            (None, []),
-        ]
-        for value, expected in cases:
-            with self.subTest(repr(value)):
-                found = _relations.line_rows("s", Key((A,)), value)
-                self.assertEqual([row[-1] for _, row in found], expected)
+def convert(schema: str, *values: str) -> tuple[list[dict], list[str]]:
+    layout = module.layout(decode(schema.encode()))
+    records, reports = [], []
+    for position, value in enumerate(values):
+        found, missed = module.records(layout, decode(value.encode()), position)
+        records += found
+        reports += missed
+    return module.sheets(layout, records), reports
 
-    def test_positions(self):
-        self.assertEqual(
-            _relations.line_rows("s", Key((A,)), "one\ntwo"),
-            [("s", [A, "0", "one"]), ("s", [A, "1", "two"])],
+
+def shape(sheets: list[dict]) -> list[tuple[str, list[str]]]:
+    return [(sheet["sheet name"], sheet["header"]) for sheet in sheets]
+
+
+class TestLayout(unittest.TestCase):
+    # file.2, file.3: every sheet is written, in the order of the
+    # schema's tree, a sheet with no records included.
+    def test_sheets_in_order(self):
+        schema = (
+            '{"title":"t","type":"object","required":["a"],'
+            '"properties":{"a":{"type":"string"},"o":{"type":"object",'
+            '"additionalProperties":false},"n":{"type":"number"}}}'
         )
-
-
-class TestKey(unittest.TestCase):
-    def test_extend_extends_the_last_field(self):
-        self.assertEqual(Key((A, "/0")).extend("a/b"), Key((A, "/0/a~1b")))
-        self.assertEqual(Key((A,)).extend(2), Key((A + "/2",)))
-
-
-class TestNodeRows(unittest.TestCase):
-    def test_a_row_per_node_in_order(self):
-        value = {"a": [Number("1"), "x\ny"], "b": None, "c": True}
-        self.assertEqual(
-            _relations.node_rows("s", Key((A, "")), value),
-            [
-                ("s", [A, "", "object", ""]),
-                ("s", [A, "/a", "array", ""]),
-                ("s", [A, "/a/0", "number", "1"]),
-                ("s", [A, "/a/1", "string", "x\ny"]),
-                ("s.value", [A, "/a/1", "0", "x"]),
-                ("s.value", [A, "/a/1", "1", "y"]),
-                ("s", [A, "/b", "null", ""]),
-                ("s", [A, "/c", "boolean", "true"]),
-            ],
-        )
-
-
-class TestArrayRows(unittest.TestCase):
-    CHILD = Definition(
-        columns=("type",), lines=frozenset({"type"}), properties=frozenset({"type"})
-    )
-    DEFINITION = Definition(
-        columns=("id", "score"),
-        lines=frozenset({"id"}),
-        nodes=("content",),
-        children=(("details", CHILD),),
-        properties=frozenset({"id", "score", "content", "details"}),
-    )
-
-    def rows(self, value):
-        return self.DEFINITION.array_rows("r", Key((A, "")), value)
-
-    def test_rows(self):
-        item = {
-            "id": "a\nb",
-            "score": Number("0.950"),
-            "content": "x",
-            "details": {"type": "t"},
-            "extra": True,
-        }
-        self.assertEqual(
-            self.rows([item]),
-            [
-                ("r", [A, "/0", "a\nb", "0.950"]),
-                ("r.id", [A, "/0/id", "0", "a"]),
-                ("r.id", [A, "/0/id", "1", "b"]),
-                ("r.content", [A, "/0/content", "string", "x"]),
-                ("r.details", [A, "/0/details", "t"]),
-                ("r.additionalProperties", [A, "/0/extra", "boolean", "true"]),
-            ],
-        )
-
-    def test_null_is_a_node_and_absent_is_empty(self):
-        self.assertEqual(
-            self.rows([{"content": None}, {}]),
-            [
-                ("r", [A, "/0", "", ""]),
-                ("r.content", [A, "/0/content", "null", ""]),
-                ("r", [A, "/1", "", ""]),
-            ],
-        )
-
-    def test_not_an_array_or_object(self):
-        self.assertEqual(self.rows("x"), [])
-        self.assertEqual(self.rows(["x"]), [])
-
-
-class TestVariantRows(unittest.TestCase):
-    TEXT = Definition(columns=("content",), properties=frozenset({"type", "content"}))
-    GENERIC = Definition(columns=("type",), properties=frozenset({"type"}))
-    VARIANTS = Variants(
-        {"text": TEXT, "generic": GENERIC},
-        lambda name, item: isinstance(item.get("content"), str),
-    )
-
-    def test_placed_by_type_value_if_it_belongs(self):
-        value = [
-            {"type": "text", "content": "hi"},
-            {"type": "text", "content": {}},
-            {"type": "note"},
-            "x",
-            {},
-        ]
-        self.assertEqual(
-            self.VARIANTS.array_rows("p", Key((A, "/0/parts")), value),
-            [
-                ("p.text", [A, "/0/parts/0", "hi"]),
-                ("p.generic", [A, "/0/parts/1", "text"]),
-                (
-                    "p.generic.additionalProperties",
-                    [A, "/0/parts/1/content", "object", ""],
-                ),
-                ("p.generic", [A, "/0/parts/2", "note"]),
-                ("p.generic", [A, "/0/parts/4", ""]),
-            ],
-        )
-
-
-class TestSheets(unittest.TestCase):
-    def test_order(self):
-        child = Definition(columns=("type",), lines=frozenset({"type"}))
-        parts = Variants(
-            {"generic": Definition(columns=("type",))}, lambda name, item: False
-        )
-        definition = Definition(
-            columns=("id", "score"),
-            lines=frozenset({"id"}),
-            nodes=("content",),
-            children=(("details", child),),
-            variants=(("parts", parts),),
-        )
-        self.assertEqual(
-            [name for name, _ in definition.sheets("r")],
-            [
-                "r",
-                "r.id",
-                "r.content",
-                "r.content.value",
-                "r.details",
-                "r.details.type",
-                "r.details.additionalProperties",
-                "r.details.additionalProperties.value",
-                "r.additionalProperties",
-                "r.additionalProperties.value",
-                "r.parts.generic",
-                "r.parts.generic.additionalProperties",
-                "r.parts.generic.additionalProperties.value",
-            ],
-        )
-
-
-class TestAssemble(unittest.TestCase):
-    def test_every_sheet(self):
-        headers = [("a", ["x"]), ("b", ["y"])]
-        self.assertEqual(
-            _relations.assemble(headers, [("b", ["1"]), ("b", [""])]),
+        sheets, _ = convert(schema, '{"a":"x"}')
+        expected = [
+            ("t", ["pointer", "a"]),
+            ("t.a", ["t.pointer", "page", "line", "position", "value"]),
+            ("t.o", ["t.pointer", "pointer"]),
+            ("t.n", ["t.pointer", "pointer", "type", "value"]),
+            ("t.n.value", ["t.n.pointer", "page", "line", "position", "value"]),
+            ("t.additionalProperties", ["t.pointer", "pointer", "type", "value"]),
             (
-                [
-                    {"sheet name": "a", "header": ["x"], "records": []},
-                    {"sheet name": "b", "header": ["y"], "records": [["1"], [""]]},
-                ],
-                set(),
+                "t.additionalProperties.value",
+                ["t.additionalProperties.pointer", "page", "line", "position", "value"],
             ),
+        ]
+        self.assertEqual(shape(sheets), expected)
+
+    # module.1: the root schema holds a title, and names are text a
+    # field can hold; a failing name is placed by its pointer in the
+    # schema, through a $ref as well.
+    def test_names_a_field_cannot_hold(self):
+        cases = [
+            ('{"type":"object"}', ""),
+            ('{"title":"a\\tb","type":"object"}', "/title"),
+            (
+                '{"title":"t","type":"object","definitions":{"O":{"type":"object",'
+                '"properties":{"a\\nb":{}}}},"properties":{"o":{"$ref":"#/definitions/O"}}}',
+                "/definitions/O/properties/a\nb",
+            ),
+            (
+                '{"title":"t","type":"object","anyOf":[{"type":"object","title":1}]}',
+                "/anyOf/0/title",
+            ),
+        ]
+        for schema, expected in cases:
+            with self.subTest(schema=schema):
+                with self.assertRaises(PlacedError) as raised:
+                    module.layout(decode(schema.encode()))
+                self.assertEqual(raised.exception.pointer, expected)
+
+
+class TestRecords(unittest.TestCase):
+    # record.3: the parent's key is copied down, then the record's own
+    # pointer follows.
+    def test_keys_copied_down(self):
+        schema = (
+            '{"title":"t","type":"object","additionalProperties":false,'
+            '"properties":{"m":{"type":"array","items":{"type":"number"}}}}'
+        )
+        sheets, _ = convert(schema, '{"m":[5,6]}')
+        self.assertEqual(
+            sheets[1]["records"], [["/0", "/0/m/0", "5"], ["/0", "/0/m/1", "6"]]
         )
 
-    def test_fields_left_empty(self):
-        headers = [("s", ["k"])]
-        for value in ("a\tb", "a\nb", "a\fb", "a\rb"):
-            with self.subTest(repr(value)):
-                sheets, left = _relations.assemble(headers, [("s", [value])])
-                self.assertEqual(sheets[0]["records"], [[""]])
-                self.assertEqual(left, {"s.k"})
+    # sheet.5: a member two collecting branches name is written by the
+    # first; its field in the later one is empty.
+    def test_each_value_once(self):
+        schema = (
+            '{"title":"t","type":"object","additionalProperties":false,'
+            '"properties":{"p":{"anyOf":['
+            '{"title":"a","type":"object","properties":{"k":{"type":"string"}},'
+            '"required":["k"]},'
+            '{"title":"b","type":"object","properties":{"k":{"type":"string"},'
+            '"m":{"type":"number"}},"required":["k","m"],'
+            '"additionalProperties":false}]}},"required":["p"]}'
+        )
+        sheets, _ = convert(schema, '{"p":{"k":"x","m":1}}')
+        by_name = {sheet["sheet name"]: sheet["records"] for sheet in sheets}
+        self.assertEqual(by_name["t.p.additionalProperties"], [])
+        self.assertEqual(by_name["t.p.anyOf.a"], [["/0/p", "/0/p", "x"]])
+        self.assertEqual(by_name["t.p.anyOf.a.additionalProperties"], [])
+        self.assertEqual(by_name["t.p.anyOf.b"], [["/0/p", "/0/p", "", "1"]])
 
-    def test_left_behind(self):
-        headers = [("s", ["k", "v"]), ("s.v", ["line", "value"])]
-        rows = [
-            ("s", ["a\tb", "one\ntwo"]),
-            ("s.v", ["0", "one"]),
-            ("s.v", ["1", "t\fwo"]),
-            ("s", ["k", "a\rb"]),
-        ]
-        sheets, left = _relations.assemble(headers, rows)
-        self.assertEqual(sheets[0]["records"], [["", ""], ["k", ""]])
-        self.assertEqual(left, {"s.k", "s.v", "s.v.value"})
-
-    def test_unknown_sheet(self):
-        with self.assertRaises(KeyError):
-            _relations.assemble([("a", ["x"])], [("c", ["1"])])
+    # sheet.4, field.2-4: a value is written to a sheet of instances, a
+    # string to its string's sheet, and what is not carried is reported
+    # by its pointer.
+    def test_instances_and_text(self):
+        schema = '{"title":"t"}'
+        sheets, reports = convert(schema, '{"a\\tb":"x\\ny\\rz"}')
+        self.assertEqual(
+            sheets[0]["records"],
+            [["/0", "object", ""], ["/0/ab", "string", ""]],
+        )
+        self.assertEqual(
+            sheets[1]["records"],
+            [["/0/ab", "0", "0", "0", "x"], ["/0/ab", "0", "1", "0", "yz"]],
+        )
+        self.assertEqual(reports, ["/0/a\tb", "/0/ab"])
 
 
 if __name__ == "__main__":

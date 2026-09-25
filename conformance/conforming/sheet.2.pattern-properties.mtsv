@@ -1,0 +1,9 @@
+calls
+pointer
+/0
+calls.patternProperties
+calls.pointer	pointer	value
+/0	/0/x-a	1
+/0	/0/x-b	2
+calls.patternProperties.value
+calls.patternProperties.pointer	page	line	position	value
