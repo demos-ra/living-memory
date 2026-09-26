@@ -1,0 +1,11 @@
+calls
+pointer
+/0
+calls.additionalProperties
+calls.pointer	pointer	type	value
+/0	/0/ab	number	1
+/0	/0/cd	number	2
+/0	/0/ef	number	3
+/0	/0/gh	number	4
+calls.additionalProperties.value
+calls.additionalProperties.pointer	page	line	position	value

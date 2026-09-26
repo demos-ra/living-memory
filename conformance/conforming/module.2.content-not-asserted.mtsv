@@ -1,6 +1,5 @@
 calls
-pointer	s	n
-/0	a	1
-/2	a	3
-calls.s
+pointer	d
+/0	not base64 {
+calls.d
 calls.pointer	page	line	position	value

@@ -1,0 +1,1 @@
+{"title":"cal\nls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"additionalProperties":false}

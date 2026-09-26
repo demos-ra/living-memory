@@ -1,0 +1,9 @@
+calls
+pointer
+/0
+calls.a.x
+calls.pointer	pointer	value
+/0	/0/a/x/0	5
+calls.b
+calls.pointer	pointer	value
+/0	/0/b/0	7
