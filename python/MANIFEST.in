@@ -1,1 +1,3 @@
 exclude tests/test_conformance.py
+recursive-include src/living_memory *.mtsv *.json
+graft tools
