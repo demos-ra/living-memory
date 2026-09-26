@@ -1,19 +1,42 @@
 """Whether a JSON value validates against a JSON Schema of draft-07."""
 
-__all__ = ["check", "locate", "named", "resolve", "validates"]
+from __future__ import annotations
 
+__all__ = [
+    "compile_pattern",
+    "covers",
+    "equal",
+    "locate",
+    "resolve",
+    "search",
+    "subschemas",
+    "validates",
+]
+
+import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from living_memory import _json, _json_pointer, _regular_expression
+from living_memory import _json, _json_pointer
 
 # These keywords hold a schema, a list of schemas, or an object of
-# schemas (JSON Schema Validation, 3.1. Applicability).
+# schemas (JSON Schema Validation, 3.1. Applicability; 9. Schema Re-Use
+# With "definitions").
 _SCHEMA = ("additionalItems", "contains", "propertyNames", "not")
 _SCHEMA += ("if", "then", "else", "additionalProperties")
 _SCHEMAS = ("allOf", "anyOf", "oneOf")
 _SCHEMA_OBJECTS = ("properties", "patternProperties", "definitions")
+
+# Each simple quantifier schema authors should limit themselves to is
+# given by the least and most occurrences it allows; it, and each range
+# quantifier, may be lazy (JSON Schema Validation, 4.3. Regular
+# Expressions).
+_QUANTIFIERS = {"*": (0, math.inf), "+": (1, math.inf), "?": (0, 1)}
+# These tokens are outside the subset.
+_OUTSIDE = ".\\]}"
+_DIGITS = "0123456789"
 
 
 def validates(instance: Any, schema: Any, root: Any) -> bool:
@@ -21,7 +44,7 @@ def validates(instance: Any, schema: Any, root: Any) -> bool:
     # its other members ignored; every assertion applies, and format and
     # the content keywords are not asserted (JSON Schema, 4.3.1. JSON
     # Schema Values and Keywords; 8.3. Schema References With "$ref";
-    # spec › module.3, value.3).
+    # spec › module.2, value.3).
     if schema is True or schema is False:
         return schema
     if "$ref" in schema:
@@ -33,30 +56,33 @@ def validates(instance: Any, schema: Any, root: Any) -> bool:
     )
 
 
-def locate(instance: Any, schema: Any, root: Any, at: str = "") -> str:
+def locate(instance: Any, schema: Any, root: Any) -> str:
     # For an instance that does not validate, the place named is the
     # deepest instance location where an assertion fails: a child
     # location whose subschema fails, else a failing subschema allOf
     # applies here, else this location (JSON Schema Validation, 3.1.
     # Applicability; spec › value.3).
-    if schema is False:
+    def deepest(instance: Any, schema: Any, at: str) -> str:
+        if schema is False:
+            return at
+        if "$ref" in schema:
+            return deepest(instance, resolve(schema["$ref"], root)[0], at)
+        for token, child, child_schema in _applied(instance, schema):
+            if not validates(child, child_schema, root):
+                child_at = _json_pointer.pointer(at, token)
+                return deepest(child, child_schema, child_at)
+        for child_schema in schema.get("allOf", []):
+            if not validates(instance, child_schema, root):
+                return deepest(instance, child_schema, at)
         return at
-    if "$ref" in schema:
-        return locate(instance, resolve(schema["$ref"], root)[0], root, at)
-    for token, child, child_schema in _applied(instance, schema):
-        if not validates(child, child_schema, root):
-            return locate(child, child_schema, root, _json_pointer.pointer(at, token))
-    for child_schema in schema.get("allOf", []):
-        if not validates(instance, child_schema, root):
-            return locate(instance, child_schema, root, at)
-    return at
+
+    return deepest(instance, schema, "")
 
 
 def resolve(reference: str, root: Any) -> tuple[Any, str]:
-    # A reference resolves within the supplied schema, the one schema a
-    # converter is given, to the schema and its pointer; any other is
-    # non-conforming (JSON Schema, 8.3.1. Loading a referenced schema;
-    # 8.3.2. Dereferencing; spec › module.3).
+    # A reference resolves within the one schema given, to the schema
+    # and its pointer (JSON Schema, 8.3.1. Loading a referenced schema;
+    # 8.3.2. Dereferencing; spec › module.2).
     base, _, fragment = reference.partition("#")
     if base:
         raise ValueError(f"$ref {reference!r} is outside the supplied schema")
@@ -66,35 +92,63 @@ def resolve(reference: str, root: Any) -> tuple[Any, str]:
         raise ValueError(f"$ref {reference!r} resolves to no schema") from None
 
 
-def check(schema: Any, root: Any, at: str = "") -> None:
-    # Every $ref resolves within the schema, and every pattern uses only
-    # the tokens schema authors should limit themselves to; a failure is
-    # placed by the pointer to the keyword or the pattern (spec ›
-    # module.1, module.3).
-    if not isinstance(schema, dict):
-        return
-    if "$ref" in schema:
-        where = _json_pointer.pointer(at, "$ref")
-        _placed(lambda: resolve(schema["$ref"], root), where)
-    if _json.type(schema.get("pattern")) == "string":
-        where = _json_pointer.pointer(at, "pattern")
-        _placed(lambda: _regular_expression.compile(schema["pattern"]), where)
-    patterns_at = _json_pointer.pointer(at, "patternProperties")
-    for pattern in schema.get("patternProperties", {}):
-        where = _json_pointer.pointer(patterns_at, pattern)
-        _placed(lambda: _regular_expression.compile(pattern), where)
-    for where, child in _subschemas(schema, at):
-        check(child, root, where)
-
-
-def named(name: str, schema: dict[str, Any]) -> bool:
-    # A member is named by properties or matched by a pattern of
-    # patternProperties (JSON Schema Validation, 6.5.4. properties;
-    # 6.5.5. patternProperties).
+def covers(name: str, schema: dict[str, Any]) -> bool:
+    # A schema covers a member that its properties names or a pattern
+    # of its patternProperties matches (JSON Schema Validation, 6.5.4.
+    # properties; 6.5.5. patternProperties; spec › relation.5).
     return name in schema.get("properties", {}) or any(
-        _regular_expression.search(pattern, name)
-        for pattern in schema.get("patternProperties", {})
+        search(pattern, name) for pattern in schema.get("patternProperties", {})
     )
+
+
+def subschemas(schema: Any, at: str) -> list[tuple[str, Any]]:
+    # A schema's subschemas, those it holds in definitions included,
+    # each come with the pointer to it.
+    if not isinstance(schema, dict):
+        return []
+    found = [
+        (_json_pointer.pointer(at, name), schema[name])
+        for name in _SCHEMA
+        if name in schema
+    ]
+    for name in _SCHEMAS:
+        list_at = _json_pointer.pointer(at, name)
+        for i, child in enumerate(schema.get(name, [])):
+            found.append((_json_pointer.pointer(list_at, i), child))
+    for name in (*_SCHEMA_OBJECTS, "dependencies"):
+        object_at = _json_pointer.pointer(at, name)
+        for key, child in schema.get(name, {}).items():
+            if not isinstance(child, list):
+                found.append((_json_pointer.pointer(object_at, key), child))
+    if "items" in schema:
+        items = schema["items"]
+        items_at = _json_pointer.pointer(at, "items")
+        if isinstance(items, list):
+            for i, child in enumerate(items):
+                found.append((_json_pointer.pointer(items_at, i), child))
+        else:
+            found.append((items_at, items))
+    return found
+
+
+def compile_pattern(pattern: str) -> _Group:
+    # A pattern holds only individual characters, simple and
+    # complemented character classes and ranges, the quantifiers, the
+    # anchors ^ and $, and simple grouping and alternation; any other
+    # token is refused (JSON Schema Validation, 4.3. Regular
+    # Expressions; spec › module.1).
+    group, at = _alternation(pattern, 0)
+    if at < len(pattern):
+        raise ValueError(f"an unmatched ) in {pattern!r}")
+    return group
+
+
+def search(pattern: str, text: str) -> bool:
+    # A pattern matches a string where it matches from any position in
+    # it, not implicitly anchored at either end (JSON Schema Validation,
+    # 4.3. Regular Expressions; 6.3.3. pattern).
+    group = compile_pattern(pattern)
+    return bool(group.step(text, frozenset(range(len(text) + 1))))
 
 
 def _applied(instance: Any, schema: dict[str, Any]) -> list[tuple[Any, Any, Any]]:
@@ -126,49 +180,14 @@ def _member_schemas(name: str, schema: dict[str, Any]) -> list[Any]:
     # 6.5.6. additionalProperties).
     found = [schema["properties"][name]] if name in schema.get("properties", {}) else []
     for pattern, child in schema.get("patternProperties", {}).items():
-        if _regular_expression.search(pattern, name):
+        if search(pattern, name):
             found.append(child)
-    if not named(name, schema):
+    if not covers(name, schema):
         found.append(schema.get("additionalProperties", True))
     return found
 
 
-def _subschemas(schema: dict[str, Any], at: str) -> list[tuple[str, Any]]:
-    # A schema's subschemas, those it holds in definitions included,
-    # each come with the pointer to it.
-    found = [
-        (_json_pointer.pointer(at, name), schema[name])
-        for name in _SCHEMA
-        if name in schema
-    ]
-    for name in _SCHEMAS:
-        list_at = _json_pointer.pointer(at, name)
-        for i, child in enumerate(schema.get(name, [])):
-            found.append((_json_pointer.pointer(list_at, i), child))
-    for name in (*_SCHEMA_OBJECTS, "dependencies"):
-        object_at = _json_pointer.pointer(at, name)
-        for key, child in schema.get(name, {}).items():
-            if not isinstance(child, list):
-                found.append((_json_pointer.pointer(object_at, key), child))
-    items = schema.get("items", True)
-    items_at = _json_pointer.pointer(at, "items")
-    if isinstance(items, list):
-        for i, child in enumerate(items):
-            found.append((_json_pointer.pointer(items_at, i), child))
-    else:
-        found.append((items_at, items))
-    return found
-
-
-def _placed(checked: Callable[[], Any], where: str) -> None:
-    # A check that fails is placed by the pointer to what it checked.
-    try:
-        checked()
-    except ValueError as error:
-        raise _json_pointer.PlacedError(str(error), where) from None
-
-
-def _equal(one: Any, other: Any) -> bool:
+def equal(one: Any, other: Any) -> bool:
     # Two instances are equal when of the same type and value, numbers
     # by their mathematical value (JSON Schema, 4.2.3. Instance
     # Equality).
@@ -178,10 +197,10 @@ def _equal(one: Any, other: Any) -> bool:
     if found == "number":
         return Decimal(one) == Decimal(other)
     if found == "array":
-        return len(one) == len(other) and all(map(_equal, one, other))
+        return len(one) == len(other) and all(map(equal, one, other))
     if found == "object":
         return one.keys() == other.keys() and all(
-            _equal(one[name], other[name]) for name in one
+            equal(one[name], other[name]) for name in one
         )
     return one == other
 
@@ -204,11 +223,11 @@ def _type(instance: Any, schema: dict[str, Any], root: Any) -> bool:
 
 
 def _enum(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return any(_equal(instance, element) for element in schema["enum"])
+    return any(equal(instance, element) for element in schema["enum"])
 
 
 def _const(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return _equal(instance, schema["const"])
+    return equal(instance, schema["const"])
 
 
 def _multiple_of(instance: Any, schema: dict[str, Any], root: Any) -> bool:
@@ -241,9 +260,7 @@ def _length(name: str, holds: Callable[[int, Decimal], bool]) -> Callable:
 def _pattern(instance: Any, schema: dict[str, Any], root: Any) -> bool:
     # A pattern is not implicitly anchored (JSON Schema Validation,
     # 6.3.3. pattern).
-    return not _is(instance, "string") or _regular_expression.search(
-        schema["pattern"], instance
-    )
+    return not _is(instance, "string") or search(schema["pattern"], instance)
 
 
 def _items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
@@ -273,7 +290,7 @@ def _unique_items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
     if schema["uniqueItems"] is not True or not _is(instance, "array"):
         return True
     return not any(
-        _equal(instance[i], instance[j])
+        equal(instance[i], instance[j])
         for i in range(len(instance))
         for j in range(i + 1, len(instance))
     )
@@ -308,7 +325,7 @@ def _pattern_properties(instance: Any, schema: dict[str, Any], root: Any) -> boo
         validates(value, child, root)
         for pattern, child in schema["patternProperties"].items()
         for name, value in instance.items()
-        if _regular_expression.search(pattern, name)
+        if search(pattern, name)
     )
 
 
@@ -321,7 +338,7 @@ def _additional_properties(instance: Any, schema: dict[str, Any], root: Any) -> 
     return all(
         validates(value, schema["additionalProperties"], root)
         for name, value in instance.items()
-        if not named(name, schema)
+        if not covers(name, schema)
     )
 
 
@@ -405,3 +422,179 @@ _KEYWORDS: dict[str, Callable[[Any, dict[str, Any], Any], bool]] = {
     "oneOf": _one_of,
     "not": _not,
 }
+
+
+def _alternation(pattern: str, at: int) -> tuple[_Group, int]:
+    sequences = []
+    sequence, at = _sequence(pattern, at)
+    sequences.append(sequence)
+    while pattern[at : at + 1] == "|":
+        sequence, at = _sequence(pattern, at + 1)
+        sequences.append(sequence)
+    return _Group(tuple(sequences)), at
+
+
+def _sequence(pattern: str, at: int) -> tuple[tuple[object, ...], int]:
+    # A sequence runs to an alternation or the end of its group; a
+    # quantifier follows a character, a class or a group.
+    nodes: list[object] = []
+    while at < len(pattern) and pattern[at] not in "|)":
+        node, at = _atom(pattern, at)
+        if pattern[at : at + 1] in ("*", "+", "?", "{"):
+            if isinstance(node, (_Start, _End)):
+                raise ValueError(f"a quantifier with nothing to repeat in {pattern!r}")
+            least, most, at = _bounds(pattern, at)
+            if pattern[at : at + 1] == "?":
+                at += 1
+            node = _Repeat(node, least, most)
+        nodes.append(node)
+    return tuple(nodes), at
+
+
+def _atom(pattern: str, at: int) -> tuple[object, int]:
+    char = pattern[at]
+    if char == "(":
+        if pattern.startswith("(?", at):
+            raise ValueError(f"not a simple group in {pattern!r}")
+        group, end = _alternation(pattern, at + 1)
+        if pattern[end : end + 1] != ")":
+            raise ValueError(f"an unmatched ( in {pattern!r}")
+        return group, end + 1
+    if char == "[":
+        return _class(pattern, at)
+    if char == "^":
+        return _Start(), at + 1
+    if char == "$":
+        return _End(), at + 1
+    if char in _OUTSIDE:
+        raise ValueError(f"{char!r} is not among the tokens of {pattern!r}")
+    if char in _QUANTIFIERS or char == "{":
+        raise ValueError(f"a quantifier with nothing to repeat in {pattern!r}")
+    return _Char(char), at + 1
+
+
+def _bounds(pattern: str, at: int) -> tuple[int, float, int]:
+    # A quantifier is a simple one, or {x}, {x,y} or {x,}, where x and
+    # y are decimal digits.
+    char = pattern[at]
+    if char in _QUANTIFIERS:
+        least, most = _QUANTIFIERS[char]
+        return least, most, at + 1
+    end = pattern.find("}", at)
+    low, comma, high = pattern[at + 1 : end].partition(",")
+    if end == -1 or not _decimal(low) or (high and not _decimal(high)):
+        raise ValueError(f"a quantifier with nothing to repeat in {pattern!r}")
+    least = int(low)
+    most = int(high) if high else math.inf if comma else least
+    if most < least:
+        raise ValueError(f"a range quantifier out of order in {pattern!r}")
+    return least, most, end + 1
+
+
+def _class(pattern: str, at: int) -> tuple[_Class, int]:
+    # A class is [abc], [a-z], [^abc] or [^a-z], holding no escape and
+    # no class; a '-' first or last in the class is itself.
+    end = pattern.find("]", at + 1)
+    inside = pattern[at + 1 : end] if end != -1 else ""
+    complemented = inside.startswith("^")
+    members = inside[1:] if complemented else inside
+    if end == -1 or not members or "\\" in members or "[" in members:
+        raise ValueError(f"not a simple character class in {pattern!r}")
+    ranges = []
+    i = 0
+    while i < len(members):
+        if i + 2 < len(members) and members[i + 1] == "-":
+            if members[i] > members[i + 2]:
+                raise ValueError(f"a range out of order in {pattern!r}")
+            ranges.append((members[i], members[i + 2]))
+            i += 3
+        else:
+            ranges.append((members[i], members[i]))
+            i += 1
+    return _Class(complemented, tuple(ranges)), end + 1
+
+
+def _decimal(digits: str) -> bool:
+    return bool(digits) and all(digit in _DIGITS for digit in digits)
+
+
+# Each node of a pattern takes the positions a match may have reached in
+# the text and returns the positions it may reach after the node.
+
+
+@dataclass(frozen=True)
+class _Char:
+    char: str
+
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        return frozenset(p + 1 for p in positions if text[p : p + 1] == self.char)
+
+
+@dataclass(frozen=True)
+class _Class:
+    complemented: bool
+    ranges: tuple[tuple[str, str], ...]
+
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        return frozenset(
+            p + 1 for p in positions if p < len(text) and self._holds(text[p])
+        )
+
+    def _holds(self, char: str) -> bool:
+        inside = any(low <= char <= high for low, high in self.ranges)
+        return inside != self.complemented
+
+
+@dataclass(frozen=True)
+class _Start:
+    # ^ matches at the beginning of input.
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        return positions & {0}
+
+
+@dataclass(frozen=True)
+class _End:
+    # $ matches at the end of input, and not before a final line break.
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        return positions & {len(text)}
+
+
+@dataclass(frozen=True)
+class _Group:
+    # A group matches where any of its alternatives does, each a
+    # sequence of nodes matched one after another.
+    sequences: tuple[tuple[object, ...], ...]
+
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        reached: frozenset[int] = frozenset()
+        for sequence in self.sequences:
+            current = positions
+            for node in sequence:
+                current = node.step(text, current)
+            reached |= current
+        return reached
+
+
+@dataclass(frozen=True)
+class _Repeat:
+    # A quantified node matches from least to most times; a lazy form
+    # reaches the same positions, and so matches where its greedy form
+    # does.
+    node: object
+    least: int
+    most: float
+
+    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+        current = positions
+        reached = positions if self.least == 0 else frozenset()
+        count = 0
+        while current and count < self.most:
+            current = self.node.step(text, current)
+            count += 1
+            if count >= self.least:
+                # Once past least, positions already reached lead only
+                # to positions already reached.
+                if current <= reached:
+                    break
+                reached |= current
+        return reached

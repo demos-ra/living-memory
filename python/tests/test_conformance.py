@@ -29,23 +29,14 @@ def expected_table() -> dict[str, tuple[str, str]]:
     }
 
 
-def convert(case: Path) -> dict[str, str]:
+def convert(case: Path) -> str:
     # A case's input values are the lines of name.jsonl, each ended by
-    # LF, the last terminator optional; its schema is name.schema.json,
-    # and its file pointer name.pointer.json where it names one (JSON
-    # Lines, 3. Line Terminator is '\n'; conformance/README.md).
+    # LF, the last terminator optional; its schema is name.schema.json
+    # (JSON Lines, 3. Line Terminator is '\n'; conformance/README.md).
     lines = case.read_bytes().split(b"\n")
     values = lines[:-1] if lines[-1] == b"" else lines
     schema = case.with_suffix(".schema.json").read_bytes()
-    pointer_file = case.with_suffix(".pointer.json")
-    pointer = pointer_file.read_bytes() if pointer_file.exists() else b""
-    return living_memory.convert(values, schema, pointer)
-
-
-def expected_file(case: Path, name: str) -> Path:
-    # The expected file is name.mtsv, the caller naming the one file, or
-    # name.VALUE.mtsv for each value of the file member.
-    return case.with_name(f"{case.stem}.{name or 'mtsv'}")
+    return living_memory.convert(values, schema)
 
 
 class Reports(logging.Handler):
@@ -63,6 +54,27 @@ def cases(folder: str) -> list[Path]:
     return sorted((CONFORMANCE / folder).glob("*.jsonl"))
 
 
+def in_two_parts(case: Path) -> list[dict]:
+    # The values before the middle, then the rest, each part converted
+    # with its values' positions in the whole input, and their sheets
+    # appended sheet by sheet in the file's order (value.1).
+    lines = case.read_bytes().split(b"\n")
+    values = lines[:-1] if lines[-1] == b"" else lines
+    schema = case.with_suffix(".schema.json").read_bytes()
+    middle = len(values) // 2
+    parts = [
+        mtsv.loads(living_memory.convert(values[:middle], schema)),
+        mtsv.loads(living_memory.convert(values[middle:], schema, middle)),
+    ]
+    joined = []
+    for name in living_memory.sheets(schema):
+        found = [s for part in parts for s in part if s["sheet name"] == name]
+        if found:
+            records = [record for s in found for record in s["records"]]
+            joined.append({**found[0], "records": records})
+    return joined
+
+
 class TestConformance(unittest.TestCase):
     def assertWritten(self, case: Path) -> list[str]:
         logger = logging.getLogger("living_memory")
@@ -70,23 +82,26 @@ class TestConformance(unittest.TestCase):
         logger.addHandler(reports)
         propagate, logger.propagate = logger.propagate, False
         try:
-            files = convert(case)
+            text = convert(case)
         finally:
             logger.removeHandler(reports)
             logger.propagate = propagate
-        written = {expected_file(case, name) for name in files}
-        held = set(case.parent.glob(f"{case.stem}.mtsv"))
-        held |= set(case.parent.glob(f"{case.stem}.*.mtsv"))
-        self.assertEqual(written, held)
-        for name, text in files.items():
-            want = expected_file(case, name).read_text("utf-8")
-            self.assertEqual(mtsv.loads(text), mtsv.loads(want))
+        want = case.with_suffix(".mtsv").read_text("utf-8")
+        self.assertEqual(mtsv.loads(text), mtsv.loads(want))
         return reports.messages
 
     def test_conforming(self):
         for case in cases("conforming"):
             with self.subTest(case=case.name):
                 self.assertEqual(self.assertWritten(case), [])
+
+    def test_parts(self):
+        for case in cases("conforming"):
+            if case.read_bytes().rstrip(b"\n").count(b"\n") == 0:
+                continue
+            with self.subTest(case=case.name):
+                want = case.with_suffix(".mtsv").read_text("utf-8")
+                self.assertEqual(in_two_parts(case), mtsv.loads(want))
 
     def test_cannot_be_represented(self):
         table = expected_table()

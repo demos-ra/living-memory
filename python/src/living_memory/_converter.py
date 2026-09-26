@@ -1,23 +1,17 @@
-"""How the input becomes files."""
+"""The converter: the input and its module specification, as MTSV."""
 
-__all__ = ["NonConformingError", "NonConformingInputError", "convert"]
+__all__ = ["NonConformingError", "NonConformingInputError", "convert", "sheets"]
 
 import logging
 from collections.abc import Iterable
 from typing import Any
 
-import mtsv
-
-from living_memory import _fields, _json, _json_pointer, _json_schema, _relations
+from living_memory import _file, _json, _module, _relation, _value
 from living_memory._json_pointer import PlacedError
 
 # A library names its logger after its module and attaches no handler
 # (Logging HOWTO, Configuring Logging for a Library).
 _logger = logging.getLogger(__name__)
-
-# MTSV files take the extension .mtsv (MTSV draft, Media Type
-# Registration; spec › file.1).
-_EXTENSION = ".mtsv"
 
 
 class NonConformingError(ValueError):
@@ -64,96 +58,54 @@ class NonConformingInputError(NonConformingError):
         return self.__class__, (self.msg, self.position, self.pointer)
 
 
-def convert(
-    values: Iterable[bytes], schema: bytes, pointer: bytes = b""
-) -> dict[str, str]:
-    """Convert JSON values that a schema describes into MTSV files.
+def convert(values: Iterable[bytes], schema: bytes, start: int = 0) -> str:
+    """Convert JSON values that a schema describes into one MTSV file.
 
     values -- the input values, each a JSON text in UTF-8, in order
     schema -- the JSON Schema, a JSON text
-    pointer -- the JSON Pointer, as a JSON string, of the member whose
-        value selects each value's file, or empty for one file
+    start -- the position of the first value in the whole input, for
+        an input converted in parts
 
-    Return a dict of each file's name and its MTSV text. Without a
-    pointer, the one file is named "" for the caller to name. Raise
-    NonConformingError for a module specification that does not
-    conform, and NonConformingInputError for an input value. What a
-    field cannot hold is logged as a warning, by its pointer.
+    Return the MTSV text. Raise NonConformingError for a module
+    specification that does not conform, and NonConformingInputError
+    for an input value. What a field cannot hold is logged as a
+    warning, by its pointer.
     """
-    root = _module(schema)
-    member = _file_member(pointer) if pointer else ""
-    sheet_layout = _layout(root)
-    files: dict[str, list[Any]] = {} if pointer else {"": []}
+    root, sheet_layout = _read(schema)
+    placed: list[_relation.Placed] = []
     reports: list[str] = []
-    for position, data in enumerate(values):
-        value = _value(data, position, root)
-        name = _file_name(value, member, position) if pointer else ""
-        found, missed = _relations.records(sheet_layout, value, position)
-        files[name] = files.get(name, []) + found
+    for position, data in enumerate(values, start):
+        try:
+            value = _value.read(data, root)
+        except PlacedError as error:
+            raise NonConformingInputError(error.msg, position, error.pointer) from None
+        found, missed = _relation.place(sheet_layout, value, position)
+        placed += found
         reports += missed
+    # What a field cannot hold is reported as a warning, by its pointer
+    # as a JSON string (Logging HOWTO, When to use logging; spec ›
+    # field.3).
     for at in reports:
         _logger.warning("not carried: %s", _json.encode_string(at))
-    return {
-        name: mtsv.dumps(_relations.sheets(sheet_layout, found))
-        for name, found in files.items()
-    }
+    return _file.write(sheet_layout, placed)
 
 
-def _module(schema: bytes) -> Any:
-    # The schema is a JSON text whose names are unique, whose every
-    # $ref resolves within it and whose every pattern is of the subset
-    # (spec › module.1, module.3).
+def sheets(schema: bytes) -> list[str]:
+    """Return the names of a schema's sheets, in the file's order.
+
+    A file holds only the sheets that hold a record, so the parts of an
+    input converted in parts are appended sheet by sheet in this order.
+    Raise NonConformingError for a module specification that does not
+    conform.
+    """
+    return _file.names(_read(schema)[1])
+
+
+def _read(schema: bytes) -> tuple[Any, _relation.Layout]:
+    # A module specification that does not conform is rejected, naming
+    # the place in its schema (spec › module.1, module.2).
     try:
-        root = _json.decode(schema)
-        _json_schema.check(root, root)
+        root = _module.read(schema)
     except PlacedError as error:
         raise NonConformingError(f"the schema: {error.msg}", error.pointer) from None
-    return root
-
-
-def _file_member(pointer: bytes) -> str:
-    # The member that selects the file is a JSON Pointer as a JSON
-    # string (spec › module.2).
-    # A pointer that is not one fails whole, and so is named by "".
-    try:
-        member = _json.decode(pointer)
-        if _json.type(member) == "string":
-            return member
-    except PlacedError:
-        pass
-    raise NonConformingError("the file pointer is not a JSON string", "")
-
-
-def _layout(root: Any) -> _relations.Layout:
-    # Every name the schema gives a sheet or a column is text a field
-    # can hold (spec › module.1).
-    try:
-        return _relations.layout(root)
-    except PlacedError as error:
-        raise NonConformingError(f"the schema: {error.msg}", error.pointer) from None
-
-
-def _value(data: bytes, position: int, root: Any) -> Any:
-    # A value is a JSON text whose names are unique and that validates;
-    # the place named is the deepest where an assertion fails (spec ›
-    # value.1, value.3).
-    try:
-        value = _json.decode(data)
-    except PlacedError as error:
-        raise NonConformingInputError(error.msg, position, error.pointer) from None
-    if not _json_schema.validates(value, root, root):
-        place = _json_schema.locate(value, root, root)
-        raise NonConformingInputError("an assertion fails", position, place)
-    return value
-
-
-def _file_name(value: Any, member: str, position: int) -> str:
-    # A file is named by the member's text and .mtsv; a value without
-    # the member is non-conforming (spec › file.1, value.3).
-    try:
-        selecting = _json_pointer.evaluate(value, member)
-    except (KeyError, IndexError, TypeError, ValueError):
-        raise NonConformingInputError(
-            "the file member is missing", position, member
-        ) from None
-    return _fields.text(selecting) + _EXTENSION
+    return root, _relation.layout(root)

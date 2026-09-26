@@ -4,7 +4,6 @@ import unittest
 
 from living_memory import _json_schema as module
 from living_memory._json import decode
-from living_memory._json_pointer import PlacedError
 
 
 def valid(instance: str, schema: str) -> bool:
@@ -35,6 +34,15 @@ class TestAnyType(unittest.TestCase):
         self.assertFalse(valid('"1"', '{"enum":[1]}'))
         self.assertTrue(valid('{"a":[1]}', '{"const":{"a":[1.0]}}'))
         self.assertFalse(valid("true", '{"const":1}'))
+
+
+class TestEqual(unittest.TestCase):
+    # Instance equality: numbers by mathematical value, objects
+    # member by member whatever their order.
+    def test_equal(self):
+        one = decode(b'{"a":[1.0,"x"],"b":null}')
+        self.assertTrue(module.equal(one, decode(b'{"b":null,"a":[1,"x"]}')))
+        self.assertFalse(module.equal(one, decode(b'{"a":[1,"y"],"b":null}')))
 
 
 class TestNumbersAndStrings(unittest.TestCase):
@@ -163,6 +171,41 @@ class TestLocate(unittest.TestCase):
                 self.assertEqual(found, expected)
 
 
+class TestPatterns(unittest.TestCase):
+    # value.3: a pattern of the subset matches, not anchored.
+    def test_subset_matches_unanchored(self):
+        cases = [
+            ("es", "expression", True),
+            ("^x-", "x-a", True),
+            ("^x-", "a-x-", False),
+            ("a$", "a\n", False),
+            ("a$", "ba", True),
+            ("[a-c]+", "zzb", True),
+            ("[^a]", "a", False),
+            ("[a-]", "-", True),
+            ("(ab|cd){2}", "abcd", True),
+            ("(ab|cd){3}", "abcd", False),
+            ("a{1,}?b", "aab", True),
+            ("^a{2,3}$", "aaaa", False),
+            ("^a{2}$", "aa", True),
+            ("^(a|)*$", "aaa", True),
+            ("^b?c*$", "", True),
+            ("é", "café", True),
+        ]
+        for pattern, text, expected in cases:
+            with self.subTest(pattern=pattern, text=text):
+                self.assertEqual(module.search(pattern, text), expected)
+
+    # module.1: any other token is refused.
+    def test_tokens_outside_the_subset(self):
+        patterns = ("\\d", ".", "(?:a)", "[a\\]]", "[]", "a)", "(a", "*", "{")
+        patterns += ("a**", "^*", "a{2,1}", "[z-a]", "a{x}")
+        for pattern in patterns:
+            with self.subTest(pattern=pattern):
+                with self.assertRaises(ValueError):
+                    module.compile_pattern(pattern)
+
+
 class TestReferences(unittest.TestCase):
     def test_within_the_schema(self):
         schema = (
@@ -172,39 +215,32 @@ class TestReferences(unittest.TestCase):
         self.assertTrue(valid('["x"]', schema))
         self.assertFalse(valid("[1]", schema))
 
-    # module.1, module.3: a failing $ref or pattern is placed by its
-    # pointer in the schema.
-    def test_check(self):
-        cases = [
-            ('{"properties":{"p":{"$ref":"other.json#/P"}}}', "/properties/p/$ref"),
-            ('{"items":{"$ref":"#/definitions/none"}}', "/items/$ref"),
-            ('{"properties":{"s":{"pattern":"\\\\d"}}}', "/properties/s/pattern"),
-            ('{"patternProperties":{".":{}}}', "/patternProperties/."),
-            (
-                '{"allOf":[{},{"items":[{},{"pattern":"("}]}]}',
-                "/allOf/1/items/1/pattern",
-            ),
-        ]
-        for schema, expected in cases:
-            with self.subTest(schema=schema):
-                root = decode(schema.encode())
-                with self.assertRaises(PlacedError) as raised:
-                    module.check(root, root)
-                self.assertEqual(raised.exception.pointer, expected)
-        root = decode(b'{"anyOf":[{"pattern":"^a"}],"definitions":{"A":{"$ref":"#"}}}')
-        module.check(root, root)
-
-    # module.3: a reference resolves to the schema and its pointer.
+    # module.2: a reference resolves to the schema and its pointer, and
+    # one outside the schema is refused.
     def test_resolve(self):
         root = decode(b'{"definitions":{"A":{"type":"string"}}}')
         found = module.resolve("#/definitions/A", root)
         self.assertEqual(found, ({"type": "string"}, "/definitions/A"))
+        for reference in ("other.json#/A", "#/definitions/none"):
+            with self.subTest(reference=reference):
+                with self.assertRaises(ValueError):
+                    module.resolve(reference, root)
 
-    def test_named(self):
+    def test_covers(self):
         schema = decode(b'{"properties":{"a":{}},"patternProperties":{"^x-":{}}}')
         for name, expected in [("a", True), ("x-b", True), ("b", False)]:
             with self.subTest(name=name):
-                self.assertIs(module.named(name, schema), expected)
+                self.assertIs(module.covers(name, schema), expected)
+
+    def test_subschemas(self):
+        schema = decode(
+            b'{"items":[{},true],"anyOf":[{}],"dependencies":'
+            b'{"a":["b"],"c":{}},"definitions":{"D":{}}}'
+        )
+        found = [at for at, _ in module.subschemas(schema, "")]
+        expected = ["/anyOf/0", "/definitions/D", "/dependencies/c"]
+        expected += ["/items/0", "/items/1"]
+        self.assertEqual(found, expected)
 
 
 if __name__ == "__main__":

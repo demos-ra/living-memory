@@ -1,6 +1,6 @@
 """How a JSON Pointer is written and evaluated, and a place named."""
 
-__all__ = ["PlacedError", "evaluate", "pointer"]
+__all__ = ["PlacedError", "evaluate", "pointer", "tokens"]
 
 from typing import Any
 
@@ -22,12 +22,16 @@ def pointer(at: str, token: str | int) -> str:
     return f"{at}/{escaped}"
 
 
+def tokens(at: str) -> list[str]:
+    # Each token is unescaped, '~1' first and then '~0' (RFC 6901, 4.
+    # Evaluation).
+    return [token.replace("~1", "/").replace("~0", "~") for token in at.split("/")[1:]]
+
+
 def evaluate(document: Any, at: str) -> Any:
-    # Each token is unescaped, '~1' first and then '~0', and names a
-    # member of an object or the zero-based index of an array element
-    # (RFC 6901, 4. Evaluation).
+    # Each token names a member of an object or the zero-based index of
+    # an array element (RFC 6901, 4. Evaluation).
     found = document
-    for token in at.split("/")[1:]:
-        token = token.replace("~1", "/").replace("~0", "~")
+    for token in tokens(at):
         found = found[int(token)] if isinstance(found, list) else found[token]
     return found

@@ -81,7 +81,7 @@ class TestDecode(unittest.TestCase):
 
 
 class TestEncodeString(unittest.TestCase):
-    # field.4: a pointer is reported as a JSON string.
+    # field.3: a pointer is reported as a JSON string.
     def test_escapes(self):
         cases = [
             ("/0/t", '"/0/t"'),
@@ -94,6 +94,19 @@ class TestEncodeString(unittest.TestCase):
         for value, expected in cases:
             with self.subTest(value=value):
                 self.assertEqual(module.encode_string(value), expected)
+
+
+class TestEncode(unittest.TestCase):
+    # value.2: a value written back is the text read, members in order
+    # and numbers as written.
+    def test_round_trip(self):
+        text = b'{"b":[1.50,true,null],"a":"x\\ty","c":{}}'
+        self.assertEqual(module.encode(module.decode(text)), text)
+
+    # With an indent, each member and element on a line of its own.
+    def test_indent(self):
+        text = b'{\n  "a": [\n    1,\n    {}\n  ],\n  "b": []\n}'
+        self.assertEqual(module.encode(module.decode(text), 2), text)
 
 
 class TestType(unittest.TestCase):

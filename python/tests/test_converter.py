@@ -1,4 +1,4 @@
-"""Tests for _converter: how the input becomes files."""
+"""Tests of _converter: the input and its schema, as MTSV."""
 
 import pickle
 import unittest
@@ -8,10 +8,11 @@ from living_memory._converter import (
     NonConformingError,
     NonConformingInputError,
     convert,
+    sheets,
 )
 
 SCHEMA = b'{"title": "t", "type": "object", "required": ["s"],'
-SCHEMA += b' "properties": {"s": {"type": "string"}}}'
+SCHEMA += b' "properties": {"s": {"type": "string"}}, "additionalProperties": false}'
 
 
 class TestNonConformingError(unittest.TestCase):
@@ -45,34 +46,30 @@ class TestNonConformingError(unittest.TestCase):
 
 
 class TestConvert(unittest.TestCase):
-    # file.1: without a pointer there is one file, named "" for the
-    # caller to name.
+    # file.1, file.2: the whole input is one MTSV file, of the sheets
+    # that hold a record; without values, no sheet.
     def test_one_file(self):
-        files = convert([b'{"s": "a"}', b'{"s": "b"}'], SCHEMA)
-        self.assertEqual(list(files), [""])
+        text = convert([b'{"s": "a"}', b'{"s": "b"}'], SCHEMA)
+        self.assertEqual(text, "\ft\npointer\ts\n/0\ta\n/1\tb\n")
+        self.assertEqual(convert([], SCHEMA), "")
 
-    # file.1: without values, there is still one file.
-    def test_no_values(self):
-        self.assertEqual(list(convert([], SCHEMA)), [""])
+    # value.1: a part of an input keeps its values' positions in the
+    # whole input; sheets names every sheet the schema gives, in order.
+    def test_parts(self):
+        self.assertEqual(
+            convert([b'{"s": "b"}'], SCHEMA, 1), "\ft\npointer\ts\n/1\tb\n"
+        )
+        self.assertEqual(sheets(SCHEMA), ["t", "runs"])
 
-    # file.1: there is one file per value of the member, named by its
-    # text and .mtsv, in the order first met.
-    def test_files_by_member(self):
-        values = [b'{"s": "b"}', b'{"s": "a"}', b'{"s": "b"}']
-        files = convert(values, SCHEMA, b'"/s"')
-        self.assertEqual(list(files), ["b.mtsv", "a.mtsv"])
+    # value.3: an input value is rejected by its position and place.
+    def test_input_rejected(self):
+        with self.assertRaises(NonConformingInputError) as raised:
+            convert([b'{"s": "a"}', b'{"s": 1}'], SCHEMA)
+        self.assertEqual(
+            (raised.exception.position, raised.exception.pointer), (1, "/s")
+        )
 
-    # module.2: the pointer is a JSON string; one that is not fails
-    # whole.
-    def test_pointer_not_a_string(self):
-        for pointer in (b"/s", b"1", b'"/s'):
-            with self.subTest(pointer=pointer):
-                with self.assertRaises(NonConformingError) as raised:
-                    convert([], SCHEMA, pointer)
-                self.assertNotIsInstance(raised.exception, NonConformingInputError)
-                self.assertEqual(raised.exception.pointer, "")
-
-    # module.1, module.3: a schema is rejected at its place.
+    # module.1, module.2: a schema is rejected at its place.
     def test_schema_placed(self):
         cases = [
             (
@@ -95,7 +92,7 @@ class TestConvert(unittest.TestCase):
                 self.assertNotIsInstance(raised.exception, NonConformingInputError)
                 self.assertEqual(raised.exception.pointer, expected)
 
-    # field.4: what is not carried is a warning on this module's logger,
+    # field.3: what is not carried is a warning on this module's logger,
     # its pointer as a JSON string.
     def test_not_carried_logged(self):
         with self.assertLogs(_converter.__name__, "WARNING") as logged:

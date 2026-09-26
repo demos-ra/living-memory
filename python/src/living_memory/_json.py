@@ -1,32 +1,30 @@
 """How JSON texts are read, JSON strings written, and values typed."""
 
-__all__ = ["Number", "TYPES", "decode", "encode_string", "type"]
+__all__ = [
+    "HIGH_SURROGATES",
+    "LOW_SURROGATES",
+    "Number",
+    "TYPES",
+    "decode",
+    "encode",
+    "encode_string",
+    "type",
+]
 
 from typing import Any
 
-from living_memory import _fields
+from living_memory import _utf_8
 from living_memory._json_pointer import PlacedError, pointer
 
 # The data model has six primitive types (JSON Schema, 4.2.1. Instance
 # Data Model).
 TYPES = ("null", "boolean", "object", "array", "number", "string")
 
-# Each row gives a lead byte of a UTF-8 sequence by its first and last
-# value, the number of tail bytes after it and the range of the byte
-# that follows it; every later tail byte is 0x80 to 0xBF (RFC 3629, 4.
-# Syntax of UTF-8 Byte Sequences).
-_UTF_8 = (
-    (0x00, 0x7F, 0, 0x80, 0xBF),
-    (0xC2, 0xDF, 1, 0x80, 0xBF),
-    (0xE0, 0xE0, 2, 0xA0, 0xBF),
-    (0xE1, 0xEC, 2, 0x80, 0xBF),
-    (0xED, 0xED, 2, 0x80, 0x9F),
-    (0xEE, 0xEF, 2, 0x80, 0xBF),
-    (0xF0, 0xF0, 3, 0x90, 0xBF),
-    (0xF1, 0xF3, 3, 0x80, 0xBF),
-    (0xF4, 0xF4, 3, 0x80, 0x8F),
-)
-_TAIL = range(0x80, 0xC0)
+# The UTF-16 surrogates are high, then low; a pair escapes a character
+# beyond the Basic Multilingual Plane, and an unpaired one encodes no
+# Unicode character (RFC 8259, 7. Strings; 8.2. Unicode Characters).
+HIGH_SURROGATES = range(0xD800, 0xDC00)
+LOW_SURROGATES = range(0xDC00, 0xE000)
 
 # These are insignificant whitespace, the literal names, and the
 # two-character escapes of a string (RFC 8259, 2. JSON Grammar; 3.
@@ -68,7 +66,7 @@ def decode(data: bytes) -> Any:
     # 2. JSON Grammar; 4. Objects; 8.1. Character Encoding; spec ›
     # value.1-3).
     try:
-        text = _utf_8(data)
+        text = _utf_8.decode(data)
         value, end, repeated = _value(text, _whitespace(text, 0), "")
         end = _whitespace(text, end)
         if end != len(text):
@@ -78,6 +76,17 @@ def decode(data: bytes) -> Any:
     if repeated:
         raise PlacedError("a name is repeated", min(repeated)[1])
     return value
+
+
+def encode(value: Any, indent: int = 0) -> bytes:
+    # A value is written as a JSON text in UTF-8: an object's members in
+    # their order, an array's elements, a number as its text as written,
+    # a string escaped, and the literal names; with an indent, each
+    # member and element on a line of its own, indented by its depth,
+    # as insignificant whitespace (RFC 8259, 2. JSON Grammar; 3. Values;
+    # 4. Objects; 5. Arrays; 6. Numbers; 7. Strings; 8.1. Character
+    # Encoding).
+    return _text(value, indent, 1).encode("utf-8")
 
 
 def encode_string(value: str) -> str:
@@ -105,31 +114,31 @@ def type(value: Any) -> str:
     return "string"
 
 
-def _utf_8(data: bytes) -> str:
-    # An octet sequence is UTF-8 only if every sequence in it matches
-    # the syntax of UTF-8 (RFC 3629, 4. Syntax of UTF-8 Byte Sequences).
-    chars = []
-    at = 0
-    while at < len(data):
-        lead = data[at]
-        for first, last, tails, low, high in _UTF_8:
-            if first <= lead <= last:
-                break
+def _text(value: Any, indent: int, depth: int) -> str:
+    found = type(value)
+    if found in ("object", "array") and value:
+        inner = "\n" + " " * (indent * depth) if indent else ""
+        outer = "\n" + " " * (indent * (depth - 1)) if indent else ""
+        colon = ": " if indent else ":"
+        if found == "object":
+            parts = [
+                f"{encode_string(k)}{colon}{_text(v, indent, depth + 1)}"
+                for k, v in value.items()
+            ]
+            ends = "{}"
         else:
-            raise ValueError(f"not UTF-8 at byte {at}")
-        sequence = data[at + 1 : at + 1 + tails]
-        if len(sequence) < tails or not all(byte in _TAIL for byte in sequence):
-            raise ValueError(f"not UTF-8 at byte {at}")
-        if tails and not low <= sequence[0] <= high:
-            raise ValueError(f"not UTF-8 at byte {at}")
-        # The lead byte holds the code point's first bits, below its
-        # length marker; each tail byte holds six more.
-        code = lead & (0xFF >> (tails + 2)) if tails else lead
-        for byte in sequence:
-            code = code << 6 | byte & 0x3F
-        chars.append(chr(code))
-        at += 1 + tails
-    return "".join(chars)
+            parts = [_text(element, indent, depth + 1) for element in value]
+            ends = "[]"
+        return ends[0] + inner + ("," + inner).join(parts) + outer + ends[1]
+    if found == "object":
+        return "{}"
+    if found == "array":
+        return "[]"
+    if found == "string":
+        return encode_string(value)
+    if found == "number":
+        return str(value)
+    return {True: "true", False: "false", None: "null"}[value]
 
 
 def _whitespace(text: str, at: int) -> int:
@@ -236,9 +245,9 @@ def _string(text: str, start: int) -> tuple[str, int]:
             continue
         code = _hex(text, at)
         at += 6
-        if code in _fields.HIGH_SURROGATES and text.startswith("\\u", at):
+        if code in HIGH_SURROGATES and text.startswith("\\u", at):
             low = _hex(text, at)
-            if low in _fields.LOW_SURROGATES:
+            if low in LOW_SURROGATES:
                 code = _pair(code, low)
                 at += 6
         chars.append(chr(code))
@@ -247,8 +256,8 @@ def _string(text: str, start: int) -> tuple[str, int]:
 def _pair(high: int, low: int) -> int:
     # A surrogate pair encodes a code point above the Basic Multilingual
     # Plane: ten bits from each surrogate, added to U+10000.
-    high_bits = high - _fields.HIGH_SURROGATES.start
-    low_bits = low - _fields.LOW_SURROGATES.start
+    high_bits = high - HIGH_SURROGATES.start
+    low_bits = low - LOW_SURROGATES.start
     return _BEYOND_BMP + (high_bits << 10) + low_bits
 
 
@@ -296,6 +305,6 @@ def _escaped(char: str, written: dict[str, str]) -> str:
     if char in written:
         return written[char]
     code = ord(char)
-    if char < " " or code in _fields.HIGH_SURROGATES or code in _fields.LOW_SURROGATES:
+    if char < " " or code in HIGH_SURROGATES or code in LOW_SURROGATES:
         return f"\\u{code:04x}"
     return char
