@@ -1,9 +1,7 @@
 calls
 pointer
 /0
-calls.additionalProperties
-calls.pointer	pointer	type	value
+instances
+parent	pointer	type	value
 /0	/0/b	number	1
 /0	/0/a	number	2
-calls.additionalProperties.value
-calls.additionalProperties.pointer	page	line	position	value

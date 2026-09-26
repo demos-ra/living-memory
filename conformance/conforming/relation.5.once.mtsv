@@ -1,24 +1,9 @@
 calls
 pointer
 /0
-calls.p
-calls.pointer	pointer
-/0	/0/p
-calls.p.additionalProperties
-calls.p.pointer	pointer	type	value
-calls.p.additionalProperties.value
-calls.p.additionalProperties.pointer	page	line	position	value
 calls.p.anyOf.a
-calls.p.pointer	pointer	k
-/0/p	/0/p	x
-calls.p.anyOf.a.k
-calls.p.anyOf.a.pointer	page	line	position	value
-calls.p.anyOf.a.additionalProperties
-calls.p.anyOf.a.pointer	pointer	type	value
-calls.p.anyOf.a.additionalProperties.value
-calls.p.anyOf.a.additionalProperties.pointer	page	line	position	value
+parent	pointer	k
+/0	/0/p	x
 calls.p.anyOf.b
-calls.p.pointer	pointer	k	m
-/0/p	/0/p		1
-calls.p.anyOf.b.k
-calls.p.anyOf.b.pointer	page	line	position	value
+parent	pointer	k	m
+/0	/0/p		1

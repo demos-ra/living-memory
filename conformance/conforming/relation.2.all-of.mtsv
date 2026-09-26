@@ -1,7 +1,3 @@
 calls
 pointer	n	m
 /0	1	2
-calls.additionalProperties
-calls.pointer	pointer	type	value
-calls.additionalProperties.value
-calls.additionalProperties.pointer	page	line	position	value

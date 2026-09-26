@@ -3,11 +3,11 @@ pointer	n
 /0	1
 /1	2
 calls.if.one
-calls.pointer	pointer
-/0	/0
+parent	pointer	n
+/0	/0	
 calls.then.yes
-calls.pointer	pointer
-/0	/0
+parent	pointer	n
+/0	/0	
 calls.else.no
-calls.pointer	pointer
-/1	/1
+parent	pointer	n
+/1	/1	

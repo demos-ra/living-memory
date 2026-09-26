@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"node":{"$ref":"#/definitions/node"}},"required":["node"],"additionalProperties":false,"definitions":{"node":{"type":"object","properties":{"name":{"type":"string"},"child":{"$ref":"#/definitions/node"}},"required":["name"],"additionalProperties":false}}}

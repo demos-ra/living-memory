@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"additionalProperties":false,"if":{"type":"object","properties":{"n":{"type":"number","const":1}},"required":["n"],"additionalProperties":false},"then":{"type":"object","properties":{"n":{"type":"number"}},"required":["n"],"additionalProperties":false}}

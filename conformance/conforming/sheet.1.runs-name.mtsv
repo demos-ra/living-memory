@@ -1,0 +1,7 @@
+calls
+pointer	p.b
+/0	
+runs
+pointer	page	line	position	value
+/0/p/b	0	0	0	x
+/0/p/b	0	1	0	y

@@ -1,0 +1,7 @@
+calls
+pointer
+/0
+instances
+parent	pointer	type	value
+/0	/0/x	number	1
+/0	/0/y	boolean	true

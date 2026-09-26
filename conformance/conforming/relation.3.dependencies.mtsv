@@ -2,11 +2,9 @@
 pointer	n
 /0	1
 /1	2
-calls.m
-calls.pointer	pointer	type	value
-/1	/1/m	number	3
-calls.m.value
-calls.m.pointer	page	line	position	value
 calls.dependencies.m
-calls.pointer	pointer
-/1	/1
+parent	pointer	n	m
+/1	/1		
+instances
+parent	pointer	type	value
+/1	/1/m	number	3

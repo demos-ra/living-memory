@@ -2,6 +2,6 @@
 pointer
 /0
 calls.additionalProperties
-calls.pointer	pointer	value
+parent	pointer	value
 /0	/0/a~1b	1
 /0	/0/c~0d	2
