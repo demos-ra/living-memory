@@ -8,7 +8,8 @@ from living_memory import _json, _json_pointer, _schema
 from living_memory.integrations.anthropic import messages
 from living_memory.integrations.anthropic.claude_code import raw_api_bodies as module
 
-NAMES = b'"model":"m","timestamp":"t",'
+NAMES = b'"model":"m","timestamp":"2026-09-27T10:00:00.000Z",'
+INPUT = "2026-09-27/s"
 INDEX = [
     b'{"session_id":"s","query_source":"q",'
     + NAMES
@@ -52,7 +53,7 @@ def recording(folder: Path, lines: list[bytes]) -> Path:
 
 
 def given(path: Path, held=None) -> list[dict]:
-    return [_json.decode(v) for v in module.values(path, held)]
+    return [_json.decode(v) for v in module.values(path, INPUT, held)]
 
 
 def rebuilt(found: list[dict]) -> dict[str, tuple]:
@@ -138,7 +139,9 @@ class TestValues(unittest.TestCase):
     def test_names(self):
         with tempfile.TemporaryDirectory() as folder:
             first = given(recording(Path(folder), INDEX[:1]))[0]
-            self.assertEqual((first["model"], first["timestamp"]), ("m", "t"))
+            self.assertEqual(
+                (first["model"], first["timestamp"]), ("m", "2026-09-27T10:00:00.000Z")
+            )
             self.assertEqual(first["count"], {"system": "1", "tools": "0"})
             self.assertEqual(first["stop_reason"], "end_turn")
             self.assertNotIn("stop_sequence", first)
@@ -178,6 +181,83 @@ class TestValues(unittest.TestCase):
             path = recording(Path(folder), INDEX)
             (path / "2.response.json").unlink()
             self.assertEqual(len(given(path)), 1)
+
+
+class TestInputs(unittest.TestCase):
+    # values.7: one input per session, named by the date of its first
+    # line and its session_id, in the order of first lines; each
+    # session's values apart.
+    def test_sessions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            other = INDEX[0].replace(b'"s"', b'"t"').replace(b"09-27", b"09-28")
+            path = recording(Path(folder), [INDEX[0], other, *INDEX[1:3]])
+            names = module.inputs(path)
+            self.assertEqual(names, ["2026-09-27/s", "2026-09-28/t"])
+            self.assertEqual(module.input_of(names, "t"), "2026-09-28/t")
+            lines = [v["index_line"] for v in given(path)]
+            self.assertEqual(lines, ["1", "4"])
+
+
+class TestSpent(unittest.TestCase):
+    # recording.6: the files of every line held are spent, but the
+    # latest request of each thread held; index.jsonl never.
+    def test_spent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = recording(Path(folder), INDEX[:3])
+            spent = module.spent(path, INPUT, [{"index_line": "3"}])
+            names = sorted(p.name for p in spent)
+            self.assertEqual(
+                names, ["1.request.json", "1.response.json", "x.response.json"]
+            )
+
+
+class TestMap(unittest.TestCase):
+    RECORDS = [
+        {
+            "index_line": "1",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "a",
+            "extends": "0",
+        },
+        {
+            "index_line": "3",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "b",
+            "extends": "1",
+        },
+        {
+            "index_line": "4",
+            "session_id": "s",
+            "query_source": "p",
+            "timestamp": "c",
+            "extends": "3",
+        },
+        {
+            "index_line": "5",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "d",
+            "extends": "0",
+        },
+    ]
+
+    # map.1: grouped by session_id and query_source, in the order of
+    # their first lines.
+    def test_groups(self):
+        self.assertEqual(
+            module.groups(self.RECORDS[:3]),
+            [["s", "q", "2", "1", "3", "a", "b"], ["s", "p", "1", "4", "4", "c", "c"]],
+        )
+
+    # map.2: the lineage of the latest request, earliest first, ending
+    # at a request that extends none.
+    def test_lineage(self):
+        self.assertEqual(
+            [r["index_line"] for r in module.lineage(self.RECORDS[:3])], ["1", "3", "4"]
+        )
+        self.assertEqual([r["index_line"] for r in module.lineage(self.RECORDS)], ["5"])
 
 
 class TestSchema(unittest.TestCase):

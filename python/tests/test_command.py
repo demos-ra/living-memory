@@ -74,6 +74,66 @@ class TestConvert(unittest.TestCase):
         self.assertIn('living-memory: calls.x: an assertion fails: value 0, ""', err)
 
 
+def several(folder: Path) -> types.SimpleNamespace:
+    # A reader of two inputs, each with one value, whose spent file is
+    # the source file of its name.
+    for name in ("a", "b"):
+        Path(folder, name).write_text("x")
+    return types.SimpleNamespace(
+        schema=lambda: SCHEMA,
+        inputs=lambda path: ["d/a", "d/b"],
+        values=lambda path, name, held: [] if held else [b'{"n":1}'],
+        spent=lambda path, name, held: [Path(folder, name.split("/")[1])],
+    )
+
+
+class TestInputs(unittest.TestCase):
+    # Each input is written to a folder of the output by its name, and
+    # its spent files are removed once it is converted.
+    def test_inputs_and_spent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            reader = several(Path(folder))
+            with mock.patch.object(integrations, "reader", return_value=reader):
+                self.assertEqual(run(f"{folder}/calls.x")[0], 0)
+            for name in ("a", "b"):
+                with self.subTest(name=name):
+                    self.assertTrue(
+                        Path(folder, "calls.mtsv", "d", name, "0 t.mtsv").exists()
+                    )
+                    self.assertFalse(Path(folder, name).exists())
+
+    # GNU Coding Standards 4.10, keep-files: -k keeps the spent files.
+    def test_keep_files(self):
+        with tempfile.TemporaryDirectory() as folder:
+            reader = several(Path(folder))
+            with mock.patch.object(integrations, "reader", return_value=reader):
+                self.assertEqual(run("-k", f"{folder}/calls.x")[0], 0)
+            self.assertTrue(Path(folder, "a").exists())
+
+    # --add-context=HOST converts, then writes the host's context of the
+    # output, and keeps what it has given beside each input's output.
+    def test_add_context(self):
+        with tempfile.TemporaryDirectory() as folder:
+            reader = several(Path(folder))
+            seen = {}
+
+            def context(hook_input, output, names, look):
+                seen["held"] = look("d/a")["held"]()
+                return "\fmap\nx\n", {"d/a": 1}
+
+            host = types.SimpleNamespace(HOST="h", context=context)
+            with mock.patch.object(integrations, "reader", return_value=reader):
+                with mock.patch.object(integrations, "installer", return_value=host):
+                    with mock.patch.object(module.sys, "stdin") as stdin:
+                        stdin.buffer.read.return_value = b"{}"
+                        with mock.patch.object(module.sys, "stdout") as stdout:
+                            module.main(["--add-context=h", f"{folder}/calls.x"])
+            stdout.buffer.write.assert_called_once_with(b"\fmap\nx\n")
+            self.assertEqual(seen["held"], [{"pointer": "/0", "n": "1"}])
+            given = Path(folder, "calls.mtsv", "d", "a", ".context").read_text()
+            self.assertEqual(given, "1\n")
+
+
 class TestOptions(unittest.TestCase):
     # GNU Coding Standards 4.8.1: --version names the program and its
     # version.

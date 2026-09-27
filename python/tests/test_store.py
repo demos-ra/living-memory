@@ -62,6 +62,35 @@ class TestHeld(unittest.TestCase):
             self.assertEqual(module.held(store, NAMES), [{"pointer": "/0"}])
 
 
+class TestView(unittest.TestCase):
+    # Each sheet file in its order, with its name, header and the
+    # position each record comes from; the folder made on the first
+    # append.
+    def test_view(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder, "d", "s")
+            self.assertEqual(module.view(store), [])
+            module.append(store, "\ft\npointer\n/0\n", NAMES)
+            module.append(store, PART, NAMES)
+            found = module.view(store)
+            self.assertEqual(
+                [(f["file"], f["name"], f["positions"]) for f in found],
+                [("0 t.mtsv", "t", [0, 1]), ("1 t.a.mtsv", "t.a", [1])],
+            )
+            self.assertEqual(found[1]["header"], ["parent", "pointer"])
+
+
+class TestGiven(unittest.TestCase):
+    # How many input values a context has given: none at first, then as
+    # marked.
+    def test_given(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder)
+            self.assertEqual(module.given(store), 0)
+            module.mark(store, 3)
+            self.assertEqual(module.given(store), 3)
+
+
 class TestLocked(unittest.TestCase):
     # The output's folder is made, and its lock held, for a conversion.
     def test_locked(self):

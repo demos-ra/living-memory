@@ -1,6 +1,6 @@
 """The output kept as its sheets' files, each only appended to."""
 
-__all__ = ["append", "held", "locked", "repair"]
+__all__ = ["append", "given", "held", "locked", "mark", "repair", "view"]
 
 import fcntl
 from collections.abc import Iterator
@@ -19,6 +19,12 @@ _POINTER = "pointer"
 # A sheet's file begins with two lines before its records: the FF line
 # with the sheet name, then the header.
 _HEAD = 2
+# The file beside an output that holds how many of its input values a
+# context has given.
+_GIVEN = ".context"
+# Every sheet's file ends with this extension (MTSV draft, Media Type
+# Registration).
+_EXTENSION = ".mtsv"
 
 
 @contextmanager
@@ -60,6 +66,8 @@ def append(folder: Path, text: str, names: list[str]) -> None:
     # found by it.
     paths = _paths(folder, names)
     sheets = mtsv.loads(text)
+    if sheets:
+        folder.mkdir(parents=True, exist_ok=True)
     for sheet in sorted(sheets, key=lambda s: names.index(s["sheet name"]) == 0):
         path = paths[names.index(sheet["sheet name"])]
         written = mtsv.dumps([sheet])
@@ -67,6 +75,39 @@ def append(folder: Path, text: str, names: list[str]) -> None:
             written = written.split("\n", _HEAD)[_HEAD]
         with open(path, "ab") as fp:
             fp.write(written.encode("utf-8"))
+
+
+def view(folder: Path) -> list[dict]:
+    # Each of an output's sheet files in its order: its file name, sheet
+    # name and header, and the position of the value each record comes
+    # from, its pointer's first token.
+    found = []
+    files = sorted(folder.glob(f"*{_EXTENSION}")) if folder.is_dir() else []
+    for path in files:
+        lines = _lines(path)
+        if len(lines) < _HEAD:
+            continue
+        header = lines[_HEAD - 1].split("\t")
+        column = header.index(_POINTER)
+        positions = [int(r.split("\t")[column].split("/")[1]) for r in lines[_HEAD:]]
+        name = lines[0][1:]
+        found.append(
+            {"file": path.name, "name": name, "header": header, "positions": positions}
+        )
+    return found
+
+
+def given(folder: Path) -> int:
+    # How many of an output's input values a context has given.
+    path = folder / _GIVEN
+    return int(path.read_text("utf-8")) if path.exists() else 0
+
+
+def mark(folder: Path, count: int) -> None:
+    # A context has given the first count input values; the file is
+    # replaced whole.
+    if folder.is_dir():
+        _rename.replace(folder / _GIVEN, f"{count}\n".encode("utf-8"))
 
 
 def _paths(folder: Path, names: list[str]) -> list[Path]:

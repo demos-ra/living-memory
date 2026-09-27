@@ -1,6 +1,15 @@
 """Claude Code's recording of the raw API bodies, as input values."""
 
-__all__ = ["FILE", "schema", "values"]
+__all__ = [
+    "FILE",
+    "groups",
+    "input_of",
+    "inputs",
+    "lineage",
+    "schema",
+    "spent",
+    "values",
+]
 
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -31,6 +40,12 @@ _INDEX = ("session_id", "query_source", "model", "timestamp")
 # Index lines count from 1, so 0 names no parent (JSON Lines;
 # raw_api_bodies.mtsv › values.2).
 _NO_PARENT = 0
+# An input is named by its date, the first ten characters of an ISO 8601
+# timestamp, then '/', then its session_id (values.7).
+_DATE = 10
+_SEPARATOR = "/"
+# The files an index line names (recording.1).
+_FILES = ("request_file", "response_file")
 
 
 @dataclass(frozen=True)
@@ -93,20 +108,41 @@ def schema() -> bytes:
     return _json.encode(root)
 
 
-def values(path: Path, held: list[dict[str, str]] | None) -> Iterator[bytes]:
-    """Yield the input values of a recording, each a JSON text.
+def inputs(path: Path) -> list[str]:
+    """Return the names of a recording's inputs, one for each session.
+
+    Each is the date of the session's first index line, then '/', then
+    its session_id, in the order of their first index lines
+    (raw_api_bodies.mtsv › values.7).
+    """
+    names: dict[str, str] = {}
+    for _, entry in _index(path):
+        session = entry["session_id"]
+        if session not in names:
+            names[session] = f"{entry['timestamp'][:_DATE]}{_SEPARATOR}{session}"
+    return list(names.values())
+
+
+def input_of(names: list[str], session: str) -> str | None:
+    """Return the name of a session's input among names, or None."""
+    return next((n for n in names if n.split(_SEPARATOR)[-1] == session), None)
+
+
+def values(path: Path, name: str, held: list[dict[str, str]] | None) -> Iterator[bytes]:
+    """Yield the input values of one of a recording's inputs.
 
     path -- the recording's folder, which holds index.jsonl
-    held -- the records of the output's sheet of the input values, each
-        by its header's names, or None where the output holds none
+    name -- the input's name, as inputs gives it
+    held -- the records of the input's output's sheet of the input
+        values, each by its header's names, or None where it holds none
 
-    One value for each request, in the index's order, from the lines
-    after the last one held, until a line whose files are not yet
-    written (raw_api_bodies.mtsv › recording.4, recording.5,
-    values.1-6).
+    One value for each of the session's requests, in the index's order,
+    from the lines after the last one held, until a line whose files are
+    not yet written (raw_api_bodies.mtsv › recording.4, recording.5,
+    values.1-7).
     """
-    lines = _index(path)
-    after = max((int(record[_LINE]) for record in held or []), default=0)
+    lines = _session(_index(path), name)
+    after = _after(held)
     tips = _tips(lines, after, path)
     for number, entry in lines:
         if number <= after:
@@ -121,6 +157,84 @@ def values(path: Path, held: list[dict[str, str]] | None) -> Iterator[bytes]:
         parent = _parent(current, tips)
         yield _value(entry, (request, response), current, parent)
         tips[current.thread] = current
+
+
+def spent(path: Path, name: str, held: list[dict[str, str]]) -> list[Path]:
+    """Return the request and response files an input's output has spent.
+
+    The files of every index line up to the last one held, but those of
+    the latest request of each thread held, which the next conversion
+    reads again; index.jsonl is never among them (raw_api_bodies.mtsv ›
+    recording.6, values.6).
+    """
+    lines = _session(_index(path), name)
+    after = _after(held)
+    latest: dict[tuple[str, str], int] = {}
+    for number, entry in lines:
+        if number <= after and "request_file" in entry:
+            latest[(entry["session_id"], entry["query_source"])] = number
+    kept = set(latest.values())
+    return [
+        _file(entry, field, path)
+        for number, entry in lines
+        if number <= after and number not in kept
+        for field in _FILES
+        if field in entry
+    ]
+
+
+def groups(records: list[dict[str, str]]) -> list[list[str]]:
+    """Return values grouped by session_id and query_source.
+
+    Each group, in the order of its first index line: session_id,
+    query_source, how many requests, and the first and last index_line
+    and timestamp (raw_api_bodies.mtsv › map.1).
+    """
+    found: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for record in records:
+        found.setdefault((record["session_id"], record["query_source"]), []).append(
+            record
+        )
+    return [
+        [
+            *key,
+            str(len(group)),
+            group[0][_LINE],
+            group[-1][_LINE],
+            group[0]["timestamp"],
+            group[-1]["timestamp"],
+        ]
+        for key, group in found.items()
+    ]
+
+
+def lineage(records: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Return the lineage of an input's latest request, earliest first.
+
+    That request, then the request it extends, and so on until a request
+    that extends none (raw_api_bodies.mtsv › map.2).
+    """
+    by_line = {record[_LINE]: record for record in records}
+    found = []
+    line = records[-1][_LINE] if records else str(_NO_PARENT)
+    while line in by_line:
+        found.append(by_line[line])
+        line = by_line[line][_EXTENDS]
+    return found[::-1]
+
+
+def _session(
+    lines: list[tuple[int, dict[str, Any]]], name: str
+) -> list[tuple[int, dict[str, Any]]]:
+    # The index lines of one input's session (values.7).
+    session = name.split(_SEPARATOR)[-1]
+    return [(n, entry) for n, entry in lines if entry["session_id"] == session]
+
+
+def _after(held: list[dict[str, str]] | None) -> int:
+    # The last index line the output holds, 0 where it holds none
+    # (values.6).
+    return max((int(record[_LINE]) for record in held or []), default=0)
 
 
 def _index(path: Path) -> list[tuple[int, dict[str, Any]]]:

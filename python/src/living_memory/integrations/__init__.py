@@ -6,9 +6,15 @@ reads holds, FILE, and supplies schema(), the schema its module
 specification gives, and values(path, held), the input values in the
 order its source holds them, after those held: the records of the
 output's sheet of the input values, each by its header's names, or None
-where the output holds none. One that installs into a host names the
-host, HOST, and supplies change(), the change it makes stated, and
-install(), which makes it.
+where the output holds none. Where its source is several inputs, it also
+supplies inputs(path), their names, each the folder of the output it is
+written to; values takes the name, values(path, name, held); and it may
+supply spent(path, name, held), the files of the source its output has
+spent. One that installs into a host names the host, HOST, and supplies
+change(), the change it makes stated, question(), what it asks first,
+install(options), which makes it, the options those it runs the command
+with, and context(hook_input, output, names, look), the host's context of
+the output and, for each input, how many of its values it has given.
 
 Functions:
 reader -- return the integration that reads a file or a directory
