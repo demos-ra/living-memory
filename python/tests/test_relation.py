@@ -149,6 +149,24 @@ class TestPlace(unittest.TestCase):
             keyed(found, elements), [{"parent": "/1", "pointer": "/1/p/0"}]
         )
 
+    # relation.2, relation.12: a kind whose own schema gives nothing is
+    # placed branch by branch, with no sheet of its own, also where a
+    # subschema applies it to the same location.
+    def test_union_kind_same_location(self):
+        schema = (
+            b'{"title":"t","type":"object","required":["a"],"properties":'
+            b'{"a":{"type":"string"}},"oneOf":[{"$ref":"#/definitions/u"}],'
+            b'"definitions":{"u":{"anyOf":[{"$ref":"#/definitions/x"},'
+            b'{"$ref":"#/definitions/y"}]},"x":{"type":"object","properties":'
+            b'{"x":{"type":"number"}},"required":["x"]},"y":{"type":"object",'
+            b'"properties":{"y":{"type":"number"}},"required":["y"]}}}'
+        )
+        sheet_layout, found, _ = placed(schema, b'{"a":"s","x":1}')
+        names = {module.segment(c).name: c for c in below(sheet_layout)}
+        self.assertNotIn("u", names)
+        self.assertEqual(keyed(found, names["x"]), [{"parent": "/0", "pointer": "/0"}])
+        self.assertEqual(keyed(found, names["y"]), [])
+
     # key.3: an instance's parent is the instance that holds it.
     def test_instance_parent(self):
         schema = b'{"title":"t","type":"object","additionalProperties":{}}'

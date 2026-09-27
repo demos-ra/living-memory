@@ -1,13 +1,9 @@
 calls
 pointer
 /0
-calls.parts
-parent	pointer
-/0	/0/parts/0
-/0	/0/parts/1
 calls.parts.anyOf.text
 parent	pointer	type	content
-/0/parts/0	/0/parts/0	text	hi
+/0	/0/parts/0	text	hi
 calls.parts.anyOf.number
 parent	pointer	type	n
-/0/parts/1	/0/parts/1	number	3
+/0	/0/parts/1	number	3

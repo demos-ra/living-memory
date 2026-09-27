@@ -55,7 +55,7 @@ A case named for another rule also checks the rule it is listed under.
 | value.9     | non-conforming `value.9.schema-mismatch` (type), `value.9.maximum` (a numeric assertion) |
 | value.10    | non-conforming `value.10.deepest-place`, and every rejected value's place below |
 | relation.1  | every conforming case                                                 |
-| relation.2  | `relation.2.kind-one-sheet` (one kind, referred to twice, one sheet), `relation.2.kind-holds-itself` (a kind whose rows key into its own sheet), `relation.2.kind-one-of`, `relation.2.kind-if`, `relation.2.kind-then`, `relation.2.kind-else`, `relation.2.kind-dependency` (a kind a subschema applies to the same location); `schema.11.ref`, `relation.12.any-of-types` |
+| relation.2  | `relation.2.kind-one-sheet` (one kind, referred to twice, one sheet), `relation.2.kind-holds-itself` (a kind whose rows key into its own sheet), `relation.2.kind-one-of`, `relation.2.kind-if`, `relation.2.kind-then`, `relation.2.kind-else`, `relation.2.kind-dependency` (a kind a subschema applies to the same location); `schema.11.ref`, `relation.12.any-of-types`, `relation.12.object-branches` (a kind placed branch by branch, by its branches' kinds) |
 | relation.3  | `relation.3.all-of-ref` (a $ref that allOf applies: its members the instance's own, no kind's sheet) |
 | relation.4  | `relation.4.all-of-narrows`; `relation.15.optional` (types listed), `relation.15.root-any` (none listed), `relation.11.any-of`, `relation.11.one-of` (the union of branches) |
 | relation.5  | every conforming case                                                 |
@@ -64,16 +64,16 @@ A case named for another rule also checks the rule it is listed under.
 | relation.8  | `relation.8.object` (a required object, nested), `relation.8.all-of`; `relation.4.all-of-narrows`, `relation.11.any-of`, `relation.11.one-of`, `relation.16.once` (a required object that allows one type, object, by allOf or the union of branches) |
 | relation.9  | `relation.9.pattern-properties`, `relation.9.additional-properties`, `relation.9.root-array`; `schema.14.contains` |
 | relation.10 | `relation.10.optional-object`                                         |
-| relation.11 | `relation.11.any-of`, `relation.11.any-of-in-items`, `relation.11.one-of`, `relation.11.if-then-else`, `relation.11.dependencies` |
-| relation.12 | `relation.12.any-of-types` (a location of several types placed branch by branch: a string molten, an array by its elements, an object by its kind) |
+| relation.11 | `relation.11.any-of`, `relation.11.one-of`, `relation.11.if-then-else`, `relation.11.dependencies` |
+| relation.12 | `relation.12.any-of-types` (a location of several types placed branch by branch: a string molten, an array by its elements, an object by its kind), `relation.12.any-of-in-items` (items whose own schema gives nothing: each element in its branch's sheet, no sheet of the items' own), `relation.12.object-branches` (the same for an optional property and for a kind, each instance in its branch's sheet or kind's) |
 | relation.13 | `relation.13.array-of-arrays`, `relation.13.items-tuple` (items, additionalItems) |
 | relation.14 | `relation.14.text` (a string's runs), `relation.14.empty-runs`, `relation.14.one-runs-sheet` (two strings' runs, one sheet of runs); `order.1.shared-last` |
 | relation.15 | `relation.15.optional`, `relation.15.additional-properties-omitted`, `relation.15.root-any` (the sheet of the input values is the sheet of instances), `relation.15.one-sheet` (two molten places, one sheet of instances); `field.2.types` (additionalProperties), `relation.11.dependencies` (an optional member), `relation.4.all-of-narrows` (additionalProperties omitted in an allOf subschema), `relation.12.any-of-types` (a branch of one simple type, a property taken as not required) |
-| relation.16 | `relation.16.once` (a member two branches name), `relation.16.covers` (a member a branch's pattern matches); `relation.11.any-of`, `relation.11.any-of-in-items` (additionalProperties takes nothing covered), `relation.11.if-then-else`, `relation.11.dependencies`, `sheet.4.untitled-branch` |
+| relation.16 | `relation.16.once` (a member two branches name), `relation.16.covers` (a member a branch's pattern matches); `relation.11.any-of`, `relation.11.if-then-else`, `relation.11.dependencies`, `sheet.4.untitled-branch` |
 | relation.17 | `relation.8.all-of` (no allOf column for a member named); `relation.11.if-then-else`, `relation.11.dependencies`, `sheet.4.untitled-branch` (a later sheet's column for a member written earlier, empty) |
 | key.1       | every expected file                                                   |
 | key.2       | every expected file's sheet of the input values                       |
-| key.3       | `relation.13.array-of-arrays`, `relation.11.any-of` (parent, then pointer), `order.2.nested-order` (an instance's parent the instance that holds it), `relation.2.kind-holds-itself` (parent a row of the same sheet) |
+| key.3       | `relation.13.array-of-arrays`, `relation.11.any-of` (parent, then pointer), `order.2.nested-order` (an instance's parent the instance that holds it), `relation.2.kind-holds-itself` (parent a row of the same sheet), `relation.12.object-branches` (a branch's parent the record that holds the location) |
 | key.4       | `key.4.escaped-name` ('~0', '~1')                                     |
 | key.5       | `relation.14.text` (a run keyed by its string's pointer)              |
 | order.1     | `order.1.keywords`, `relation.2.kind-one-sheet` (a kind at its first reference), `order.1.shared-last` (the sheet of instances, then the sheet of runs, last), and the order of every case with more than one keyword |
@@ -85,7 +85,7 @@ A case named for another rule also checks the rule it is listed under.
 | sheet.1     | `schema.2.title`                                                      |
 | sheet.2     | `schema.11.ref` (a kind by its $ref's last token), `schema.11.ref-percent-encoded` (the token decoded), `relation.2.kind-one-sheet` |
 | sheet.3     | `sheet.3.runs-name` (the sheet of runs, runs), `field.2.types` (the sheet of instances, instances) |
-| sheet.4     | `sheet.4.untitled-branch` (no position for a keyword of one subschema), `sheet.4.several-patterns` (the pattern, where the keyword holds several); `relation.13.items-tuple` (positions), `relation.9.pattern-properties` (one pattern), `relation.13.array-of-arrays` (items), `relation.11.any-of` (titles), `relation.11.one-of` (positions), `relation.11.dependencies` (a key), `relation.8.object` (a property that relation.8 writes, in the name) |
+| sheet.4     | `sheet.4.untitled-branch` (no position for a keyword of one subschema), `sheet.4.several-patterns` (the pattern, where the keyword holds several); `relation.13.items-tuple` (positions), `relation.9.pattern-properties` (one pattern), `relation.13.array-of-arrays` (items), `relation.11.any-of` (titles), `relation.11.one-of` (positions), `relation.11.dependencies` (a key), `relation.8.object` (a property that relation.8 writes, in the name), `relation.12.any-of-in-items` (a branch named after the location it places) |
 | sheet.5     | every expected file (parent, pointer, page, line, position); `relation.8.object` (property.member) |
 | record.1    | every expected file                                                   |
 | field.1     | `field.2.types`, `relation.15.optional`                               |

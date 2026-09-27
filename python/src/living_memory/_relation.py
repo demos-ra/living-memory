@@ -310,14 +310,18 @@ def _allowed(schema: Any, root_schema: Any) -> set[str]:
 
 def _child(sub: _Sub, scope: _Scope, named: Segment) -> tuple[Any, _Refs]:
     # A child location's instances go to its kind's sheet where a $ref
-    # applies to it; else they are the records of its own sheet: an
-    # object's, an array's, one simple type's with the column value;
-    # else they are placed branch by branch where anyOf or oneOf gives
-    # the branches, and else molten (spec › relation.2, relation.5,
-    # relation.7, relation.9, relation.12, relation.15).
+    # applies to it; they are placed branch by branch where anyOf or
+    # oneOf gives the branches and the location's own schema gives it
+    # nothing; else they are the records of its own sheet: an object's,
+    # an array's, one simple type's with the column value; else they are
+    # placed branch by branch where the branches are of several types,
+    # and else molten (spec › relation.2, relation.5, relation.7,
+    # relation.9, relation.12, relation.15).
     if _refers(sub.schema):
         return _kind(sub, scope)
     allowed = _allowed(sub.schema, scope.file.root)
+    if _branched(sub, scope) and _gives_nothing(sub, allowed, scope):
+        return _union(sub, scope, named)
     if allowed == {"object"}:
         node, one = _object(sub, scope, named)
     elif allowed == {"array"}:
@@ -344,6 +348,24 @@ def _branched(sub: _Sub, scope: _Scope) -> bool:
     # relation.12).
     schema = _schema.resolve(sub.schema, scope.file.root, sub.at)[0]
     return any(schema.get(word) for word in _UNIONS)
+
+
+def _gives_nothing(sub: _Sub, allowed: set[str], scope: _Scope) -> bool:
+    # Whether an object or an array location's own schema, apart from
+    # its branches, gives it no column and no sheet but those the whole
+    # file shares, so its record would hold only that an instance
+    # exists, which its branch's record holds (spec › relation.12).
+    schema, at = _schema.resolve(sub.schema, scope.file.root, sub.at)
+    own = _Sub({k: v for k, v in schema.items() if k not in _UNIONS}, at)
+    shared = (scope.file.instances.relation, scope.file.text.relation)
+    if allowed == {"object"}:
+        inner = _Scope(scope.file, (), None, frozenset())
+        _, found, below = _frame(own, inner)
+    elif allowed == {"array"}:
+        found, below = (), _array(own, scope, Segment("keyword", (), ""))[1].children
+    else:
+        return False
+    return not found and all(any(ref is one for one in shared) for ref in below)
 
 
 def _union(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Union, _Refs]:
@@ -656,10 +678,16 @@ class _Union:
     root: Any
 
     def write(self, value: Any, at: str, parent: str | None) -> Any:
+        node = self.chosen(value)
+        if node is None:
+            return [], []
+        return node.write(value, at, parent)
+
+    def chosen(self, value: Any) -> Any:
         for schema, node in self.branches:
             if _json_schema.validates(value, schema, self.root):
-                return node.write(value, at, parent)
-        return [], []
+                return node
+        return None
 
 
 @dataclass(frozen=True)
@@ -789,7 +817,9 @@ class _Frame:
         # The members placed here are written in order.2's order; each
         # subschema that collects the instance writes those placed on
         # it.
-        collecting = [same for same in self.same if same.collects(value)]
+        collecting = [
+            same.resolved(value) for same in self.same if same.collects(value)
+        ]
         owners = self._owners(value, collecting, names)
         values: dict[Domain, Any] = {}
         placed: list[Placed] = []
@@ -864,6 +894,9 @@ class _Merged:
     def collects(self, value: Any) -> bool:
         return True
 
+    def resolved(self, value: Any) -> _Merged:
+        return self
+
     def covers(self, name: str) -> bool:
         return self.frame.covers(name)
 
@@ -891,6 +924,16 @@ class _Branch:
             return self.rule.condition in value
         valid = _json_schema.validates(value, self.rule.condition, self.root)
         return not valid if self.rule.keyword == "else" else valid
+
+    def resolved(self, value: Any) -> _Branch:
+        # A kind placed branch by branch has no sheet of its own: the
+        # instance is written by the kind's first branch it is valid
+        # against, as at a child location (spec › relation.2,
+        # relation.12).
+        sheet = self.sheet
+        while isinstance(getattr(sheet, "node", sheet), _Union):
+            sheet = getattr(sheet, "node", sheet).chosen(value)
+        return self if sheet is self.sheet else _Branch(self.rule, sheet, self.root)
 
     def covers(self, name: str) -> bool:
         return self.sheet.frame.covers(name)
