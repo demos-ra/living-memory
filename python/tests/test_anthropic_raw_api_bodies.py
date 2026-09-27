@@ -52,8 +52,14 @@ def recording(folder: Path, lines: list[bytes]) -> Path:
     return folder
 
 
-def given(path: Path, held=None) -> list[dict]:
-    return [_json.decode(v) for v in module.values(path, INPUT, held)]
+def given(path: Path, held=None, start=0) -> list[dict]:
+    index = module.lines(path, start)
+    return [_json.decode(v) for v in module.values(path, INPUT, held, index)]
+
+
+def record(line: str, source: str = "q") -> dict[str, str]:
+    # A record of the sheet of the input values, as the store holds it.
+    return {"index_line": line, "session_id": "s", "query_source": source}
 
 
 def rebuilt(found: list[dict]) -> dict[str, tuple]:
@@ -164,15 +170,25 @@ class TestValues(unittest.TestCase):
                 self.assertEqual(found[line], expected)
 
     # values.6: only the lines after the last one held, the parent found
-    # among the latest requests held, read again from their files.
+    # among the latest requests held, its line decoded alone and read
+    # again from its files.
     def test_only_new(self):
         with tempfile.TemporaryDirectory() as folder:
             path = recording(Path(folder), INDEX[:3])
-            found = given(path, [{"index_line": "1"}])
+            found = given(path, [record("1")], start=1)
             self.assertEqual(
                 [(v["index_line"], v["extends"], v["kept"]) for v in found],
                 [("3", "1", "2")],
             )
+
+    # values.6: a session with no line after the last one held reads no
+    # file, not even the latest request held.
+    def test_nothing_new(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = recording(Path(folder), INDEX[:3])
+            for name in FILES:
+                (path / name).unlink()
+            self.assertEqual(given(path, [record("1"), record("3")]), [])
 
     # recording.4: a line whose files are not yet written stops the
     # read.
@@ -182,29 +198,84 @@ class TestValues(unittest.TestCase):
             (path / "2.response.json").unlink()
             self.assertEqual(len(given(path)), 1)
 
+    # recording.7: a file of the latest request of a thread held that is
+    # absent is rejected, named.
+    def test_latest_absent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = recording(Path(folder), INDEX[:3])
+            (path / "1.request.json").unlink()
+            with self.assertRaisesRegex(ValueError, "1.request.json"):
+                given(path, [record("1")], start=1)
+
+
+class TestLines(unittest.TestCase):
+    # values.6: only the lines after those read are decoded, each with
+    # its number counted from 1.
+    def test_after(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = recording(Path(folder), INDEX)
+            found = module.lines(path, 2)
+            self.assertEqual([n for n, _ in found], [3, 4])
+            self.assertEqual(found[1][1]["query_source"], "p")
+
+    # recording.8: a folder without index.jsonl is a recording of no
+    # line.
+    def test_no_index(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual(module.lines(Path(folder), 0), [])
+
+
+class TestRead(unittest.TestCase):
+    # values.6: the lines read are those before the first line that
+    # names a request the output does not hold.
+    def test_read(self):
+        with tempfile.TemporaryDirectory() as folder:
+            index = module.lines(recording(Path(folder), INDEX), 0)
+            self.assertEqual(module.read(index, [record("1"), record("3")], 0), 3)
+            held = [record("1"), record("3"), record("4", "p")]
+            self.assertEqual(module.read(index, held, 0), 4)
+            self.assertEqual(module.read([], [], 4), 4)
+
 
 class TestInputs(unittest.TestCase):
     # values.7: one input per session, named by the date of its first
-    # line and its session_id, in the order of first lines; each
-    # session's values apart.
+    # value and its session_id, in the order of first values; a name the
+    # output holds is kept; each session's values apart.
     def test_sessions(self):
         with tempfile.TemporaryDirectory() as folder:
             other = INDEX[0].replace(b'"s"', b'"t"').replace(b"09-27", b"09-28")
             path = recording(Path(folder), [INDEX[0], other, *INDEX[1:3]])
-            names = module.inputs(path)
+            index = module.lines(path, 0)
+            names = module.inputs(index, [])
             self.assertEqual(names, ["2026-09-27/s", "2026-09-28/t"])
             self.assertEqual(module.input_of(names, "t"), "2026-09-28/t")
+            held = module.inputs(index[1:], ["2026-09-26/s"])
+            self.assertEqual(held, ["2026-09-28/t", "2026-09-26/s"])
             lines = [v["index_line"] for v in given(path)]
             self.assertEqual(lines, ["1", "4"])
 
 
 class TestSpent(unittest.TestCase):
-    # recording.6: the files of every line held are spent, but the
-    # latest request of each thread held; index.jsonl never.
+    # recording.5, recording.6: the files of the lines read that are
+    # held or name no request are spent, but the latest request of each
+    # thread held; index.jsonl never.
     def test_spent(self):
         with tempfile.TemporaryDirectory() as folder:
             path = recording(Path(folder), INDEX[:3])
-            spent = module.spent(path, INPUT, [{"index_line": "3"}])
+            index = module.lines(path, 0)
+            spent = module.spent(path, INPUT, [record("1"), record("3")], index)
+            names = sorted(p.name for p in spent)
+            self.assertEqual(
+                names, ["1.request.json", "1.response.json", "x.response.json"]
+            )
+
+    # recording.6: the latest request of a thread held before the lines
+    # read is spent once a later one is held.
+    def test_latest_before(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = recording(Path(folder), INDEX[:3])
+            index = module.lines(path, 1)
+            spent = module.spent(path, INPUT, [record("1"), record("3")], index)
             names = sorted(p.name for p in spent)
             self.assertEqual(
                 names, ["1.request.json", "1.response.json", "x.response.json"]

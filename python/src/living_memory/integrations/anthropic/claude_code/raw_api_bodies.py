@@ -6,6 +6,8 @@ __all__ = [
     "input_of",
     "inputs",
     "lineage",
+    "lines",
+    "read",
     "schema",
     "spent",
     "values",
@@ -108,19 +110,61 @@ def schema() -> bytes:
     return _json.encode(root)
 
 
-def inputs(path: Path) -> list[str]:
-    """Return the names of a recording's inputs, one for each session.
+def lines(path: Path, start: int) -> list[tuple[int, dict[str, Any]]]:
+    """Return a recording's index lines after the first start of them.
 
-    Each is the date of the session's first index line, then '/', then
-    its session_id, in the order of their first index lines
-    (raw_api_bodies.mtsv › values.7).
+    Each is its number, counted from 1, and its JSON value; only these
+    lines are decoded. A folder without index.jsonl holds none
+    (raw_api_bodies.mtsv › recording.1, recording.8, values.6).
     """
-    names: dict[str, str] = {}
-    for _, entry in _index(path):
+    file = path / FILE
+    if not file.is_file():
+        return []
+    found = _split(file.read_bytes())
+    return [
+        (number, _json.decode(found[number - 1]))
+        for number in range(start + 1, len(found) + 1)
+    ]
+
+
+def inputs(index: list[tuple[int, dict[str, Any]]], names: list[str]) -> list[str]:
+    """Return the names of the inputs that index lines give values to.
+
+    index -- index lines, as lines gives them
+    names -- the names of the inputs the output holds
+
+    One for each session with a line that names a request, in the order
+    of those lines: its name among names, else the date of that line's
+    timestamp, then '/', then its session_id (raw_api_bodies.mtsv ›
+    values.1, values.7).
+    """
+    found: dict[str, str] = {}
+    for _, entry in index:
         session = entry["session_id"]
-        if session not in names:
-            names[session] = f"{entry['timestamp'][:_DATE]}{_SEPARATOR}{session}"
-    return list(names.values())
+        if "request_file" in entry and session not in found:
+            held = input_of(names, session)
+            date = entry["timestamp"][:_DATE]
+            found[session] = held or f"{date}{_SEPARATOR}{session}"
+    return list(found.values())
+
+
+def read(
+    index: list[tuple[int, dict[str, Any]]], held: list[dict[str, str]], start: int
+) -> int:
+    """Return how many index lines are read.
+
+    index -- the index lines after the first start, as lines gives them
+    held -- the records the outputs of their inputs hold, each by its
+        header's names
+
+    Those before the first line that names a request its input's
+    output does not hold (raw_api_bodies.mtsv › values.6).
+    """
+    numbers = {int(record[_LINE]) for record in held}
+    for number, entry in index:
+        if "request_file" in entry and number not in numbers:
+            return number - 1
+    return index[-1][0] if index else start
 
 
 def input_of(names: list[str], session: str) -> str | None:
@@ -128,58 +172,78 @@ def input_of(names: list[str], session: str) -> str | None:
     return next((n for n in names if n.split(_SEPARATOR)[-1] == session), None)
 
 
-def values(path: Path, name: str, held: list[dict[str, str]] | None) -> Iterator[bytes]:
+def values(
+    path: Path,
+    name: str,
+    held: list[dict[str, str]] | None,
+    index: list[tuple[int, dict[str, Any]]],
+) -> Iterator[bytes]:
     """Yield the input values of one of a recording's inputs.
 
     path -- the recording's folder, which holds index.jsonl
     name -- the input's name, as inputs gives it
     held -- the records of the input's output's sheet of the input
         values, each by its header's names, or None where it holds none
+    index -- the index lines read, as lines gives them
 
-    One value for each of the session's requests, in the index's order,
-    from the lines after the last one held, until a line whose files are
-    not yet written (raw_api_bodies.mtsv › recording.4, recording.5,
+    One value for each of the session's requests among the lines read,
+    in the index's order, after the last one held, until a line whose
+    files are not yet written; with none, no file is read. Raise
+    ValueError where a file of the latest request of a thread held is
+    absent (raw_api_bodies.mtsv › recording.4, recording.5, recording.7,
     values.1-7).
     """
-    lines = _session(_index(path), name)
     after = _after(held)
-    tips = _tips(lines, after, path)
-    for number, entry in lines:
-        if number <= after:
-            continue
-        found = _bodies(entry, path)
-        if found is None:
+    new = [
+        (number, entry)
+        for number, entry in _session(index, name)
+        if number > after and "request_file" in entry
+    ]
+    if not new:
+        return
+    tips = _tips(path, held or [], index)
+    for number, entry in new:
+        if not _written(entry, path):
             return
-        if "request_file" not in entry:
-            continue
-        request, response = found
+        request, response = _bodies(entry, path)
         current = _request(number, entry, request, response)
         parent = _parent(current, tips)
         yield _value(entry, (request, response), current, parent)
         tips[current.thread] = current
 
 
-def spent(path: Path, name: str, held: list[dict[str, str]]) -> list[Path]:
-    """Return the request and response files an input's output has spent.
+def spent(
+    path: Path,
+    name: str,
+    held: list[dict[str, str]],
+    index: list[tuple[int, dict[str, Any]]],
+) -> list[Path]:
+    """Return the request and response files an input's output spent.
 
-    The files of every index line up to the last one held, but those of
-    the latest request of each thread held, which the next conversion
-    reads again; index.jsonl is never among them (raw_api_bodies.mtsv ›
-    recording.6, values.6).
+    The files of the session's lines read that the output holds or that
+    name no request, and of the latest request of each thread the output
+    held before them, but those of the latest request of each thread it
+    now holds, which the next conversion reads again; index.jsonl is
+    never among them (raw_api_bodies.mtsv › recording.5, recording.6,
+    values.6).
     """
-    lines = _session(_index(path), name)
+    session = _session(index, name)
     after = _after(held)
-    latest: dict[tuple[str, str], int] = {}
-    for number, entry in lines:
-        if number <= after and "request_file" in entry:
-            latest[(entry["session_id"], entry["query_source"])] = number
-    kept = set(latest.values())
+    read_now = {number for number, _ in session}
+    before = _latest([r for r in held if int(r[_LINE]) not in read_now])
+    entries = dict(session)
+    entries.update(_entries(path, [n for n in before.values() if n not in entries]))
+    done = {
+        number
+        for number, entry in session
+        if number <= after or "request_file" not in entry
+    }
+    kept = set(_latest(held).values())
     return [
-        _file(entry, field, path)
-        for number, entry in lines
-        if number <= after and number not in kept
+        _file(entries[number], field, path)
+        for number in sorted((done | set(before.values())) - kept)
         for field in _FILES
-        if field in entry
+        if field in entries[number]
     ]
 
 
@@ -224,11 +288,11 @@ def lineage(records: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def _session(
-    lines: list[tuple[int, dict[str, Any]]], name: str
+    index: list[tuple[int, dict[str, Any]]], name: str
 ) -> list[tuple[int, dict[str, Any]]]:
     # The index lines of one input's session (values.7).
     session = name.split(_SEPARATOR)[-1]
-    return [(n, entry) for n, entry in lines if entry["session_id"] == session]
+    return [(n, entry) for n, entry in index if entry["session_id"] == session]
 
 
 def _after(held: list[dict[str, str]] | None) -> int:
@@ -237,14 +301,34 @@ def _after(held: list[dict[str, str]] | None) -> int:
     return max((int(record[_LINE]) for record in held or []), default=0)
 
 
-def _index(path: Path) -> list[tuple[int, dict[str, Any]]]:
-    # The index's lines, each a JSON value, numbered from 1; a
-    # terminator after the last one is optional (JSON Lines).
-    data = (path / FILE).read_bytes()
-    lines = data.split(b"\n")
-    if lines and lines[-1] == b"":
-        lines.pop()
-    return [(number, _json.decode(line)) for number, line in enumerate(lines, 1)]
+def _split(data: bytes) -> list[bytes]:
+    # The index's lines, not yet decoded, the first line 1; a terminator
+    # after the last one is optional (JSON Lines).
+    found = data.split(b"\n")
+    if found and found[-1] == b"":
+        found.pop()
+    return found
+
+
+def _entries(path: Path, numbers: list[int]) -> dict[int, dict[str, Any]]:
+    # The index lines of the numbers given, each decoded alone
+    # (values.6).
+    if not numbers:
+        return {}
+    found = _split((path / FILE).read_bytes())
+    for number in numbers:
+        if number > len(found):
+            raise ValueError(f"{path / FILE}: holds no line {number}")
+    return {number: _json.decode(found[number - 1]) for number in numbers}
+
+
+def _latest(held: list[dict[str, str]]) -> dict[tuple[str, str], int]:
+    # The index line of the latest request of each thread held.
+    found: dict[tuple[str, str], int] = {}
+    for record in held:
+        thread = (record["session_id"], record["query_source"])
+        found[thread] = max(found.get(thread, 0), int(record[_LINE]))
+    return found
 
 
 def _file(entry: dict[str, Any], field: str, path: Path) -> Path:
@@ -254,17 +338,17 @@ def _file(entry: dict[str, Any], field: str, path: Path) -> Path:
     return named if named.is_absolute() else path / named
 
 
-def _bodies(entry: dict[str, Any], path: Path) -> tuple[Any, Any] | None:
-    # A line's request and response, or None where a file it names is
-    # not yet written; a line that names no request file has none
-    # (raw_api_bodies.mtsv › recording.4, recording.5).
-    files = [
-        _file(entry, f, path) for f in ("request_file", "response_file") if f in entry
-    ]
-    if not all(file.is_file() for file in files):
-        return None
-    read = [_json.decode(file.read_bytes()) for file in files]
-    return (read[0], read[1]) if len(read) == 2 else (None, read[0])
+def _written(entry: dict[str, Any], path: Path) -> bool:
+    # Whether every file a line names is written (recording.4).
+    return all(_file(entry, f, path).is_file() for f in _FILES if f in entry)
+
+
+def _bodies(entry: dict[str, Any], path: Path) -> tuple[Any, Any]:
+    # A request line's request and response, each read from its file.
+    request, response = (
+        _json.decode(_file(entry, f, path).read_bytes()) for f in _FILES
+    )
+    return request, response
 
 
 def _request(
@@ -289,16 +373,24 @@ def _request(
 
 
 def _tips(
-    lines: list[tuple[int, dict[str, Any]]], after: int, path: Path
+    path: Path, held: list[dict[str, str]], index: list[tuple[int, dict[str, Any]]]
 ) -> dict[tuple[str, str], _Request]:
-    # The latest request of each thread up to the last line held, read
-    # again from its files (values.6).
-    latest: dict[tuple[str, str], tuple[int, dict[str, Any]]] = {}
-    for number, entry in lines:
-        if number <= after and "request_file" in entry:
-            latest[(entry["session_id"], entry["query_source"])] = (number, entry)
+    # The latest request of each thread held, its line taken from the
+    # lines read or decoded alone, read again from its files; a file of
+    # one that is absent is rejected, named (values.6, recording.7).
+    latest = _latest(held)
+    known = dict(index)
+    entries = {n: known[n] for n in latest.values() if n in known}
+    entries.update(_entries(path, [n for n in latest.values() if n not in known]))
     found = {}
-    for thread, (number, entry) in latest.items():
+    for thread, number in latest.items():
+        entry = entries[number]
+        for field in _FILES:
+            if not _file(entry, field, path).is_file():
+                raise ValueError(
+                    f"{_file(entry, field, path)}: absent, a file of the latest"
+                    " request of a thread held"
+                )
         request, response = _bodies(entry, path)
         found[thread] = _request(number, entry, request, response)
     return found

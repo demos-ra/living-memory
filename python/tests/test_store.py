@@ -87,8 +87,31 @@ class TestGiven(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             store = Path(folder)
             self.assertEqual(module.given(store), 0)
-            module.mark(store, 3)
+            module.mark_given(store, 3)
             self.assertEqual(module.given(store), 3)
+
+
+class TestRead(unittest.TestCase):
+    # How many lines of the source have been read: none at first, then
+    # as marked, kept apart from what a context has given.
+    def test_read(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder)
+            self.assertEqual(module.read(store), 0)
+            module.mark_read(store, 7)
+            module.mark_given(store, 3)
+            self.assertEqual((module.read(store), module.given(store)), (7, 3))
+
+
+class TestInputs(unittest.TestCase):
+    # The inputs an output holds, each by the path of its folder.
+    def test_inputs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder, "o.mtsv")
+            self.assertEqual(module.inputs(store), [])
+            for name in ("d2/b", "d1/a"):
+                module.append(store / name, "\ft\npointer\n/0\n", NAMES)
+            self.assertEqual(module.inputs(store), ["d1/a", "d2/b"])
 
 
 class TestLocked(unittest.TestCase):

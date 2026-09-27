@@ -48,28 +48,33 @@ attached.
 ## Command
 
 ```
-living-memory [-k] [-o OUTPUT] INPUT [OUTPUT]
-living-memory [-k] --add-context=HOST INPUT
+living-memory [-k] [-f READER] [-o OUTPUT] INPUT [OUTPUT]
+living-memory [-k] [-f READER] --add-context=HOST INPUT
 living-memory --install=HOST
 ```
 
-`INPUT` is a file, read by the integration of its extension, or a
-directory, read by the integration of the file it holds. The output is
+`INPUT` is read by the integration `-f`, or `--from`, names, by its path
+among the integrations, as `anthropic/claude_code/raw_api_bodies`; else
+a file is read by the integration of its extension, and a directory by
+the integration of the file it holds. The output is
 `INPUT` with its extension replaced by `.mtsv`, beside it, unless named.
 It is kept as a folder of its sheets' files, each only appended to: a
 conversion adds the values the output does not yet hold, one conversion
 at a time, and the files joined in the order their names give are the
 MTSV file. Where the source is several inputs, as a recording holds one
 session after another, each is written to a folder of the output named
-by its integration, `DATE/SESSION` for Claude Code's recording. `-` is
-standard output, which gets the whole MTSV file.
+by its integration, `DATE/SESSION` for Claude Code's recording; such a
+source is read line by line, and how many lines are read is kept beside
+the output, in `.read`, so a conversion reads only the lines after them.
+`-` is standard output, which gets the whole MTSV file.
 
 Once converted, the source's files that its integration names as spent
 are removed; `-k`, or `--keep-files`, keeps them.
 
 `--add-context=HOST` converts what is new, then reads the host's hook
 input on standard input and writes to standard output the context that
-host's integration gives of the output, as MTSV.
+host's integration gives of the output, as MTSV. With it, every failure
+exits with status 1, never 2, which a hook reads as a blocking error.
 
 The command runs on Linux and macOS: one conversion at a time is kept by
 a POSIX file lock, which Windows does not have. The library runs on any
@@ -106,15 +111,16 @@ src/living_memory/
     anthropic/messages        the schema of what a model is given and generates, from the SDK's beta types
     anthropic/claude_code/raw_api_bodies
                               Claude Code's recording as input values, one input per session, one value
-                              per request, only what the request it extends does not hold; the files it
-                              has spent; the requests' tree grouped
+                              per request, only what the request it extends does not hold, only the
+                              lines not yet read; the files it has spent; the requests' tree grouped
     anthropic/claude_code/install
                               what Claude Code is told: to record, to run the conversion, and the context
                               of what the output holds
   command
     _rename         level 1   how a file is replaced whole: written beside its name, renamed onto it
-    _store          level 2   how the output is kept: its sheets' files, each only appended to, and how
-                              much of it a context has given
+    _store          level 2   how the output is kept: its sheets' files, each only appended to, its
+                              inputs, how many lines of its source are read, and how much of it a
+                              context has given
     _command        level 10  the command: a source read by its integration, written as MTSV
 tests/                        one file per module, and the conformance runner, which reads
                               ../conformance and so runs from a clone

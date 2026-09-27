@@ -75,15 +75,17 @@ class TestConvert(unittest.TestCase):
 
 
 def several(folder: Path) -> types.SimpleNamespace:
-    # A reader of two inputs, each with one value, whose spent file is
-    # the source file of its name.
+    # A reader of two lines, each an input with one value, whose spent
+    # file is the source file of its name.
     for name in ("a", "b"):
         Path(folder, name).write_text("x")
     return types.SimpleNamespace(
         schema=lambda: SCHEMA,
-        inputs=lambda path: ["d/a", "d/b"],
-        values=lambda path, name, held: [] if held else [b'{"n":1}'],
-        spent=lambda path, name, held: [Path(folder, name.split("/")[1])],
+        lines=lambda path, start: [(1, "a"), (2, "b")][start:],
+        inputs=lambda index, names: [f"d/{name}" for _, name in index],
+        values=lambda path, name, held, index: [] if held else [b'{"n":1}'],
+        read=lambda index, held, start: start + len(index),
+        spent=lambda path, name, held, index: [Path(folder, name.split("/")[1])],
     )
 
 
@@ -101,6 +103,19 @@ class TestInputs(unittest.TestCase):
                         Path(folder, "calls.mtsv", "d", name, "0 t.mtsv").exists()
                     )
                     self.assertFalse(Path(folder, name).exists())
+
+    # raw_api_bodies.mtsv › values.6: how many lines are read is kept
+    # beside the output, and the next conversion reads only those after.
+    def test_lines_read(self):
+        with tempfile.TemporaryDirectory() as folder:
+            reader = several(Path(folder))
+            reader.lines = mock.Mock(side_effect=reader.lines)
+            with mock.patch.object(integrations, "reader", return_value=reader):
+                self.assertEqual(run(f"{folder}/calls.x")[0], 0)
+                self.assertEqual(run(f"{folder}/calls.x")[0], 0)
+            read = Path(folder, "calls.mtsv", ".read").read_text()
+            self.assertEqual(read, "2\n")
+            self.assertEqual(reader.lines.call_args.args[1], 2)
 
     # GNU Coding Standards 4.10, keep-files: -k keeps the spent files.
     def test_keep_files(self):
@@ -132,6 +147,25 @@ class TestInputs(unittest.TestCase):
             self.assertEqual(seen["held"], [{"pointer": "/0", "n": "1"}])
             given = Path(folder, "calls.mtsv", "d", "a", ".context").read_text()
             self.assertEqual(given, "1\n")
+
+
+class TestHook(unittest.TestCase):
+    # install.mtsv › hooks.4: with --add-context a usage error exits
+    # with status 1, never 2, which from a hook would erase the prompt.
+    def test_status(self):
+        code, _, err = run("--add-context=claude-code", "missing.none")
+        self.assertEqual(code, 1)
+        self.assertIn("living-memory: ", err)
+
+    # Pandoc, Specifying formats: -f/--from names the reader, which is
+    # then not guessed; a name no integration reads is a usage error.
+    def test_from(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder, "calls.unknown")
+            with mock.patch.object(integrations, "named", return_value=READER) as named:
+                self.assertEqual(run("-f", "r", str(source))[0], 0)
+            named.assert_called_once_with("r")
+        self.assertEqual(run("--from=none", "x")[0], 2)
 
 
 class TestOptions(unittest.TestCase):

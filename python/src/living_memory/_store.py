@@ -1,6 +1,17 @@
 """The output kept as its sheets' files, each only appended to."""
 
-__all__ = ["append", "given", "held", "locked", "mark", "repair", "view"]
+__all__ = [
+    "append",
+    "given",
+    "held",
+    "inputs",
+    "locked",
+    "mark_given",
+    "mark_read",
+    "read",
+    "repair",
+    "view",
+]
 
 import fcntl
 from collections.abc import Iterator
@@ -22,6 +33,9 @@ _HEAD = 2
 # The file beside an output that holds how many of its input values a
 # context has given.
 _GIVEN = ".context"
+# The file beside an output that holds how many lines of its source have
+# been read.
+_READ = ".read"
 # Every sheet's file ends with this extension (MTSV draft, Media Type
 # Registration).
 _EXTENSION = ".mtsv"
@@ -97,17 +111,44 @@ def view(folder: Path) -> list[dict]:
     return found
 
 
+def inputs(folder: Path) -> list[str]:
+    # The names of the inputs an output holds, each the path of the
+    # folder of its sheets' files within the output.
+    if not folder.is_dir():
+        return []
+    found = {p.parent.relative_to(folder) for p in folder.rglob(f"*{_EXTENSION}")}
+    return sorted(str(p) for p in found if p != Path("."))
+
+
 def given(folder: Path) -> int:
     # How many of an output's input values a context has given.
-    path = folder / _GIVEN
+    return _count(folder / _GIVEN)
+
+
+def mark_given(folder: Path, count: int) -> None:
+    # A context has given the first count input values.
+    _mark(folder, _GIVEN, count)
+
+
+def read(folder: Path) -> int:
+    # How many lines of an output's source have been read.
+    return _count(folder / _READ)
+
+
+def mark_read(folder: Path, count: int) -> None:
+    # The first count lines of an output's source have been read.
+    _mark(folder, _READ, count)
+
+
+def _count(path: Path) -> int:
+    # A count kept in a file, 0 where there is none.
     return int(path.read_text("utf-8")) if path.exists() else 0
 
 
-def mark(folder: Path, count: int) -> None:
-    # A context has given the first count input values; the file is
-    # replaced whole.
+def _mark(folder: Path, name: str, count: int) -> None:
+    # A count kept beside an output, the file replaced whole.
     if folder.is_dir():
-        _rename.replace(folder / _GIVEN, f"{count}\n".encode("utf-8"))
+        _rename.replace(folder / name, f"{count}\n".encode("utf-8"))
 
 
 def _paths(folder: Path, names: list[str]) -> list[Path]:

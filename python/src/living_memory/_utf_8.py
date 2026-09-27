@@ -2,6 +2,8 @@
 
 __all__ = ["decode"]
 
+import re
+
 # Each row gives a lead byte of a UTF-8 sequence by its first and last
 # value, the number of tail bytes after it and the range of the byte
 # that follows it; every later tail byte is 0x80 to 0xBF (RFC 3629, 4.
@@ -18,6 +20,9 @@ _SEQUENCES = (
     (0xF4, 0xF4, 3, 0x80, 0x8F),
 )
 _TAIL = range(0x80, 0xC0)
+# A run of one-octet sequences, 0x00 to 0x7F, each octet its own code
+# point, US-ASCII (RFC 3629, 4. Syntax of UTF-8 Byte Sequences).
+_ONE_OCTET = re.compile(rb"[\x00-\x7f]+")
 
 
 def decode(data: bytes) -> str:
@@ -26,6 +31,11 @@ def decode(data: bytes) -> str:
     chars = []
     at = 0
     while at < len(data):
+        run = _ONE_OCTET.match(data, at)
+        if run:
+            chars.append(run.group().decode("ascii"))
+            at = run.end()
+            continue
         lead = data[at]
         for first, last, tails, low, high in _SEQUENCES:
             if first <= lead <= last:

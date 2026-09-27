@@ -11,6 +11,7 @@ __all__ = [
     "type",
 ]
 
+import re
 from typing import Any
 
 from living_memory import _utf_8
@@ -41,6 +42,10 @@ _ESCAPES = {
     "r": "\r",
     "t": "\t",
 }
+# The characters a string holds unescaped: every one but the quotation
+# mark, the reverse solidus and the control characters, U+0000 to U+001F
+# (RFC 8259, 7. Strings: unescaped = %x20-21 / %x23-5B / %x5D-10FFFF).
+_UNESCAPED = re.compile(r'[^"\\\x00-\x1f]+')
 _HEX_DIGITS = "0123456789abcdefABCDEF"
 _DIGITS = "0123456789"
 # U+10000 is the first code point beyond the Basic Multilingual Plane.
@@ -266,6 +271,10 @@ def _string(text: str, start: int) -> tuple[str, int]:
     chars = []
     at = start + 1
     while True:
+        run = _UNESCAPED.match(text, at)
+        if run:
+            chars.append(run.group())
+            at = run.end()
         char = text[at : at + 1]
         if not char:
             raise ValueError(f"the string at character {start} does not end")

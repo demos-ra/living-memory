@@ -11,17 +11,20 @@ import mtsv
 from living_memory import _json
 from living_memory.integrations.anthropic.claude_code import install as module
 
+FROM = "--from=anthropic/claude_code/raw_api_bodies"
 SETTINGS = (
     b'{\n  "hooks": {\n    "Stop": [\n      {\n        "hooks": []\n'
     b"      }\n    ]\n  }\n}\n"
 )
 
 
-def installed(home: str, options: list[str]) -> tuple[bytes, dict]:
-    # The user settings after two installs, the second adding nothing.
+def installed(home: str, options: list[str], fresh: bool = True) -> tuple[bytes, dict]:
+    # The user settings after two installs, the second adding nothing;
+    # fresh, the settings are first those of SETTINGS.
     settings = Path(home, ".claude", "settings.json")
     settings.parent.mkdir(exist_ok=True)
-    settings.write_bytes(SETTINGS)
+    if fresh:
+        settings.write_bytes(SETTINGS)
     environ = {"XDG_DATA_HOME": f"{home}/data", "CLAUDE_CONFIG_DIR": ""}
     with mock.patch.object(Path, "home", return_value=Path(home)):
         with mock.patch.dict(os.environ, environ):
@@ -34,9 +37,9 @@ def installed(home: str, options: list[str]) -> tuple[bytes, dict]:
 
 
 class TestInstall(unittest.TestCase):
-    # install.3, hooks.1-3: the capture variable and three matcher groups
-    # are added, what the settings held is kept, and a second install
-    # adds nothing.
+    # install.3, hooks.1-3, hooks.5: the capture variable and three
+    # matcher groups are added, each naming its reader, what the
+    # settings held is kept, and a second install adds nothing.
     def test_adds_once(self):
         with tempfile.TemporaryDirectory() as home:
             _, written = installed(home, [])
@@ -45,8 +48,10 @@ class TestInstall(unittest.TestCase):
                 written["env"]["OTEL_LOG_RAW_API_BODIES"], f"file:{folder}"
             )
             self.assertEqual(written["hooks"]["Stop"][0], {"hooks": []})
-            self.assertEqual(written["hooks"]["Stop"][1]["hooks"][0]["args"], [folder])
-            context = ["--add-context=claude-code", folder]
+            self.assertEqual(
+                written["hooks"]["Stop"][1]["hooks"][0]["args"], [FROM, folder]
+            )
+            context = [FROM, "--add-context=claude-code", folder]
             for event in ("SessionStart", "UserPromptSubmit"):
                 with self.subTest(event=event):
                     self.assertEqual(
@@ -63,6 +68,18 @@ class TestInstall(unittest.TestCase):
                     args = written["hooks"][event][-1]["hooks"][0]["args"]
                     self.assertEqual(args[0], "--keep-files")
 
+    # install.3: a group install added before is replaced where it
+    # stands, not added beside, and another group is kept.
+    def test_replaces_its_own(self):
+        with tempfile.TemporaryDirectory() as home:
+            installed(home, ["--keep-files"])
+            _, written = installed(home, [], fresh=False)
+            stop = written["hooks"]["Stop"]
+            self.assertEqual(len(stop), 2)
+            self.assertEqual(stop[0], {"hooks": []})
+            self.assertNotIn("--keep-files", stop[1]["hooks"][0]["args"])
+            self.assertEqual(len(written["hooks"]["UserPromptSubmit"]), 1)
+
     # capture.2: the user settings are in CLAUDE_CONFIG_DIR where it is
     # set.
     def test_config_dir(self):
@@ -75,9 +92,9 @@ class TestInstall(unittest.TestCase):
             with mock.patch.object(module.sys, "platform", "linux"):
                 self.assertEqual(module._data_home(), Path.home() / ".local" / "share")
 
-    # install.2, capture.3, install.5: the change is stated, the consent,
-    # the start at the next session and the files removed included; the
-    # question asks whether to keep them.
+    # install.2, capture.3, install.5: the change is stated, the
+    # consent, the start at the next session and the files removed
+    # included; the question asks whether to keep them.
     def test_change(self):
         with mock.patch.object(module.sys, "platform", "linux"):
             stated = module.change()
@@ -130,8 +147,8 @@ class TestContext(unittest.TestCase):
     NAMES = ["2026-09-27/s"]
 
     # context.1, context.4: from SessionStart, the store, its dates, the
-    # date's sessions grouped, and the session's sheet files and columns;
-    # every request given.
+    # date's sessions grouped, and the session's sheet files and
+    # columns; every request given.
     def test_start(self):
         text, marks = module.context(
             hook("SessionStart"), Path("/out"), self.NAMES, look(0)
@@ -184,6 +201,33 @@ class TestContext(unittest.TestCase):
             hook("UserPromptSubmit"), Path("/out"), self.NAMES, look(2)
         )
         self.assertEqual(nothing, "")
+
+    # context.5: requests that would pass the cap are given as their
+    # groups.
+    def test_cap(self):
+        many = [
+            dict(zip(HEADER, [f"/{i}", str(i + 1), "s", "q", "2026-09-27T01", "0"]))
+            for i in range(400)
+        ]
+        sheets_of = [{**SHEETS[0], "positions": list(range(400))}]
+
+        def outputs(name):
+            return {
+                "sheets": lambda: sheets_of,
+                "held": lambda: many,
+                "given": lambda: 0,
+            }
+
+        text, _ = module.context(
+            hook("UserPromptSubmit"), Path("/out"), self.NAMES, outputs
+        )
+        sheets = {s["sheet name"]: s for s in mtsv.loads(text)}
+        self.assertNotIn("raw_api_bodies", sheets)
+        self.assertEqual(
+            sheets["raw_api_bodies by session_id, query_source"]["records"],
+            [["s", "q", "400", "1", "400", "2026-09-27T01", "2026-09-27T01"]],
+        )
+        self.assertLessEqual(len(text), 10_000)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from typing import Any
 
 import mtsv
 
-from living_memory import _json, _json_schema, _rename
+from living_memory import _json, _rename
 from living_memory.integrations.anthropic.claude_code import raw_api_bodies
 
 # The host this integration installs into (install.mtsv › install.1).
@@ -26,6 +26,13 @@ _FOLDER = ("living-memory", "anthropic", "claude_code", "raw_api_bodies")
 _COMMAND = "living-memory"
 # The host's own word for adding context (install.mtsv › hooks.3).
 _ADD_CONTEXT = f"--add-context={HOST}"
+# The reader each hook names, the path of the module that reads the
+# recording, as its folder's name gives it (install.mtsv › hooks.5,
+# folder.3).
+_FROM = f"--from={'/'.join(_FOLDER[1:])}"
+# Added context is capped at 10,000 characters (install.mtsv ›
+# context.5).
+_CAP = 10_000
 # Where Claude Code keeps its home-directory files, and the user
 # settings file among them (install.mtsv › capture.2).
 _CONFIG = "CLAUDE_CONFIG_DIR"
@@ -40,8 +47,8 @@ _START = "SessionStart"
 _TURN = "UserPromptSubmit"
 # The source of a SessionStart after compaction (context.2).
 _COMPACT = "compact"
-# An input's name: its date, then '/', then its session (raw_api_bodies.mtsv
-# › values.7).
+# An input's name: its date, then '/', then its session
+# (raw_api_bodies.mtsv › values.7).
 _SEPARATOR = "/"
 # The columns of a group of requests (raw_api_bodies.mtsv › map.1).
 _GROUP = [
@@ -123,13 +130,13 @@ def context(hook_input: bytes, output: Path, names: list[str], look: Look) -> tu
 
     hook_input -- the hook's input, a JSON text
     output -- the output's folder
-    names -- the recording's inputs, as raw_api_bodies.inputs gives them
+    names -- the names of the inputs the output holds
     look -- what the command gives for an input's output
 
     From SessionStart, the map of the output; from UserPromptSubmit,
-    the session's requests not yet given; each as MTSV text, and for the
-    session's input how many of its requests have now been given
-    (install.mtsv › context.1-4).
+    the session's requests not yet given, grouped where they would pass
+    the cap; each as MTSV text, and for the session's input how many of
+    its requests have now been given (install.mtsv › context.1-5).
     """
     event = _json.decode(hook_input)
     this = raw_api_bodies.input_of(names, event["session_id"])
@@ -146,10 +153,12 @@ def context(hook_input: bytes, output: Path, names: list[str], look: Look) -> tu
 def _start(
     event: dict[str, Any], output: Path, names: list[str], this: str | None, look: Look
 ) -> list[dict[str, Any]]:
-    # The store, its requests by date, the sessions of the session's date
-    # grouped, and the session's own sheet files and their columns; after
-    # compaction, the lineage of its latest request (context.1, context.2).
+    # The store, its requests by date, the sessions of the session's
+    # date grouped, and the session's own sheet files and their columns;
+    # after compaction, the lineage of its latest request (context.1,
+    # context.2).
     held = {name: look(name)["held"]() for name in names}
+    names = sorted(names, key=lambda n: _first(held[n]))
     dates: dict[str, list[str]] = {}
     for name in names:
         dates.setdefault(name.split(_SEPARATOR)[0], []).append(name)
@@ -199,10 +208,17 @@ def _start(
     return sheets
 
 
+def _first(held: list[dict[str, str]]) -> int:
+    # The index line of an input's first value, by which inputs are in
+    # the order of their first values (raw_api_bodies.mtsv › values.7).
+    return int(held[0]["index_line"]) if held else 0
+
+
 def _turn(output: dict[str, Callable[[], Any]]) -> list[dict[str, Any]]:
-    # The session's requests not yet given, as the store holds them, and
-    # where their records are in each sheet file, counted from 1
-    # (context.3).
+    # The session's requests not yet given, as the store holds them, or
+    # their groups where they would pass the cap, and where their
+    # records are in each sheet file, counted from 1 (context.3,
+    # context.5).
     held = output["held"]()
     new = held[output["given"]() :]
     if not new:
@@ -221,14 +237,18 @@ def _turn(output: dict[str, Callable[[], Any]]) -> list[dict[str, Any]]:
                     str(places[-1]),
                 ]
             )
-    return [
-        _sheet("raw_api_bodies", list(new[0]), [list(r.values()) for r in new]),
-        _sheet(
-            "store by sheet",
-            ["file", "sheet name", "records", "first", "last"],
-            landed,
-        ),
-    ]
+    where = _sheet(
+        "store by sheet", ["file", "sheet name", "records", "first", "last"], landed
+    )
+    each = _sheet("raw_api_bodies", list(new[0]), [list(r.values()) for r in new])
+    if len(mtsv.dumps([each, where])) <= _CAP:
+        return [each, where]
+    grouped = _sheet(
+        "raw_api_bodies by session_id, query_source",
+        _GROUP,
+        raw_api_bodies.groups(new),
+    )
+    return [grouped, where]
 
 
 def _sheet(name: str, header: list[str], records: list[list[str]]) -> dict[str, Any]:
@@ -273,27 +293,43 @@ def _settings() -> Path:
 def _updated(
     settings: dict[str, Any], folder: Path, options: list[str]
 ) -> dict[str, Any]:
-    # The capture variable set, and each hook's matcher group added
-    # where the settings do not hold it (install.mtsv › capture.1,
-    # install.3).
+    # The capture variable set, and each hook's matcher group added, or
+    # put where the first group it added before stands, the others it
+    # added left out (install.mtsv › capture.1, install.3).
     env = {**settings.get("env", {}), _CAPTURE: f"file:{folder}"}
     hooks = dict(settings.get("hooks", {}))
     for event, group in _groups(folder, options).items():
         present = hooks.get(event, [])
-        if not any(_json_schema.equal(group, each) for each in present):
-            hooks[event] = [*present, group]
+        own = [_own(each, folder) for each in present]
+        others = [each for each, mine in zip(present, own) if not mine]
+        at = own.index(True) if True in own else len(others)
+        hooks[event] = [*others[:at], group, *others[at:]]
     return {**settings, "env": env, "hooks": hooks}
+
+
+def _own(group: dict[str, Any], folder: Path) -> bool:
+    # A group install added: one whose command hook runs living-memory
+    # on the recording's folder (install.mtsv › install.3).
+    return any(
+        hook.get("command") == _COMMAND and hook.get("args", [])[-1:] == [str(folder)]
+        for hook in group.get("hooks", [])
+    )
 
 
 def _groups(folder: Path, options: list[str]) -> dict[str, dict[str, Any]]:
     # Each group has no matcher, so it activates on every occurrence:
     # Stop converts the recording in the background; SessionStart and
-    # UserPromptSubmit give the context (install.mtsv › hooks.1-3).
-    convert = {"type": "command", "command": _COMMAND, "args": [*options, str(folder)]}
+    # UserPromptSubmit give the context; each names its reader
+    # (install.mtsv › hooks.1-3, hooks.5).
+    convert = {
+        "type": "command",
+        "command": _COMMAND,
+        "args": [*options, _FROM, str(folder)],
+    }
     add = {
         "type": "command",
         "command": _COMMAND,
-        "args": [*options, _ADD_CONTEXT, str(folder)],
+        "args": [*options, _FROM, _ADD_CONTEXT, str(folder)],
     }
     return {
         "Stop": {"hooks": [{**convert, "async": True}]},
