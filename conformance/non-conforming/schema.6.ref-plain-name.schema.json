@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"p":{"$ref":"#pair"}},"required":["p"],"additionalProperties":false,"definitions":{"pair":{"$id":"#pair","type":"object"}}}

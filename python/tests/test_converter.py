@@ -16,7 +16,7 @@ SCHEMA += b' "properties": {"s": {"type": "string"}}, "additionalProperties": fa
 
 
 class TestNonConformingError(unittest.TestCase):
-    # module.1: a module specification is rejected, naming the place in
+    # schema.9: a module specification is rejected, naming the place in
     # the schema.
     def test_module_specification(self):
         error = NonConformingError("the schema: a pattern", "/pattern")
@@ -28,7 +28,7 @@ class TestNonConformingError(unittest.TestCase):
             str(error), 'the schema: a pattern: the module specification, "/pattern"'
         )
 
-    # value.3: an input value is rejected, naming its position and the
+    # value.10: an input value is rejected, naming its position and the
     # place within it.
     def test_input(self):
         error = NonConformingInputError("an assertion fails", 1, "/s")
@@ -53,7 +53,7 @@ class TestConvert(unittest.TestCase):
         self.assertEqual(text, "\ft\npointer\ts\n/0\ta\n/1\tb\n")
         self.assertEqual(convert([], SCHEMA), "")
 
-    # value.1: a part of an input keeps its values' positions in the
+    # value.2: a part of an input keeps its values' positions in the
     # whole input; sheets names every sheet the schema gives, in order.
     def test_parts(self):
         self.assertEqual(
@@ -61,7 +61,8 @@ class TestConvert(unittest.TestCase):
         )
         self.assertEqual(sheets(SCHEMA), ["t", "runs"])
 
-    # value.3: an input value is rejected by its position and place.
+    # value.9, value.10: an input value is rejected by its position and
+    # place.
     def test_input_rejected(self):
         with self.assertRaises(NonConformingInputError) as raised:
             convert([b'{"s": "a"}', b'{"s": 1}'], SCHEMA)
@@ -69,7 +70,7 @@ class TestConvert(unittest.TestCase):
             (raised.exception.position, raised.exception.pointer), (1, "/s")
         )
 
-    # module.1, module.2: a schema is rejected at its place.
+    # schema.1-9: a schema is rejected at its place.
     def test_schema_placed(self):
         cases = [
             (
@@ -92,7 +93,7 @@ class TestConvert(unittest.TestCase):
                 self.assertNotIsInstance(raised.exception, NonConformingInputError)
                 self.assertEqual(raised.exception.pointer, expected)
 
-    # field.3: what is not carried is a warning on this module's logger,
+    # field.5: what is not carried is a warning on this module's logger,
     # its pointer as a JSON string.
     def test_not_carried_logged(self):
         with self.assertLogs(_converter.__name__, "WARNING") as logged:

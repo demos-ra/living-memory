@@ -36,6 +36,15 @@ class TestRecords(unittest.TestCase):
         )
 
 
+class TestDepth(unittest.TestCase):
+    # value.3: the instances of a value of any depth are walked.
+    def test_any_depth(self):
+        value: list = []
+        for _ in range(5000):
+            value = [value]
+        self.assertEqual(len(module.instances(value)), 5001)
+
+
 class TestColumns(unittest.TestCase):
     # order.3: the key columns first, then the simple domains.
     def test_keys_first(self):

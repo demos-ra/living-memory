@@ -63,8 +63,13 @@ def members(value: Any) -> list[tuple[str | int, Any]]:
 def instances(value: Any) -> list[tuple[tuple[str | int, ...], Any]]:
     # Each instance within a value, the value itself first, and an
     # instance before the instances within it, each with the tokens
-    # that lead to it (spec › order.2).
-    found: list[tuple[tuple[str | int, ...], Any]] = [((), value)]
-    for token, child in members(value):
-        found += [((token, *tokens), inner) for tokens, inner in instances(child)]
+    # that lead to it; the places still to visit are kept in a list, so
+    # any depth of nesting is walked (spec › order.2, value.3).
+    found: list[tuple[tuple[str | int, ...], Any]] = []
+    waiting: list[tuple[tuple[str | int, ...], Any]] = [((), value)]
+    while waiting:
+        tokens, instance = waiting.pop()
+        found.append((tokens, instance))
+        inner = [((*tokens, token), child) for token, child in members(instance)]
+        waiting += reversed(inner)
     return found

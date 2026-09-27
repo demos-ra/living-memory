@@ -27,8 +27,7 @@ class TestAppend(unittest.TestCase):
 
 class TestRepair(unittest.TestCase):
     # A line not ended, and a record of a value the sheet of the input
-    # values does not hold, are left out; that sheet's records are
-    # returned.
+    # values does not hold, are left out.
     def test_repair(self):
         with tempfile.TemporaryDirectory() as folder:
             store = Path(folder)
@@ -36,16 +35,31 @@ class TestRepair(unittest.TestCase):
             (store / "1 t.a.mtsv").write_text(
                 "\ft.a\nparent\tpointer\n/0\t/0/a/0\n/1\t/1/a/0\n"
             )
-            self.assertEqual(module.repair(store, NAMES), [{"pointer": "/0"}])
+            module.repair(store, NAMES)
             self.assertEqual((store / "0 t.mtsv").read_text(), "\ft\npointer\n/0\n")
             self.assertEqual(
                 (store / "1 t.a.mtsv").read_text(),
                 "\ft.a\nparent\tpointer\n/0\t/0/a/0\n",
             )
 
-    def test_empty(self):
+    # A file left with less than its FF line and header is left empty.
+    def test_header_not_ended(self):
         with tempfile.TemporaryDirectory() as folder:
-            self.assertEqual(module.repair(Path(folder), NAMES), [])
+            store = Path(folder)
+            (store / "0 t.mtsv").write_text("\ft\npoin")
+            module.repair(store, NAMES)
+            self.assertEqual((store / "0 t.mtsv").read_text(), "")
+
+
+class TestHeld(unittest.TestCase):
+    # The records of the sheet of the input values, by the header's
+    # names; none where the output holds none.
+    def test_held(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder)
+            self.assertEqual(module.held(store, NAMES), [])
+            (store / "0 t.mtsv").write_text("\ft\npointer\n/0\n")
+            self.assertEqual(module.held(store, NAMES), [{"pointer": "/0"}])
 
 
 class TestLocked(unittest.TestCase):

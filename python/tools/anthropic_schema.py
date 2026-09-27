@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 # The kept parts: the beta request's system, tools and messages, and the
-# beta response's content, each in the class that holds it (register ›
-# Anthropic › messages).
+# beta response's content, each in the class that holds it
+# (messages.mtsv › kept.1, schema.1).
 ROOTS = (
     ("types/beta/message_create_params.py", "MessageCreateParamsBase", "system"),
     ("types/beta/message_create_params.py", "MessageCreateParamsBase", "tools"),

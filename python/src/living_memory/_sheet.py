@@ -7,7 +7,7 @@ from living_memory._relation import Relation, Segment
 
 # These sheets are named by their own name alone: the sheet of the input
 # values, a kind's, the sheet of instances and the sheet of runs (spec ›
-# sheet.1).
+# sheet.1-3).
 _OWN = ("root", "kind", "instances", "runs")
 
 
@@ -20,13 +20,13 @@ def name(path: tuple[Relation, ...]) -> str:
     # name, a keyword with its pattern or position where it holds
     # several, or a subschema's keyword with its title, else a
     # dependency's key, else its position where the keyword holds
-    # several (spec › sheet.1).
+    # several (spec › sheet.1-4).
     return _name(_relation.segment(path[-1]), path[:-1])
 
 
 def _name(segment: Segment, above: tuple[Relation, ...]) -> str:
     # A branch of a location placed branch by branch is named after
-    # that location, as its sheet would be named.
+    # that location, as its sheet would be named (spec › sheet.4).
     if segment.kind in _OWN:
         return segment.name
     if segment.within is not None:
@@ -46,7 +46,7 @@ def _name(segment: Segment, above: tuple[Relation, ...]) -> str:
 def header(one: Relation) -> list[str]:
     # Each column is labelled with the name of its domain, a key column
     # by its own name (Codd, 1.3. A Relational View of Data; spec ›
-    # sheet.2).
+    # sheet.5).
     return [
         column if isinstance(column, str) else column.label
         for column in _order.columns(_relation.keys(one), _relation.domains(one))

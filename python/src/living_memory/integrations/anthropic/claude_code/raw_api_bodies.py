@@ -28,8 +28,12 @@ _Unit = tuple[str, str, Any]
 
 
 def schema() -> bytes:
-    # A value names its unit and holds it under the member that holds it
-    # (raw_api_bodies.mtsv › values.1, values.2).
+    """Return the schema of the input values, as a JSON text.
+
+    A value names its unit, by its conversation, its pointer in the
+    request, its version, from and line, and holds the unit under the
+    member that holds it (raw_api_bodies.mtsv › values.1, values.2).
+    """
     count = {"type": "integer", "minimum": Number("0")}
     root = {
         "title": _TITLE,
@@ -56,9 +60,17 @@ def schema() -> bytes:
 
 
 def values(path: Path, held: list[dict[str, str]] | None) -> Iterator[bytes]:
-    # Each kept unit once, in the order its conversation first gives it,
-    # from the index lines after the last one held, until a line whose
-    # files are not yet written (raw_api_bodies.mtsv › values.1-4).
+    """Yield the input values of a recording, each a JSON text.
+
+    path -- the recording's folder, which holds index.jsonl
+    held -- the records of the output's sheet of the input values, each
+        by its header's names, or None where the output holds none
+
+    Each kept unit once, in the order its conversation first gives it,
+    from the index lines after the last one held, until a line whose
+    files are not yet written (raw_api_bodies.mtsv › recording.4,
+    recording.5, values.1-6).
+    """
     lines = _index(path)
     after = max((int(record["line"]) for record in held or []), default=0)
     versions = _versions(held or [])
@@ -108,7 +120,8 @@ def _file(entry: dict[str, Any], field: str, path: Path) -> Path:
 
 def _bodies(entry: dict[str, Any], path: Path) -> tuple[Any, Any] | None:
     # A line's request and response, or None where a file it names is
-    # not yet written (raw_api_bodies.mtsv › recording.4).
+    # not yet written; a line that names no request file has none
+    # (raw_api_bodies.mtsv › recording.4, recording.5).
     files = [
         _file(entry, f, path) for f in ("request_file", "response_file") if f in entry
     ]
@@ -121,8 +134,9 @@ def _bodies(entry: dict[str, Any], path: Path) -> tuple[Any, Any] | None:
 def _units(request: dict[str, Any], response: dict[str, Any]) -> list[_Unit]:
     # The request's system blocks, or its system prompt where it is a
     # string, its tools and its messages, each by its JSON Pointer; then
-    # the response's content, as the message that follows (RFC 6901;
-    # raw_api_bodies.mtsv › values.1).
+    # the response's content, as the message that follows, each unit as
+    # the bodies hold it (RFC 6901; raw_api_bodies.mtsv › recording.2,
+    # values.1).
     units: list[_Unit] = []
     for member in _REQUEST:
         held = request.get(member)
@@ -140,8 +154,8 @@ def _units(request: dict[str, Any], response: dict[str, Any]) -> list[_Unit]:
 def _held(given: _Unit, previous: list[_Unit]) -> bool:
     # A unit equal to the one the conversation's last request or
     # response gave at its pointer is held; a message re-sent after a
-    # response is compared by its content (raw_api_bodies.mtsv ›
-    # values.3).
+    # response is compared by its role and content (raw_api_bodies.mtsv
+    # › values.3, values.4).
     member, pointer, unit = given
     for earlier_member, earlier_pointer, earlier in previous:
         if earlier_pointer != pointer:
@@ -157,7 +171,7 @@ def _held(given: _Unit, previous: list[_Unit]) -> bool:
 
 def _versions(held: list[dict[str, str]]) -> dict[tuple[str, str, str], int]:
     # The latest version held at each address (raw_api_bodies.mtsv ›
-    # values.2).
+    # values.2, values.5).
     found: dict[tuple[str, str, str], int] = {}
     for record in held:
         key = (record["session_id"], record["query_source"], record["request.pointer"])
@@ -170,7 +184,7 @@ def _last(
 ) -> dict[tuple[str, str], list[_Unit]]:
     # Each conversation's last request and response up to the last line
     # held, read again, so the first new line is compared with them
-    # (raw_api_bodies.mtsv › values.3).
+    # (raw_api_bodies.mtsv › values.6).
     latest: dict[tuple[str, str], dict[str, Any]] = {}
     for number, entry in lines:
         if number <= after and "request_file" in entry:

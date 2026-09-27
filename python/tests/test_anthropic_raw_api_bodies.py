@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from living_memory import _json, _module
+from living_memory import _json, _schema
 from living_memory.integrations.anthropic.claude_code import raw_api_bodies as module
 
 INDEX = [
@@ -41,7 +41,7 @@ def given(path: Path, held=None) -> list[tuple]:
 
 
 class TestValues(unittest.TestCase):
-    # values.1-3, recording.4: each unit once, in order; a line with no
+    # values.1-4, recording.5: each unit once, in order; a line with no
     # request file gives none; the re-sent message and the response it
     # was are one unit.
     def test_once(self):
@@ -58,7 +58,7 @@ class TestValues(unittest.TestCase):
                 ],
             )
 
-    # values.3: a unit changed at its pointer is its next version.
+    # values.5: a unit changed at its pointer is its next version.
     def test_version(self):
         with tempfile.TemporaryDirectory() as folder:
             path = recording(Path(folder), INDEX)
@@ -66,7 +66,7 @@ class TestValues(unittest.TestCase):
             (path / "2.request.json").write_bytes(changed)
             self.assertIn(("/messages/0", "1", "3", "3"), given(path))
 
-    # values.4: only the lines after the last one held; the first new
+    # values.6: only the lines after the last one held; the first new
     # line compared with its conversation's last held request.
     def test_only_new(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -98,7 +98,7 @@ class TestValues(unittest.TestCase):
 class TestSchema(unittest.TestCase):
     # values.2: the spine's names are required, and the core reads it.
     def test_schema(self):
-        root = _module.read(module.schema())
+        root = _schema.read(module.schema())
         self.assertEqual(root["title"], "raw_api_bodies")
         self.assertEqual(
             root["required"],

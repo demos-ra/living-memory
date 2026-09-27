@@ -10,7 +10,7 @@ from living_memory._json_pointer import PlacedError
 
 # The keywords that apply subschemas, to child locations and to the same
 # location, in the order JSON Schema Validation defines them (spec ›
-# module.2).
+# schema.12).
 _TAKEN = (
     "items",
     "additionalItems",
@@ -32,15 +32,117 @@ _LIST = ("allOf", "anyOf", "oneOf")
 # Subschemas Conditionally; 6.7. Keywords for Applying Subschemas With
 # Boolean Logic).
 _SAME = ("dependencies", "if", "then", "else", "allOf", "anyOf", "oneOf", "not")
+# The draft-07 metaschema, written out from draft-07-schema.json: what a
+# schema of draft-07 is (JSON Schema; spec › schema.1).
+_REFERENCE = {"$ref": "#"}
+_NON_NEGATIVE = {"$ref": "#/definitions/nonNegativeInteger"}
+_NON_NEGATIVE_0 = {"$ref": "#/definitions/nonNegativeIntegerDefault0"}
+_SCHEMA_ARRAY = {"$ref": "#/definitions/schemaArray"}
+_SCHEMA_OBJECT = {"type": "object", "additionalProperties": _REFERENCE, "default": {}}
+_METASCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://json-schema.org/draft-07/schema#",
+    "title": "Core schema meta-schema",
+    "definitions": {
+        "schemaArray": {"type": "array", "minItems": 1, "items": _REFERENCE},
+        "nonNegativeInteger": {"type": "integer", "minimum": 0},
+        "nonNegativeIntegerDefault0": {"allOf": [_NON_NEGATIVE, {"default": 0}]},
+        "simpleTypes": {
+            "enum": [
+                "array",
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "object",
+                "string",
+            ]
+        },
+        "stringArray": {
+            "type": "array",
+            "items": {"type": "string"},
+            "uniqueItems": True,
+            "default": [],
+        },
+    },
+    "type": ["object", "boolean"],
+    "properties": {
+        "$id": {"type": "string", "format": "uri-reference"},
+        "$schema": {"type": "string", "format": "uri"},
+        "$ref": {"type": "string", "format": "uri-reference"},
+        "$comment": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "default": True,
+        "readOnly": {"type": "boolean", "default": False},
+        "writeOnly": {"type": "boolean", "default": False},
+        "examples": {"type": "array", "items": True},
+        "multipleOf": {"type": "number", "exclusiveMinimum": 0},
+        "maximum": {"type": "number"},
+        "exclusiveMaximum": {"type": "number"},
+        "minimum": {"type": "number"},
+        "exclusiveMinimum": {"type": "number"},
+        "maxLength": _NON_NEGATIVE,
+        "minLength": _NON_NEGATIVE_0,
+        "pattern": {"type": "string", "format": "regex"},
+        "additionalItems": _REFERENCE,
+        "items": {"anyOf": [_REFERENCE, _SCHEMA_ARRAY], "default": True},
+        "maxItems": _NON_NEGATIVE,
+        "minItems": _NON_NEGATIVE_0,
+        "uniqueItems": {"type": "boolean", "default": False},
+        "contains": _REFERENCE,
+        "maxProperties": _NON_NEGATIVE,
+        "minProperties": _NON_NEGATIVE_0,
+        "required": {"$ref": "#/definitions/stringArray"},
+        "additionalProperties": _REFERENCE,
+        "definitions": _SCHEMA_OBJECT,
+        "properties": _SCHEMA_OBJECT,
+        "patternProperties": {**_SCHEMA_OBJECT, "propertyNames": {"format": "regex"}},
+        "dependencies": {
+            "type": "object",
+            "additionalProperties": {
+                "anyOf": [_REFERENCE, {"$ref": "#/definitions/stringArray"}]
+            },
+        },
+        "propertyNames": _REFERENCE,
+        "const": True,
+        "enum": {"type": "array", "items": True, "minItems": 1, "uniqueItems": True},
+        "type": {
+            "anyOf": [
+                {"$ref": "#/definitions/simpleTypes"},
+                {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/simpleTypes"},
+                    "minItems": 1,
+                    "uniqueItems": True,
+                },
+            ]
+        },
+        "format": {"type": "string"},
+        "contentMediaType": {"type": "string"},
+        "contentEncoding": {"type": "string"},
+        "if": _REFERENCE,
+        "then": _REFERENCE,
+        "else": _REFERENCE,
+        "allOf": _SCHEMA_ARRAY,
+        "anyOf": _SCHEMA_ARRAY,
+        "oneOf": _SCHEMA_ARRAY,
+        "not": _REFERENCE,
+    },
+    "default": True,
+}
 
 
 def read(schema: bytes) -> Any:
-    # The schema is a JSON text whose root schema holds a title; every
-    # name it gives a sheet or a column is text a field can hold, every
-    # pattern is of the subset, and every $ref resolves within it to a
-    # schema other than the root, and runs into no loop (spec ›
-    # module.1, module.2).
+    # The schema is a JSON text and a schema of draft-07, whose root
+    # schema holds a title; every name it gives a sheet or a column is
+    # text a field can hold, every pattern is of the subset, and every
+    # $ref resolves within it by a JSON Pointer to a schema other than
+    # the root, and runs into no loop (spec › schema.1-9).
     root = _json.decode(schema)
+    if not _json_schema.validates(root, _METASCHEMA, _METASCHEMA):
+        place = _json_schema.locate(root, _METASCHEMA, _METASCHEMA)
+        raise PlacedError("not a schema of draft-07", place)
     if _json.type(root) != "object" or "title" not in root:
         raise PlacedError("the root schema holds no title", "")
     _check(root, root, "")
@@ -52,7 +154,7 @@ def resolve(schema: Any, root: Any, at: str) -> tuple[Any, str]:
     # A $ref is read as the schema it references, at that schema's
     # pointer, its other members ignored; true is the empty schema (JSON
     # Schema, 4.3.1. JSON Schema Values and Keywords; 8.3. Schema
-    # References With "$ref"; spec › module.2).
+    # References With "$ref"; spec › schema.11).
     while isinstance(schema, dict) and "$ref" in schema:
         schema, at = _json_schema.resolve(schema["$ref"], root)
     return ({} if schema is True else schema), at
@@ -69,7 +171,7 @@ def taken(schema: dict[str, Any], at: str) -> list[tuple[str, Any, Any, str]]:
     # names applies no subschema (JSON Schema Validation, 6.4.1.
     # items; 6.4.2. additionalItems; 6.5.6. additionalProperties; 6.5.7.
     # dependencies; 6.6. Keywords for Applying Subschemas Conditionally;
-    # spec › module.2).
+    # spec › schema.12).
     found: list[tuple[str, Any, Any]] = []
     items = schema.get("items", True)
     for keyword in _TAKEN:
@@ -130,7 +232,7 @@ def _check(schema: Any, root: Any, at: str) -> None:
 
 def _loops(schema: Any, root: Any, at: str) -> None:
     # Every $ref is followed through the subschemas applied to the same
-    # instance location (spec › module.1).
+    # instance location (spec › schema.8).
     if isinstance(schema, dict) and "$ref" in schema:
         _loop(schema, root, (at,))
     for child_at, child in _json_schema.subschemas(schema, at):
@@ -141,7 +243,7 @@ def _loop(schema: Any, root: Any, path: tuple[str, ...]) -> None:
     # A schema must not be run into an infinite loop against a schema:
     # a $ref that reaches again, at the same instance location, a
     # schema it is applied from is placed by that $ref (JSON Schema,
-    # 8.3. Schema References With "$ref"; spec › module.1).
+    # 8.3. Schema References With "$ref"; spec › schema.8).
     if not isinstance(schema, dict):
         return
     at = path[-1]
@@ -159,10 +261,10 @@ def _loop(schema: Any, root: Any, path: tuple[str, ...]) -> None:
 
 
 def _reference(reference: str, root: Any, at: str) -> None:
-    # A $ref resolves within the schema to a schema other than the
-    # root, which is the sheet of the input values and no kind; its
-    # last reference token may name the kind's sheet (spec › module.1,
-    # module.2, relation.1, sheet.1).
+    # A $ref resolves within the schema, by a JSON Pointer, to a schema
+    # other than the root, which is the sheet of the input values and no
+    # kind; its last reference token may name the kind's sheet (spec ›
+    # schema.3, schema.5, schema.6, schema.7, sheet.2).
     try:
         _, ref_at = _json_schema.resolve(reference, root)
     except ValueError as error:
@@ -175,7 +277,7 @@ def _reference(reference: str, root: Any, at: str) -> None:
 def _name(text: Any, at: str) -> None:
     # A title, a property's name, a key of patternProperties or
     # dependencies and the last reference token of a $ref are text a
-    # field can hold (MTSV draft, Generators; spec › module.1).
+    # field can hold (MTSV draft, Generators; spec › schema.3).
     if _json.type(text) != "string" or _separators.cannot_hold(text):
         raise PlacedError(f"{text!r} is not a name a field can hold", at)
 

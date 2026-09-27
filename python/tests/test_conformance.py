@@ -57,7 +57,7 @@ def cases(folder: str) -> list[Path]:
 def in_two_parts(case: Path) -> list[dict]:
     # The values before the middle, then the rest, each part converted
     # with its values' positions in the whole input, and their sheets
-    # appended sheet by sheet in the file's order (value.1).
+    # appended sheet by sheet in the file's order (value.2).
     lines = case.read_bytes().split(b"\n")
     values = lines[:-1] if lines[-1] == b"" else lines
     schema = case.with_suffix(".schema.json").read_bytes()

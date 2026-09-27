@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -38,22 +38,31 @@ _QUANTIFIERS = {"*": (0, math.inf), "+": (1, math.inf), "?": (0, 1)}
 _OUTSIDE = ".\\]}"
 _DIGITS = "0123456789"
 
+# A check yields each part of the value it applies a subschema to, with
+# that subschema, and is sent back whether the part validates.
+_Check = Generator[tuple[Any, Any], bool, bool]
+
 
 def validates(instance: Any, schema: Any, root: Any) -> bool:
     # A schema is true, false or an object; a $ref is used in its place,
     # its other members ignored; every assertion applies, and format and
-    # the content keywords are not asserted (JSON Schema, 4.3.1. JSON
-    # Schema Values and Keywords; 8.3. Schema References With "$ref";
-    # spec › module.2, value.3).
-    if schema is True or schema is False:
-        return schema
-    if "$ref" in schema:
-        return validates(instance, resolve(schema["$ref"], root)[0], root)
-    return all(
-        keyword(instance, schema, root)
-        for name, keyword in _KEYWORDS.items()
-        if name in schema
-    )
+    # the content keywords are not asserted. Each part a keyword applies
+    # a subschema to is kept in a list of checks still open, so any
+    # depth of nesting is validated (JSON Schema, 4.3.1. JSON Schema
+    # Values and Keywords; 8.3. Schema References With "$ref"; spec ›
+    # schema.11, schema.13, schema.15, value.3, value.9).
+    checks: list[_Check] = [_valid(instance, schema, root)]
+    answer: bool | None = None
+    while checks:
+        try:
+            part, subschema = checks[-1].send(answer)
+        except StopIteration as done:
+            checks.pop()
+            answer = done.value
+            continue
+        checks.append(_valid(part, subschema, root))
+        answer = None
+    return bool(answer)
 
 
 def locate(instance: Any, schema: Any, root: Any) -> str:
@@ -61,33 +70,45 @@ def locate(instance: Any, schema: Any, root: Any) -> str:
     # deepest instance location where an assertion fails: a child
     # location whose subschema fails, else a failing subschema allOf
     # applies here, else this location (JSON Schema Validation, 3.1.
-    # Applicability; spec › value.3).
-    def deepest(instance: Any, schema: Any, at: str) -> str:
+    # Applicability; spec › value.10).
+    at = ""
+    while True:
         if schema is False:
             return at
         if "$ref" in schema:
-            return deepest(instance, resolve(schema["$ref"], root)[0], at)
-        for token, child, child_schema in _applied(instance, schema):
-            if not validates(child, child_schema, root):
-                child_at = _json_pointer.pointer(at, token)
-                return deepest(child, child_schema, child_at)
-        for child_schema in schema.get("allOf", []):
-            if not validates(instance, child_schema, root):
-                return deepest(instance, child_schema, at)
-        return at
-
-    return deepest(instance, schema, "")
+            schema = resolve(schema["$ref"], root)[0]
+            continue
+        failing = [
+            (token, child, child_schema)
+            for token, child, child_schema in _applied(instance, schema)
+            if not validates(child, child_schema, root)
+        ]
+        if failing:
+            token, instance, schema = failing[0]
+            at = _json_pointer.pointer(at, token)
+            continue
+        branches = [
+            s for s in schema.get("allOf", []) if not validates(instance, s, root)
+        ]
+        if not branches:
+            return at
+        schema = branches[0]
 
 
 def resolve(reference: str, root: Any) -> tuple[Any, str]:
     # A reference resolves within the one schema given, to the schema
-    # and its pointer (JSON Schema, 8.3.1. Loading a referenced schema;
-    # 8.3.2. Dereferencing; spec › module.2).
+    # and its pointer, its fragment a JSON Pointer (JSON Schema, 8.3.1.
+    # Loading a referenced schema; 8.3.2. Dereferencing; spec ›
+    # schema.5, schema.6, schema.11).
     base, _, fragment = reference.partition("#")
     if base:
         raise ValueError(f"$ref {reference!r} is outside the supplied schema")
     try:
-        return _json_pointer.evaluate(root, fragment), fragment
+        at = _json_pointer.from_fragment(fragment)
+    except ValueError as error:
+        raise ValueError(f"$ref {reference!r}: {error}") from None
+    try:
+        return _json_pointer.evaluate(root, at), at
     except (KeyError, IndexError, ValueError, TypeError):
         raise ValueError(f"$ref {reference!r} resolves to no schema") from None
 
@@ -95,7 +116,7 @@ def resolve(reference: str, root: Any) -> tuple[Any, str]:
 def covers(name: str, schema: dict[str, Any]) -> bool:
     # A schema covers a member that its properties names or a pattern
     # of its patternProperties matches (JSON Schema Validation, 6.5.4.
-    # properties; 6.5.5. patternProperties; spec › relation.5).
+    # properties; 6.5.5. patternProperties; spec › relation.16).
     return name in schema.get("properties", {}) or any(
         search(pattern, name) for pattern in schema.get("patternProperties", {})
     )
@@ -136,7 +157,7 @@ def compile_pattern(pattern: str) -> _Group:
     # complemented character classes and ranges, the quantifiers, the
     # anchors ^ and $, and simple grouping and alternation; any other
     # token is refused (JSON Schema Validation, 4.3. Regular
-    # Expressions; spec › module.1).
+    # Expressions; spec › schema.4).
     group, at = _alternation(pattern, 0)
     if at < len(pattern):
         raise ValueError(f"an unmatched ) in {pattern!r}")
@@ -149,6 +170,50 @@ def search(pattern: str, text: str) -> bool:
     # 4.3. Regular Expressions; 6.3.3. pattern).
     group = compile_pattern(pattern)
     return bool(group.step(text, frozenset(range(len(text) + 1))))
+
+
+def equal(one: Any, other: Any) -> bool:
+    # Two instances are equal when of the same type and value, numbers
+    # by their mathematical value, arrays item by item and objects
+    # member by member; the pairs still to compare are kept in a list,
+    # so any depth of nesting is compared (JSON Schema, 4.2.3. Instance
+    # Equality; spec › value.3).
+    waiting = [(one, other)]
+    while waiting:
+        one, other = waiting.pop()
+        found = _json.type(one)
+        if found != _json.type(other):
+            return False
+        if found == "number":
+            if Decimal(one) != Decimal(other):
+                return False
+        elif found == "array":
+            if len(one) != len(other):
+                return False
+            waiting += zip(one, other)
+        elif found == "object":
+            if one.keys() != other.keys():
+                return False
+            waiting += [(one[name], other[name]) for name in one]
+        elif one != other:
+            return False
+    return True
+
+
+def _valid(instance: Any, schema: Any, root: Any) -> _Check:
+    # One schema's check of one instance: its own assertions, then each
+    # keyword that applies a subschema, yielding each part it applies.
+    if schema is True or schema is False:
+        return schema
+    if "$ref" in schema:
+        return (yield instance, resolve(schema["$ref"], root)[0])
+    for name, assertion in _ASSERTIONS.items():
+        if name in schema and not assertion(instance, schema):
+            return False
+    for name, applicator in _APPLICATORS.items():
+        if name in schema and not (yield from applicator(instance, schema)):
+            return False
+    return True
 
 
 def _applied(instance: Any, schema: dict[str, Any]) -> list[tuple[Any, Any, Any]]:
@@ -187,24 +252,6 @@ def _member_schemas(name: str, schema: dict[str, Any]) -> list[Any]:
     return found
 
 
-def equal(one: Any, other: Any) -> bool:
-    # Two instances are equal when of the same type and value, numbers
-    # by their mathematical value (JSON Schema, 4.2.3. Instance
-    # Equality).
-    found = _json.type(one)
-    if found != _json.type(other):
-        return False
-    if found == "number":
-        return Decimal(one) == Decimal(other)
-    if found == "array":
-        return len(one) == len(other) and all(map(equal, one, other))
-    if found == "object":
-        return one.keys() == other.keys() and all(
-            equal(one[name], other[name]) for name in one
-        )
-    return one == other
-
-
 def _is(instance: Any, kind: str) -> bool:
     # An assertion on a type other than the instance's always succeeds
     # (JSON Schema Validation, 3.2.1. Assertions and Instance Primitive
@@ -212,7 +259,7 @@ def _is(instance: Any, kind: str) -> bool:
     return _json.type(instance) == kind
 
 
-def _type(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _type(instance: Any, schema: dict[str, Any]) -> bool:
     # The type integer matches any number with a zero fractional part
     # (JSON Schema Validation, 6.1.1. type).
     names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
@@ -222,71 +269,48 @@ def _type(instance: Any, schema: dict[str, Any], root: Any) -> bool:
     return found in names
 
 
-def _enum(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _enum(instance: Any, schema: dict[str, Any]) -> bool:
     return any(equal(instance, element) for element in schema["enum"])
 
 
-def _const(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _const(instance: Any, schema: dict[str, Any]) -> bool:
     return equal(instance, schema["const"])
 
 
-def _multiple_of(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _multiple_of(instance: Any, schema: dict[str, Any]) -> bool:
     return not _is(instance, "number") or (
         Decimal(instance) % Decimal(schema["multipleOf"]) == 0
     )
 
 
 def _bound(name: str, holds: Callable[[Decimal, Decimal], bool]) -> Callable:
-    def keyword(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+    def assertion(instance: Any, schema: dict[str, Any]) -> bool:
         return not _is(instance, "number") or holds(
             Decimal(instance), Decimal(schema[name])
         )
 
-    return keyword
+    return assertion
 
 
 def _length(name: str, holds: Callable[[int, Decimal], bool]) -> Callable:
     # A length counts a string's characters, and a count an array's
     # elements or an object's properties (JSON Schema Validation, 6.3.1.
     # maxLength; 6.4.3. maxItems; 6.5.1. maxProperties).
-    def keyword(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+    def assertion(instance: Any, schema: dict[str, Any]) -> bool:
         kind = {"Length": "string", "Items": "array", "Properties": "object"}
         applies = next(kind[end] for end in kind if name.endswith(end))
         return not _is(instance, applies) or holds(len(instance), Decimal(schema[name]))
 
-    return keyword
+    return assertion
 
 
-def _pattern(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _pattern(instance: Any, schema: dict[str, Any]) -> bool:
     # A pattern is not implicitly anchored (JSON Schema Validation,
     # 6.3.3. pattern).
     return not _is(instance, "string") or search(schema["pattern"], instance)
 
 
-def _items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    # A schema applies to every element, and an array of schemas each to
-    # the element at its position (JSON Schema Validation, 6.4.1.
-    # items).
-    if not _is(instance, "array"):
-        return True
-    items = schema["items"]
-    if isinstance(items, list):
-        return all(validates(e, s, root) for e, s in zip(instance, items))
-    return all(validates(element, items, root) for element in instance)
-
-
-def _additional_items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    # additionalItems applies only where items is an array of schemas,
-    # to the elements beyond it (JSON Schema Validation, 6.4.2.
-    # additionalItems).
-    items = schema.get("items")
-    if not _is(instance, "array") or not isinstance(items, list):
-        return True
-    rest = instance[len(items) :]
-    return all(validates(e, schema["additionalItems"], root) for e in rest)
-
-
-def _unique_items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _unique_items(instance: Any, schema: dict[str, Any]) -> bool:
     if schema["uniqueItems"] is not True or not _is(instance, "array"):
         return True
     return not any(
@@ -296,53 +320,89 @@ def _unique_items(instance: Any, schema: dict[str, Any], root: Any) -> bool:
     )
 
 
-def _contains(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return not _is(instance, "array") or any(
-        validates(element, schema["contains"], root) for element in instance
-    )
-
-
-def _required(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _required(instance: Any, schema: dict[str, Any]) -> bool:
     return not _is(instance, "object") or all(
         name in instance for name in schema["required"]
     )
 
 
-def _properties(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return not _is(instance, "object") or all(
-        validates(instance[name], child, root)
-        for name, child in schema["properties"].items()
-        if name in instance
+def _items(instance: Any, schema: dict[str, Any]) -> _Check:
+    # A schema applies to every element, and an array of schemas each to
+    # the element at its position (JSON Schema Validation, 6.4.1.
+    # items).
+    if not _is(instance, "array"):
+        return True
+    items = schema["items"]
+    pairs = (
+        zip(instance, items)
+        if isinstance(items, list)
+        else ((element, items) for element in instance)
     )
+    for element, child in pairs:
+        if not (yield element, child):
+            return False
+    return True
 
 
-def _pattern_properties(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _additional_items(instance: Any, schema: dict[str, Any]) -> _Check:
+    # additionalItems applies only where items is an array of schemas,
+    # to the elements beyond it (JSON Schema Validation, 6.4.2.
+    # additionalItems).
+    items = schema.get("items")
+    if not _is(instance, "array") or not isinstance(items, list):
+        return True
+    for element in instance[len(items) :]:
+        if not (yield element, schema["additionalItems"]):
+            return False
+    return True
+
+
+def _contains(instance: Any, schema: dict[str, Any]) -> _Check:
+    if not _is(instance, "array"):
+        return True
+    for element in instance:
+        if (yield element, schema["contains"]):
+            return True
+    return False
+
+
+def _properties(instance: Any, schema: dict[str, Any]) -> _Check:
+    if not _is(instance, "object"):
+        return True
+    for name, child in schema["properties"].items():
+        if name in instance and not (yield instance[name], child):
+            return False
+    return True
+
+
+def _pattern_properties(instance: Any, schema: dict[str, Any]) -> _Check:
     # A member validates against every pattern its name matches (JSON
     # Schema Validation, 6.5.5. patternProperties).
     if not _is(instance, "object"):
         return True
-    return all(
-        validates(value, child, root)
-        for pattern, child in schema["patternProperties"].items()
-        for name, value in instance.items()
-        if search(pattern, name)
-    )
+    for pattern, child in schema["patternProperties"].items():
+        for name, value in instance.items():
+            if search(pattern, name) and not (yield value, child):
+                return False
+    return True
 
 
-def _additional_properties(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _additional_properties(instance: Any, schema: dict[str, Any]) -> _Check:
     # additionalProperties applies to the members that properties and
     # patternProperties do not name (JSON Schema Validation, 6.5.6.
     # additionalProperties).
     if not _is(instance, "object"):
         return True
-    return all(
-        validates(value, schema["additionalProperties"], root)
-        for name, value in instance.items()
-        if not covers(name, schema)
-    )
+    for name, value in instance.items():
+        if not covers(name, schema) and not (
+            yield value,
+            schema["additionalProperties"],
+        ):
+            return False
+    return True
 
 
-def _dependencies(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _dependencies(instance: Any, schema: dict[str, Any]) -> _Check:
     # Where the instance holds the key, it holds the names the
     # dependency lists, or validates against its schema (JSON Schema
     # Validation, 6.5.7. dependencies).
@@ -354,43 +414,56 @@ def _dependencies(instance: Any, schema: dict[str, Any], root: Any) -> bool:
         if isinstance(dependency, list):
             if not all(name in instance for name in dependency):
                 return False
-        elif not validates(instance, dependency, root):
+        elif not (yield instance, dependency):
             return False
     return True
 
 
-def _property_names(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return not _is(instance, "object") or all(
-        validates(name, schema["propertyNames"], root) for name in instance
-    )
+def _property_names(instance: Any, schema: dict[str, Any]) -> _Check:
+    if not _is(instance, "object"):
+        return True
+    for name in instance:
+        if not (yield name, schema["propertyNames"]):
+            return False
+    return True
 
 
-def _if(instance: Any, schema: dict[str, Any], root: Any) -> bool:
+def _if(instance: Any, schema: dict[str, Any]) -> _Check:
     # then applies where the instance is valid against if, and else
     # where it is not; without if, they are ignored (JSON Schema
     # Validation, 6.6. Keywords for Applying Subschemas Conditionally).
-    branch = "then" if validates(instance, schema["if"], root) else "else"
-    return branch not in schema or validates(instance, schema[branch], root)
+    branch = "then" if (yield instance, schema["if"]) else "else"
+    if branch not in schema:
+        return True
+    return (yield instance, schema[branch])
 
 
-def _all_of(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return all(validates(instance, child, root) for child in schema["allOf"])
+def _all_of(instance: Any, schema: dict[str, Any]) -> _Check:
+    for child in schema["allOf"]:
+        if not (yield instance, child):
+            return False
+    return True
 
 
-def _any_of(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return any(validates(instance, child, root) for child in schema["anyOf"])
+def _any_of(instance: Any, schema: dict[str, Any]) -> _Check:
+    for child in schema["anyOf"]:
+        if (yield instance, child):
+            return True
+    return False
 
 
-def _one_of(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    found = [validates(instance, child, root) for child in schema["oneOf"]]
-    return found.count(True) == 1
+def _one_of(instance: Any, schema: dict[str, Any]) -> _Check:
+    valid = 0
+    for child in schema["oneOf"]:
+        valid += bool((yield instance, child))
+    return valid == 1
 
 
-def _not(instance: Any, schema: dict[str, Any], root: Any) -> bool:
-    return not validates(instance, schema["not"], root)
+def _not(instance: Any, schema: dict[str, Any]) -> _Check:
+    return not (yield instance, schema["not"])
 
 
-_KEYWORDS: dict[str, Callable[[Any, dict[str, Any], Any], bool]] = {
+_ASSERTIONS: dict[str, Callable[[Any, dict[str, Any]], bool]] = {
     "type": _type,
     "enum": _enum,
     "const": _const,
@@ -402,15 +475,17 @@ _KEYWORDS: dict[str, Callable[[Any, dict[str, Any], Any], bool]] = {
     "maxLength": _length("maxLength", lambda size, limit: size <= limit),
     "minLength": _length("minLength", lambda size, limit: size >= limit),
     "pattern": _pattern,
-    "items": _items,
-    "additionalItems": _additional_items,
     "maxItems": _length("maxItems", lambda size, limit: size <= limit),
     "minItems": _length("minItems", lambda size, limit: size >= limit),
     "uniqueItems": _unique_items,
-    "contains": _contains,
     "maxProperties": _length("maxProperties", lambda size, limit: size <= limit),
     "minProperties": _length("minProperties", lambda size, limit: size >= limit),
     "required": _required,
+}
+_APPLICATORS: dict[str, Callable[[Any, dict[str, Any]], _Check]] = {
+    "items": _items,
+    "additionalItems": _additional_items,
+    "contains": _contains,
     "properties": _properties,
     "patternProperties": _pattern_properties,
     "additionalProperties": _additional_properties,

@@ -10,7 +10,7 @@ def fields(placed: Placed) -> list[str]:
     # An instance is one record: its keys, then the text of each column;
     # a column whose value is written elsewhere, or absent, is empty
     # (Codd, 1.3. A Relational View of Data; spec › record.1, field.1,
-    # relation.5).
+    # field.2, relation.17).
     one = _relation.relation(placed)
     held = _relation.content(placed)
     written = []

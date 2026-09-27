@@ -15,27 +15,27 @@ class TestText(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(module.text(value), expected)
 
-    # field.2: a string holding FF, a line break or HT is an empty
+    # field.3: a string holding FF, a line break or HT is an empty
     # field.
     def test_separators_empty(self):
         for value in ("a\tb", "a\nb", "a\fb", "a\r\nb"):
             with self.subTest(value=value):
                 self.assertEqual(module.text(value), "")
 
-    # field.1: the type of an instance is its primitive type.
+    # field.2: the type of an instance is its primitive type.
     def test_type(self):
         self.assertEqual(module.type(Number("1")), "number")
         self.assertEqual(module.type({}), "object")
 
 
 class TestCarried(unittest.TestCase):
-    # field.3: a lone CR and a character that is not text are left out.
+    # field.4: a lone CR and a character that is not text are left out.
     def test_lone_cr_and_surrogate(self):
         self.assertEqual(module.carried("a\rb"), ("ab", True))
         self.assertEqual(module.carried("a\ud800b"), ("ab", True))
         self.assertEqual(module.carried("a\r\nb"), ("a\r\nb", False))
 
-    # field.3: a member name within a pointer loses HT, LF, FF and CR.
+    # field.4: a member name within a pointer loses HT, LF, FF and CR.
     def test_names(self):
         for name in ("a\tb", "a\nb", "a\fb", "a\rb", "a\ud800b"):
             with self.subTest(name=name):

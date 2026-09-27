@@ -4,11 +4,10 @@ __all__ = ["HOST", "change", "install"]
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from living_memory import _json, _json_schema
+from living_memory import _json, _json_schema, _rename
 
 # The host this integration installs into (install.mtsv › install.1).
 HOST = "claude-code"
@@ -16,7 +15,7 @@ HOST = "claude-code"
 # (install.mtsv › capture.1).
 _CAPTURE = "OTEL_LOG_RAW_API_BODIES"
 # The recording's folder under the data directory: the application,
-# then the path of the module that reads it (install.mtsv › folder.2).
+# then the path of the module that reads it (install.mtsv › folder.3).
 _FOLDER = ("living-memory", "anthropic", "claude_code", "raw_api_bodies")
 # The command that converts it, and the program that states where
 # it is.
@@ -24,10 +23,19 @@ _COMMAND = "living-memory"
 _ECHO = "echo"
 # The user settings are written back in their own layout.
 _INDENT = 2
+# The system the command does not run on, having no POSIX file lock
+# (install.mtsv › folder.2).
+_WINDOWS = "win32"
 
 
 def change() -> str:
-    # The change, stated before it is made (install.mtsv › install.1).
+    """Return the change install makes, stated before it is made.
+
+    It names the folder created, the variable set and what that
+    records, and the two hooks added (install.mtsv › install.2). Raise
+    OSError on Windows, where the command does not run (folder.2).
+    """
+    _refuse_windows()
     folder = _folder()
     return (
         f"living-memory --install={HOST} will:\n"
@@ -43,14 +51,26 @@ def change() -> str:
 
 
 def install() -> None:
-    # The folder is made, then the settings are written, adding to what
-    # they hold, beside their name and renamed onto it (install.mtsv ›
-    # folder.1, install.2).
+    """Make the change that change states.
+
+    The recording's folder is made, then the user settings are written,
+    adding to what they hold, and replaced whole (install.mtsv ›
+    install.3, install.4, folder.1). Raise OSError on Windows, where the
+    command does not run (folder.2).
+    """
+    _refuse_windows()
     folder = _folder()
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = _settings()
     held = _json.decode(path.read_bytes()) if path.exists() else {}
-    _replace(path, _json.encode(_updated(held, folder), _INDENT) + b"\n")
+    _rename.replace(path, _json.encode(_updated(held, folder), _INDENT) + b"\n")
+
+
+def _refuse_windows() -> None:
+    # The command does not run on Windows, which has no POSIX file lock
+    # (install.mtsv › folder.2).
+    if sys.platform == _WINDOWS:
+        raise OSError("the command does not run on Windows, which has no POSIX lock")
 
 
 def _data_home() -> Path:
@@ -83,7 +103,7 @@ def _settings() -> Path:
 def _updated(settings: dict[str, Any], folder: Path) -> dict[str, Any]:
     # The capture variable set, and each hook's matcher group added
     # where the settings do not hold it (install.mtsv › capture.1,
-    # install.2).
+    # install.3).
     env = {**settings.get("env", {}), _CAPTURE: f"file:{folder}"}
     hooks = dict(settings.get("hooks", {}))
     for event, group in _groups(folder).items():
@@ -96,8 +116,7 @@ def _updated(settings: dict[str, Any], folder: Path) -> dict[str, Any]:
 def _groups(folder: Path) -> dict[str, dict[str, Any]]:
     # Each group has no matcher, so it activates on every occurrence:
     # Stop converts the recording in the background; SessionStart
-    # states, as a fact, where the output is (install.mtsv › hooks.1,
-    # hooks.2).
+    # states, as a fact, where the output is (install.mtsv › hooks.1-3).
     store = _store(folder)
     statement = (
         f"Claude Code's conversations are kept as MTSV in {store}, a folder of"
@@ -110,13 +129,3 @@ def _groups(folder: Path) -> dict[str, dict[str, Any]]:
         "Stop": {"hooks": [{**convert, "async": True}]},
         "SessionStart": {"hooks": [state]},
     }
-
-
-def _replace(path: Path, data: bytes) -> None:
-    # A file is replaced whole: written beside its name and renamed onto
-    # it (POSIX.1-2017, rename).
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle, written = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    with open(handle, "wb") as fp:
-        fp.write(data)
-    os.replace(written, path)

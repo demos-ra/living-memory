@@ -12,19 +12,19 @@ _SURROGATE = (
 )
 # A CR not followed by LF is not written, nor is a character that is
 # not text (RFC 8259, 8.2. Unicode Characters; MTSV draft, Generators;
-# spec › field.3).
+# spec › field.4).
 _NOT_TEXT = re.compile("\r(?!\n)|" + _SURROGATE)
 # A member name within a pointer holds no HT, LF, FF or CR either (spec
-# › field.3).
+# › field.4).
 _NOT_IN_NAME = re.compile("[\t\n\f\r]|" + _SURROGATE)
 
 
 def text(value: Any) -> str:
     # A string is its characters, a number its text as written, a
     # boolean true or false, and null, an object and an array an empty
-    # field (RFC 8259, 3. Values; CSVW, 4.5 Cells; spec › field.1); a
-    # string holding FF, a line break or HT is an empty field, its
-    # text written as runs (spec › field.2).
+    # field (RFC 8259, 3. Values; CSVW, 4.5 Cells; spec › field.1,
+    # field.2); a string holding FF, a line break or HT is an empty
+    # field, its text written as runs (spec › field.3).
     if value is True:
         return "true"
     if value is False:
@@ -37,19 +37,19 @@ def text(value: Any) -> str:
 def type(value: Any) -> str:
     # In a sheet of instances, a record's type is its instance's
     # primitive type (JSON Schema, 4.2.1. Instance Data Model; spec ›
-    # field.1).
+    # field.2).
     return _json.type(value)
 
 
 def carried(value: str) -> tuple[str, bool]:
     # A string keeps the rest of its text, and says whether anything was
-    # left out (spec › field.3).
+    # left out (spec › field.4, field.5).
     kept = _NOT_TEXT.sub("", value)
     return kept, kept != value
 
 
 def name_carried(name: str) -> tuple[str, bool]:
     # A member name within a pointer keeps the rest of its text, and
-    # says whether anything was left out (spec › field.3).
+    # says whether anything was left out (spec › field.4, field.5).
     kept = _NOT_IN_NAME.sub("", name)
     return kept, kept != name

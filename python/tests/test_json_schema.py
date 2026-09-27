@@ -142,8 +142,20 @@ class TestSubschemas(unittest.TestCase):
         self.assertTrue(valid('"x"', '{"definitions":{"a":false}}'))
 
 
+class TestDepth(unittest.TestCase):
+    # value.3: a value of any depth is validated against a schema that
+    # holds itself, and compared, without a limit.
+    def test_any_depth(self):
+        schema = '{"type":"array","items":{"$ref":"#"}}'
+        deep = "[" * 5000 + "]" * 5000
+        self.assertTrue(valid(deep, schema))
+        self.assertFalse(valid("[" * 5000 + "1" + "]" * 5000, schema))
+        one = decode(deep.encode())
+        self.assertTrue(module.equal(one, decode(deep.encode())))
+
+
 class TestLocate(unittest.TestCase):
-    # value.3: for an instance that does not validate, the place named
+    # value.10: for an instance that does not validate, the place named
     # is the deepest instance location where an assertion fails.
     def test_deepest_place(self):
         cases = [
@@ -172,7 +184,7 @@ class TestLocate(unittest.TestCase):
 
 
 class TestPatterns(unittest.TestCase):
-    # value.3: a pattern of the subset matches, not anchored.
+    # value.9: a pattern of the subset matches, not anchored.
     def test_subset_matches_unanchored(self):
         cases = [
             ("es", "expression", True),
@@ -196,7 +208,7 @@ class TestPatterns(unittest.TestCase):
             with self.subTest(pattern=pattern, text=text):
                 self.assertEqual(module.search(pattern, text), expected)
 
-    # module.1: any other token is refused.
+    # schema.4: any other token is refused.
     def test_tokens_outside_the_subset(self):
         patterns = ("\\d", ".", "(?:a)", "[a\\]]", "[]", "a)", "(a", "*", "{")
         patterns += ("a**", "^*", "a{2,1}", "[z-a]", "a{x}")
@@ -215,13 +227,19 @@ class TestReferences(unittest.TestCase):
         self.assertTrue(valid('["x"]', schema))
         self.assertFalse(valid("[1]", schema))
 
-    # module.2: a reference resolves to the schema and its pointer, and
-    # one outside the schema is refused.
+    # schema.5, schema.6, schema.11: a reference resolves to the schema
+    # and its pointer, its fragment percent-decoded as UTF-8; one
+    # outside the schema, or whose fragment is not a JSON Pointer, is
+    # refused.
     def test_resolve(self):
-        root = decode(b'{"definitions":{"A":{"type":"string"}}}')
+        root = decode(b'{"definitions":{"A":{"type":"string"},"a b\xc3\xa9":{}}}')
         found = module.resolve("#/definitions/A", root)
         self.assertEqual(found, ({"type": "string"}, "/definitions/A"))
-        for reference in ("other.json#/A", "#/definitions/none"):
+        found = module.resolve("#/definitions/a%20b%C3%A9", root)
+        self.assertEqual(found, ({}, "/definitions/a bé"))
+        refused = ("other.json#/A", "#/definitions/none", "#A", "#/definitions/a b")
+        refused += ("#/definitions/%2", "#/definitions/%FF")
+        for reference in refused:
             with self.subTest(reference=reference):
                 with self.assertRaises(ValueError):
                     module.resolve(reference, root)

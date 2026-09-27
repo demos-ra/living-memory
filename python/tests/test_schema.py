@@ -1,18 +1,30 @@
-"""Tests of _module: what a module specification supplies."""
+"""Tests of _schema: what a module specification supplies."""
 
 import unittest
 
-from living_memory import _module as module
+from living_memory import _schema as module
 from living_memory._json import decode
 from living_memory._json_pointer import PlacedError
 
 
 class TestRead(unittest.TestCase):
-    # module.1, module.2: a schema that does not conform is refused at
-    # its place.
+    # schema.1-9: a schema that does not conform is refused at its
+    # place.
     def test_refused_at_its_place(self):
         cases = [
             (b'{"type":"object"', ""),
+            (b"true", ""),
+            (b'{"title":"t","type":5}', "/type"),
+            (
+                b'{"title":"t","properties":{"n":{"minLength":-1}}}',
+                "/properties/n/minLength",
+            ),
+            (b'{"title":"t","items":{"$ref":"#A"}}', "/items/$ref"),
+            (
+                b'{"title":"t","definitions":{"L":{"items":[{}]}},'
+                b'"items":{"$ref":"#/definitions/L/items/00"}}',
+                "/items/$ref",
+            ),
             (b'{"type":"object"}', ""),
             (b'{"title":"t","n":1,"n":2}', ""),
             (b'{"title":"a\\tb"}', "/title"),
@@ -51,7 +63,7 @@ class TestRead(unittest.TestCase):
                     module.read(schema)
                 self.assertEqual(raised.exception.pointer, expected)
 
-    # module.1: a kind may hold itself at a child location.
+    # schema.8: a kind may hold itself at a child location.
     def test_conforming(self):
         schema = (
             b'{"title":"t","definitions":{"A":{"properties":'
@@ -61,7 +73,7 @@ class TestRead(unittest.TestCase):
 
 
 class TestResolve(unittest.TestCase):
-    # module.2: a $ref is read as the schema it references, its other
+    # schema.11: a $ref is read as the schema it references, its other
     # members ignored; true is the empty schema.
     def test_references(self):
         root = decode(
@@ -75,8 +87,8 @@ class TestResolve(unittest.TestCase):
 
 
 class TestTaken(unittest.TestCase):
-    # module.2: subschemas are taken in the order JSON Schema Validation
-    # defines the keywords, and within a keyword as written.
+    # schema.12: subschemas are taken in the order JSON Schema
+    # Validation defines the keywords, and within a keyword as written.
     def test_order(self):
         schema = decode(
             b'{"oneOf":[{}],"anyOf":[{}],"allOf":[{}],"else":{},"then":{},"if":{},'
@@ -96,7 +108,7 @@ class TestTaken(unittest.TestCase):
             places, ["/s/items/0", "/s/additionalItems", "/s/properties/b"]
         )
 
-    # module.2: an omitted items or additionalProperties is the empty
+    # schema.12: an omitted items or additionalProperties is the empty
     # schema; additionalItems applies only beside a list of items, and
     # then and else only beside if.
     def test_omitted(self):

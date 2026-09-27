@@ -122,7 +122,8 @@ def _convert(module: ModuleType, path: Path, output: Path) -> None:
             return
         names = sheets(schema)
         with _store.locked(output):
-            held = _store.repair(output, names)
+            _store.repair(output, names)
+            held = _store.held(output, names)
             text = convert(module.values(path, held or None), schema, len(held))
             _store.append(output, text, names)
     except ValueError as error:
@@ -142,6 +143,9 @@ def _install(host: str, parser: _Parser) -> None:
         parser.error(str(error))
     if not sys.stdin.isatty():
         raise SystemExit(f"{_PROG}: --install={host} asks first, and needs a terminal")
-    print(module.change())
-    if input("Proceed? [y/N] ").strip().lower() in ("y", "yes"):
-        module.install()
+    try:
+        print(module.change())
+        if input("Proceed? [y/N] ").strip().lower() in ("y", "yes"):
+            module.install()
+    except OSError as error:
+        raise SystemExit(f"{_PROG}: --install={host}: {error}")

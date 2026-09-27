@@ -1,21 +1,24 @@
 """The output kept as its sheets' files, each only appended to."""
 
-__all__ = ["append", "locked", "repair"]
+__all__ = ["append", "held", "locked", "repair"]
 
 import fcntl
-import os
-import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 import mtsv
 
+from living_memory import _rename
+
 # The file a conversion holds its lock on, beside the sheets' files.
 _LOCK = ".lock"
 # The key column that names each record's value by its position in the
 # input, its pointer's first token.
 _POINTER = "pointer"
+# A sheet's file begins with two lines before its records: the FF line
+# with the sheet name, then the header.
+_HEAD = 2
 
 
 @contextmanager
@@ -28,16 +31,26 @@ def locked(folder: Path) -> Iterator[None]:
         yield
 
 
-def repair(folder: Path, names: list[str]) -> list[dict[str, str]]:
+def repair(folder: Path, names: list[str]) -> None:
     # Before a conversion appends, a line not ended, and a record whose
     # value's position the sheet of the input values does not hold, are
-    # left out; that sheet's records are returned, each by its header's
-    # names, their number the position of the next value.
+    # left out.
     paths = _paths(folder, names)
-    header, records = _kept(paths[0], None)
+    for path in paths:
+        _end(path)
+    count = len(_lines(paths[0])[_HEAD:])
     for path in paths[1:]:
-        _kept(path, len(records))
-    return [dict(zip(header, record)) for record in records]
+        _within(path, count)
+
+
+def held(folder: Path, names: list[str]) -> list[dict[str, str]]:
+    # The records of the sheet of the input values, each by its header's
+    # names; their number is the position of the next value.
+    lines = _lines(_paths(folder, names)[0])
+    if len(lines) < _HEAD:
+        return []
+    header = lines[_HEAD - 1].split("\t")
+    return [dict(zip(header, line.split("\t"))) for line in lines[_HEAD:]]
 
 
 def append(folder: Path, text: str, names: list[str]) -> None:
@@ -51,7 +64,7 @@ def append(folder: Path, text: str, names: list[str]) -> None:
         path = paths[names.index(sheet["sheet name"])]
         written = mtsv.dumps([sheet])
         if path.exists() and path.stat().st_size:
-            written = written.split("\n", 2)[2]
+            written = written.split("\n", _HEAD)[_HEAD]
         with open(path, "ab") as fp:
             fp.write(written.encode("utf-8"))
 
@@ -65,31 +78,34 @@ def _paths(folder: Path, names: list[str]) -> list[Path]:
     ]
 
 
-def _kept(path: Path, held: int | None) -> tuple[list[str], list[list[str]]]:
-    # A sheet's header and the records it keeps: the whole lines, and of
-    # those, where held is given, the records whose value's position is
-    # held; the file is rewritten, beside its name and renamed onto it,
-    # only where something is left out (POSIX.1-2017, rename).
+def _lines(path: Path) -> list[str]:
+    # A sheet file's whole lines, each ended by LF.
     if not path.exists():
-        return [], []
+        return []
     text = path.read_bytes().decode("utf-8")
-    ended = text[: text.rfind("\n") + 1]
-    lines = ended.split("\n")[:-1]
-    header = lines[1].split("\t") if len(lines) > 1 else []
-    records = [line.split("\t") for line in lines[2:]]
-    if held is not None and _POINTER in header:
-        column = header.index(_POINTER)
-        records = [r for r in records if int(r[column].split("/")[1]) < held]
-    kept = "\n".join([*lines[:2], *("\t".join(r) for r in records)]) + "\n"
-    if len(lines) < 2:
-        kept = ""
-    if kept != text:
-        _replace(path, kept.encode("utf-8"))
-    return header, records
+    return text[: text.rfind("\n") + 1].split("\n")[:-1]
 
 
-def _replace(path: Path, data: bytes) -> None:
-    handle, written = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    with open(handle, "wb") as fp:
-        fp.write(data)
-    os.replace(written, path)
+def _end(path: Path) -> None:
+    # A line not ended is left out; a file left with less than its FF
+    # line and header is left empty.
+    if not path.exists():
+        return
+    lines = _lines(path)
+    kept = "".join(f"{line}\n" for line in lines) if len(lines) >= _HEAD else ""
+    if kept != path.read_bytes().decode("utf-8"):
+        _rename.replace(path, kept.encode("utf-8"))
+
+
+def _within(path: Path, count: int) -> None:
+    # A record whose value's position the sheet of the input values
+    # does not hold is left out.
+    lines = _lines(path)
+    if len(lines) < _HEAD:
+        return
+    column = lines[_HEAD - 1].split("\t").index(_POINTER)
+    records = lines[_HEAD:]
+    kept = [r for r in records if int(r.split("\t")[column].split("/")[1]) < count]
+    if kept != records:
+        text = "".join(f"{line}\n" for line in [*lines[:_HEAD], *kept])
+        _rename.replace(path, text.encode("utf-8"))

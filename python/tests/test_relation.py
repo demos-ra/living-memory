@@ -5,6 +5,9 @@ import unittest
 from living_memory import _relation as module
 from living_memory._json import decode
 
+# Deeper than any recursion Python allows by default.
+DEEP = 3000
+
 
 def placed(schema: bytes, *values: bytes) -> tuple[module.Layout, list, list]:
     sheet_layout = module.layout(decode(schema))
@@ -29,8 +32,8 @@ def below(sheet_layout: module.Layout) -> list[module.Relation]:
 
 
 class TestLayout(unittest.TestCase):
-    # relation.1-4: a column, a sheet of its own, or the sheet of
-    # instances, each sheet referred to in the order module.2 takes it.
+    # relation.5-15: a column, a sheet of its own, or the sheet of
+    # instances, each sheet referred to in the order schema.12 takes it.
     def test_places(self):
         schema = (
             b'{"title":"t","type":"object","required":["a","p"],"properties":'
@@ -48,7 +51,7 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(found, expected)
         self.assertEqual(module.last(sheet_layout), (sheets[2], sheets[0]))
 
-    # relation.1: a kind is one relation wherever it is referred to, and
+    # relation.2: a kind is one relation wherever it is referred to, and
     # a kind that holds itself refers to its own relation.
     def test_kinds(self):
         schema = (
@@ -64,8 +67,21 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(module.segment(first), module.Segment("kind", (), "n"))
         self.assertEqual(module.children(sheet_layout, first), (first,))
 
-    # relation.4: a root schema of other than one type, object or array,
-    # is the sheet of instances.
+    # relation.3: a $ref that allOf applies adds to its instance's own
+    # schema, and is no kind.
+    def test_all_of_ref_no_kind(self):
+        schema = (
+            b'{"title":"t","type":"object","allOf":[{"$ref":"#/definitions/e"}],'
+            b'"definitions":{"e":{"type":"object","properties":{"m":'
+            b'{"type":"number"}},"required":["m"]}}}'
+        )
+        sheet_layout = module.layout(decode(schema))
+        self.assertEqual(dict(sheet_layout.kinds), {})
+        root = module.root(sheet_layout)
+        self.assertEqual([d.label for d in module.domains(root)], ["m"])
+
+    # relation.15: a root schema of other than one type, object or
+    # array, is the sheet of instances.
     def test_root_instances(self):
         sheet_layout = module.layout(decode(b'{"title":"t","type":"string"}'))
         root = module.root(sheet_layout)
@@ -74,8 +90,8 @@ class TestLayout(unittest.TestCase):
 
 
 class TestPlace(unittest.TestCase):
-    # relation.5: a member two collecting branches name is written by
-    # the first, and its field in the later one is empty.
+    # relation.16, relation.17: a member two collecting branches name is
+    # written by the first, and its field in the later one is empty.
     def test_each_value_once(self):
         schema = (
             b'{"title":"t","type":"object","required":["p"],'
@@ -98,9 +114,9 @@ class TestPlace(unittest.TestCase):
             keyed(found, branches[0]), [{"parent": "/0", "pointer": "/0/p"}]
         )
 
-    # relation.3, key.1, field.3: a string's runs are records of the
-    # sheet of runs, keyed by its pointer, and what a field cannot hold
-    # is reported by its pointer.
+    # relation.14, key.5, field.4, field.5: a string's runs are records
+    # of the sheet of runs, keyed by its pointer, and what a field
+    # cannot hold is reported by its pointer.
     def test_runs_and_reports(self):
         sheet_layout, found, reports = placed(
             b'{"title":"t"}', b'{"a\\tb":"x\\ny\\rz"}'
@@ -116,7 +132,7 @@ class TestPlace(unittest.TestCase):
         )
         self.assertEqual(reports, ["/0/a\tb", "/0/ab"])
 
-    # relation.3: a property of several types is placed branch by
+    # relation.12: a property of several types is placed branch by
     # branch: a string molten, an array by its elements.
     def test_branch_by_branch(self):
         schema = (
@@ -133,7 +149,7 @@ class TestPlace(unittest.TestCase):
             keyed(found, elements), [{"parent": "/1", "pointer": "/1/p/0"}]
         )
 
-    # key.1: an instance's parent is the instance that holds it.
+    # key.3: an instance's parent is the instance that holds it.
     def test_instance_parent(self):
         schema = b'{"title":"t","type":"object","additionalProperties":{}}'
         sheet_layout, found, _ = placed(schema, b'{"o":{"p":1}}')
@@ -146,7 +162,7 @@ class TestPlace(unittest.TestCase):
             ],
         )
 
-    # relation.3: an optional object is one record or none.
+    # relation.10: an optional object is one record or none.
     def test_optional_object(self):
         schema = (
             b'{"title":"t","type":"object","properties":{"o":{"type":"object",'
@@ -157,6 +173,22 @@ class TestPlace(unittest.TestCase):
             keyed(found, below(sheet_layout)[0]),
             [{"parent": "/1", "pointer": "/1/o"}],
         )
+
+    # value.3: a value of any depth is placed, a kind that holds itself
+    # one record per level, and a molten value one per instance.
+    def test_any_depth(self):
+        schema = (
+            b'{"title":"t","type":"object","required":["n"],"properties":'
+            b'{"n":{"$ref":"#/definitions/n"}},"additionalProperties":false,'
+            b'"definitions":{"n":{"type":"object","properties":'
+            b'{"n":{"$ref":"#/definitions/n"}},"additionalProperties":false}}}'
+        )
+        deep = b'{"n":' * DEEP + b"{}" + b"}" * DEEP
+        sheet_layout, found, _ = placed(schema, deep)
+        kind = below(sheet_layout)[0]
+        self.assertEqual(len(keyed(found, kind)), DEEP)
+        sheet_layout, found, _ = placed(b'{"title":"t"}', b"[" * DEEP + b"]" * DEEP)
+        self.assertEqual(len(found), DEEP)
 
 
 if __name__ == "__main__":

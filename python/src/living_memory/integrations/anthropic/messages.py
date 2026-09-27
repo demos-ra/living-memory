@@ -8,14 +8,17 @@ from typing import Any
 from living_memory import _json
 
 # The schema generated from the SDK's beta types, beside this module
-# (messages.mtsv › schema.4).
+# (messages.mtsv › schema.10).
 _SCHEMA = "messages.schema.json"
 
 
 def units() -> dict[str, Any]:
-    # The schema of each kept unit, by the member that holds it: a
-    # system prompt that is a string, or one of its blocks; a tool; a
-    # message; and a response's content (messages.mtsv › kept.1).
+    """Return the schema of each kept unit, by the member that holds it.
+
+    The members are system, a string system prompt or one of its blocks;
+    tools, one tool; messages, one message; and content, a response's
+    content (messages.mtsv › kept.1).
+    """
     parts = _generated()["properties"]
     return {
         "system": {"anyOf": [_element(each) for each in parts["system"]["anyOf"]]},
@@ -26,8 +29,11 @@ def units() -> dict[str, Any]:
 
 
 def definitions() -> dict[str, Any]:
-    # Each named type of the kept parts, by its name (messages.mtsv ›
-    # schema.3).
+    """Return each named type of the kept parts, by its name.
+
+    Each is a definition that the units reach by $ref (messages.mtsv ›
+    schema.7).
+    """
     return _generated()["definitions"]
 
 

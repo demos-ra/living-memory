@@ -17,7 +17,7 @@ class TestWrite(unittest.TestCase):
         text = module.write(Layout(root, None, {}, ()), placed)
         self.assertEqual(text, "\ft\npointer\n/0\n")
 
-    # value.1, order.1: every sheet the schema gives, in the file's
+    # value.2, order.1: every sheet the schema gives, in the file's
     # order, those with no record included.
     def test_names(self):
         below = Relation(Segment("property", (), "a"), _key.SUBORDINATE, (), ())

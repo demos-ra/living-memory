@@ -6,7 +6,7 @@ from living_memory import _key as module
 
 
 class TestColumns(unittest.TestCase):
-    # key.1: the key columns of each kind of sheet.
+    # key.2, key.3, key.5: the key columns of each kind of sheet.
     def test_kinds(self):
         self.assertEqual(module.ROOT, ("pointer",))
         self.assertEqual(module.SUBORDINATE, ("parent", "pointer"))
@@ -14,14 +14,14 @@ class TestColumns(unittest.TestCase):
 
 
 class TestValues(unittest.TestCase):
-    # key.1: an input value's pointer begins with its position, and a
-    # member name is escaped.
+    # key.2, key.4: an input value's pointer begins with its position,
+    # and a member name is escaped.
     def test_pointers(self):
         self.assertEqual(module.root(3), "/3")
         self.assertEqual(module.member("/0", "a/b~c"), "/0/a~1b~0c")
 
-    # key.1: the parent's key is copied down where the sheet has it, and
-    # a run is keyed by its string's pointer.
+    # key.3, key.5: the parent's key is copied down where the sheet has
+    # it, and a run is keyed by its string's pointer.
     def test_records_and_runs(self):
         self.assertEqual(module.values(module.ROOT, None, "/0"), {"pointer": "/0"})
         self.assertEqual(

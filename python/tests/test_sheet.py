@@ -14,7 +14,7 @@ def below(segment: Segment, *domains: Domain) -> Relation:
 
 
 class TestName(unittest.TestCase):
-    # sheet.1: the root by its title, a kind and the sheets of
+    # sheet.1-4: the root by its title, a kind and the sheets of
     # instances and runs by their own names, every other by its
     # parent's name, the properties between them, and its own name.
     def test_names(self):
@@ -35,14 +35,14 @@ class TestName(unittest.TestCase):
             with self.subTest(segment=segment):
                 self.assertEqual(module.name((ROOT, below(segment))), expected)
 
-    # sheet.1: a branch of a location placed branch by branch is named
+    # sheet.4: a branch of a location placed branch by branch is named
     # after that location.
     def test_branch_within(self):
         location = Segment("property", (), "p")
         branch = Segment("branch", (), "anyOf", 1, several=True, within=location)
         self.assertEqual(module.name((ROOT, below(branch))), "t.p.anyOf.1")
 
-    # sheet.1: a kind's subordinate sheet is named after the kind.
+    # sheet.4: a kind's subordinate sheet is named after the kind.
     def test_below_a_kind(self):
         kind = below(Segment("kind", (), "pair"))
         path = (ROOT, kind, below(Segment("property", (), "l")))
@@ -50,7 +50,7 @@ class TestName(unittest.TestCase):
 
 
 class TestHeader(unittest.TestCase):
-    # sheet.2: the key columns by their names, then each domain by its
+    # sheet.5: the key columns by their names, then each domain by its
     # name.
     def test_header(self):
         one = below(Segment("property", (), "o"), Domain("p.b", "value"))

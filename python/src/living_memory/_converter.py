@@ -6,7 +6,7 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
-from living_memory import _file, _json, _module, _relation, _value
+from living_memory import _file, _json, _relation, _schema, _value
 from living_memory._json_pointer import PlacedError
 
 # A library names its logger after its module and attaches no handler
@@ -84,7 +84,7 @@ def convert(values: Iterable[bytes], schema: bytes, start: int = 0) -> str:
         reports += missed
     # What a field cannot hold is reported as a warning, by its pointer
     # as a JSON string (Logging HOWTO, When to use logging; spec ›
-    # field.3).
+    # field.5).
     for at in reports:
         _logger.warning("not carried: %s", _json.encode_string(at))
     return _file.write(sheet_layout, placed)
@@ -103,9 +103,9 @@ def sheets(schema: bytes) -> list[str]:
 
 def _read(schema: bytes) -> tuple[Any, _relation.Layout]:
     # A module specification that does not conform is rejected, naming
-    # the place in its schema (spec › module.1, module.2).
+    # the place in its schema (spec › schema.9).
     try:
-        root = _module.read(schema)
+        root = _schema.read(schema)
     except PlacedError as error:
         raise NonConformingError(f"the schema: {error.msg}", error.pointer) from None
     return root, _relation.layout(root)

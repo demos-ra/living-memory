@@ -9,8 +9,8 @@ from living_memory._relation import Domain, Placed, Relation, Segment
 
 
 class TestFields(unittest.TestCase):
-    # record.1, field.1: keys first, then each column's text; a column
-    # written elsewhere is empty.
+    # record.1, field.1, field.2, relation.17: keys first, then each
+    # column's text; a column written elsewhere is empty.
     def test_fields(self):
         kind, value = Domain("type", "type"), Domain("value", "value")
         absent = Domain("x", "value")

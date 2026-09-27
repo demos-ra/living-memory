@@ -16,7 +16,7 @@ SETTINGS = (
 
 
 class TestInstall(unittest.TestCase):
-    # install.2, hooks.1-2: the capture variable and two matcher groups
+    # install.3, hooks.1-3: the capture variable and two matcher groups
     # are added, what the settings held is kept, and a second install
     # adds nothing.
     def test_adds_once(self):
@@ -48,9 +48,20 @@ class TestInstall(unittest.TestCase):
             with mock.patch.object(module.sys, "platform", "linux"):
                 self.assertEqual(module._data_home(), Path.home() / ".local" / "share")
 
-    # install.1: the change is stated, the consent included.
+    # install.2: the change is stated, the consent included.
     def test_change(self):
-        self.assertIn("your prompts, tool details and tool content", module.change())
+        with mock.patch.object(module.sys, "platform", "linux"):
+            self.assertIn(
+                "your prompts, tool details and tool content", module.change()
+            )
+
+    # folder.2: on Windows the change is refused, and nothing is made.
+    def test_refused_on_windows(self):
+        with mock.patch.object(module.sys, "platform", "win32"):
+            for step in (module.change, module.install):
+                with self.subTest(step=step.__name__):
+                    with self.assertRaises(OSError):
+                        step()
 
 
 if __name__ == "__main__":

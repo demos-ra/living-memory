@@ -1,0 +1,1 @@
+{"title":"calls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"allOf":[{"$ref":"#/definitions/extra"}],"definitions":{"extra":{"type":"object","properties":{"m":{"type":"number"}},"required":["m"]}}}

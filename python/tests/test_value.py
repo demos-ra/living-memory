@@ -13,13 +13,14 @@ ROOT = decode(
 
 
 class TestRead(unittest.TestCase):
-    # value.2: members in the order written, numbers as written.
+    # value.5, value.6: members in the order written, numbers as
+    # written.
     def test_read(self):
         value = module.read(b'{"p":{"k":1.50},"a":1}', ROOT)
         self.assertEqual(list(value), ["p", "a"])
         self.assertEqual(value["p"]["k"], "1.50")
 
-    # value.3: a value is rejected at the deepest place that fails.
+    # value.7-10: a value is rejected at the deepest place that fails.
     def test_rejected(self):
         cases = [
             (b'{"p":', ""),

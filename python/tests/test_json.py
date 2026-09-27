@@ -6,9 +6,12 @@ from living_memory import _json as module
 from living_memory._json import Number
 from living_memory._json_pointer import PlacedError
 
+# Deeper than any recursion Python allows by default.
+DEEP = 5000
+
 
 class TestDecode(unittest.TestCase):
-    # value.2: a number is kept as written.
+    # value.6: a number is kept as written.
     def test_numbers_as_written(self):
         value = module.decode(b'{"a": 1.50, "b": 1e2, "c": -0, "d": 2E-3}')
         self.assertEqual(value, {"a": "1.50", "b": "1e2", "c": "-0", "d": "2E-3"})
@@ -16,7 +19,7 @@ class TestDecode(unittest.TestCase):
             with self.subTest(number=number):
                 self.assertIsInstance(number, Number)
 
-    # value.2: members are read in the order written.
+    # value.5: members are read in the order written.
     def test_members_in_order_written(self):
         self.assertEqual(list(module.decode(b'{"b":1,"a":2}')), ["b", "a"])
 
@@ -29,13 +32,21 @@ class TestDecode(unittest.TestCase):
             ('"é𝄞"'.encode(), "é𝄞"),
             (b"{}", {}),
             (b"[]", []),
+            (b'{"a":[{"b":[]},{}],"c":{}}', {"a": [{"b": []}, {}], "c": {}}),
         ]
         for data, expected in cases:
             with self.subTest(data=data):
                 self.assertEqual(module.decode(data), expected)
 
-    # value.3: a value that is not a JSON text in UTF-8 is refused, and
-    # placed whole.
+    # value.3: any depth of nesting is read.
+    def test_any_depth(self):
+        value = module.decode(b"[" * DEEP + b"]" * DEEP)
+        for _ in range(DEEP - 1):
+            value = value[0]
+        self.assertEqual(value, [])
+
+    # value.4, value.7, value.10: a value that is not a JSON text in
+    # UTF-8, a byte order mark included, is refused, and placed whole.
     def test_not_a_json_text(self):
         cases = [
             b"x",
@@ -50,6 +61,8 @@ class TestDecode(unittest.TestCase):
             b'"\\u12"',
             b"[1,]",
             b"{,}",
+            b'{"a"}',
+            b"[1 2]",
             b"1 2",
             b"",
             b"\xef\xbb\xbf{}",
@@ -65,8 +78,8 @@ class TestDecode(unittest.TestCase):
                     module.decode(data)
                 self.assertEqual(raised.exception.pointer, "")
 
-    # value.3: the first object, in the order written, whose names are
-    # not all unique is named by its pointer.
+    # value.8, value.10: the first object, in the order written, whose
+    # names are not all unique is named by its pointer.
     def test_repeated_name(self):
         cases = [
             (b'{"n":1,"n":2}', ""),
@@ -81,7 +94,7 @@ class TestDecode(unittest.TestCase):
 
 
 class TestEncodeString(unittest.TestCase):
-    # field.3: a pointer is reported as a JSON string.
+    # field.5: a pointer is reported as a JSON string.
     def test_escapes(self):
         cases = [
             ("/0/t", '"/0/t"'),
@@ -97,8 +110,8 @@ class TestEncodeString(unittest.TestCase):
 
 
 class TestEncode(unittest.TestCase):
-    # value.2: a value written back is the text read, members in order
-    # and numbers as written.
+    # value.5, value.6: a value written back is the text read, members
+    # in order and numbers as written.
     def test_round_trip(self):
         text = b'{"b":[1.50,true,null],"a":"x\\ty","c":{}}'
         self.assertEqual(module.encode(module.decode(text)), text)
@@ -107,6 +120,11 @@ class TestEncode(unittest.TestCase):
     def test_indent(self):
         text = b'{\n  "a": [\n    1,\n    {}\n  ],\n  "b": []\n}'
         self.assertEqual(module.encode(module.decode(text), 2), text)
+
+    # value.3: any depth of nesting is written.
+    def test_any_depth(self):
+        text = b"[" * DEEP + b"]" * DEEP
+        self.assertEqual(module.encode(module.decode(text)), text)
 
 
 class TestType(unittest.TestCase):

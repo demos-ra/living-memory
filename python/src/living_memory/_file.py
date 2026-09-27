@@ -31,7 +31,7 @@ def write(sheet_layout: Layout, placed: list[Placed]) -> str:
 
 def names(sheet_layout: Layout) -> list[str]:
     # The name of every sheet the schema gives, in the file's order,
-    # by which the parts of an input are appended (spec › value.1,
+    # by which the parts of an input are appended (spec › value.2,
     # order.1).
     return [_sheet.name(path) for path in _paths(sheet_layout)]
 

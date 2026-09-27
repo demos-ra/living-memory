@@ -69,38 +69,42 @@ integration makes to a host's configuration and asks first.
 
 Each module hides one decision, named beside it: a source the rules
 follow, or one group of the specification's rules; a module uses only
-the modules below it.
+the modules below it. The integrations are part of the package, and use
+its internal modules as the core does.
 
 ```
 src/living_memory/
-  _json_pointer   level 1   how a JSON Pointer is written and evaluated, and a place named (RFC 6901)
-  _order          level 1   the order of sheets, records and columns: order.1-3
-  _separators     level 1   which characters separate MTSV text, and what a field cannot hold (MTSV)
-  _store          level 1   how the output is kept: its sheets' files, each only appended to
-  _utf_8          level 1   how an octet sequence is read as UTF-8 (RFC 3629)
-  _json           level 2   how JSON texts are read, JSON strings written, and values typed (RFC 8259)
-  _key            level 2   how each record is identified: key.1
-  _field          level 3   how a value is written as a field's text, and what is not carried: field.1-3
-  _json_schema    level 3   whether a JSON value validates against a JSON Schema of draft-07
-  _module         level 4   what a module specification supplies, and how its schema is read: module.1-2
-  _value          level 4   how each input value is read, and when it is rejected: value.1-3
-  _relation       level 5   which relation and column each value is written to: relation.1-5
-  _record         level 6   each instance as one record of its sheet: record.1
-  _sheet          level 6   the name and the header of each sheet: sheet.1-2
-  _file           level 7   how the whole input is written as one MTSV file: file.1-3
-  _converter      level 8   the converter: the input and its module specification, as MTSV
-  __init__        level 9   the public interface: convert, NonConformingError, NonConformingInputError
-  integrations/             the set of integrations, each found as the package holds it
-    anthropic/messages      the schema of what a model is given and generates, from the SDK's beta types
+  core
+    _order          level 1   the order of sheets, records and columns: order.1-3
+    _separators     level 1   which characters separate MTSV text, and what a field cannot hold (MTSV)
+    _utf_8          level 1   how an octet sequence is read as UTF-8 (RFC 3629)
+    _json_pointer   level 2   how a JSON Pointer is written, read from a URI fragment and evaluated, and a place named (RFC 6901)
+    _json           level 3   how JSON texts are read, JSON strings written, and values typed (RFC 8259)
+    _key            level 3   how each record is identified: key.1-5
+    _field          level 4   how a value is written as a field's text, and what is not carried: field.1-5
+    _json_schema    level 4   whether a JSON value validates against a JSON Schema of draft-07
+    _schema         level 5   what a module specification supplies, and how its schema is read: schema.1-16
+    _value          level 5   how each input value is read, and when it is rejected: value.1-10
+    _relation       level 6   which relation and column each value is written to: relation.1-17
+    _record         level 7   each instance as one record of its sheet: record.1
+    _sheet          level 7   the name and the header of each sheet: sheet.1-5
+    _file           level 8   how the whole input is written as one MTSV file: file.1-3
+    _converter      level 9   the converter: the input and its module specification, as MTSV
+    __init__        level 10  the public interface: convert, sheets, NonConformingError, NonConformingInputError
+  integrations/               the set of integrations, each found as the package holds it
+    anthropic/messages        the schema of what a model is given and generates, from the SDK's beta types
     anthropic/claude_code/raw_api_bodies
-                            Claude Code's recording as input values, each unit once, only what is new
+                              Claude Code's recording as input values, each unit once, only what is new
     anthropic/claude_code/install
-                            what Claude Code is told: to record, and to run the conversion
-  _command        level 9   the command: a source read by its integration, written as MTSV
-tests/                      one file per module, and the conformance runner, which reads
-                            ../conformance and so runs from a clone
-tools/anthropic_schema.py   generates anthropic/messages.schema.json from anthropic_sdk/,
-                            the SDK's type files and their licence
+                              what Claude Code is told: to record, and to run the conversion
+  command
+    _rename         level 1   how a file is replaced whole: written beside its name, renamed onto it
+    _store          level 2   how the output is kept: its sheets' files, each only appended to
+    _command        level 10  the command: a source read by its integration, written as MTSV
+tests/                        one file per module, and the conformance runner, which reads
+                              ../conformance and so runs from a clone
+tools/anthropic_schema.py     generates anthropic/messages.schema.json from anthropic_sdk/,
+                              the SDK's type files and their licence
 ```
 
 ## Test

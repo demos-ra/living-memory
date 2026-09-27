@@ -45,17 +45,41 @@ _HEX_DIGITS = "0123456789abcdefABCDEF"
 _DIGITS = "0123456789"
 # U+10000 is the first code point beyond the Basic Multilingual Plane.
 _BEYOND_BMP = 0x10000
-
-# A reader returns the value, the index after it, and the start and
-# pointer of every object within it whose names repeat.
-_Read = tuple[Any, int, list[tuple[int, str]]]
+# An object is written between curly brackets, an array between square
+# ones (RFC 8259, 4. Objects; 5. Arrays).
+_BRACKETS = {"{": "}", "[": "]"}
 
 
 class Number(str):
     # A number is kept as the text written, since an implementation may
     # limit the range and precision of numbers (RFC 8259, 6. Numbers;
-    # spec › value.2).
+    # spec › value.6).
     pass
+
+
+class _Open:
+    # An object or an array still being read: its container, its place,
+    # where it starts, the name of the member being read, and whether a
+    # name has come twice.
+    def __init__(self, bracket: str, where: str, start: int) -> None:
+        self.close = _BRACKETS[bracket]
+        self.container: Any = {} if bracket == "{" else []
+        self.where = where
+        self.start = start
+        self.name = ""
+        self.repeats = False
+
+    def place(self) -> str:
+        # The pointer of the value being read within this container.
+        token = self.name if self.close == "}" else len(self.container)
+        return pointer(self.where, token)
+
+    def add(self, value: Any) -> None:
+        if self.close == "]":
+            self.container.append(value)
+            return
+        self.repeats = self.repeats or self.name in self.container
+        self.container[self.name] = value
 
 
 def decode(data: bytes) -> Any:
@@ -64,10 +88,10 @@ def decode(data: bytes) -> Any:
     # fails whole, and so is placed at ""; one whose names repeat is
     # placed at the first such object in the order written (RFC 8259,
     # 2. JSON Grammar; 4. Objects; 8.1. Character Encoding; spec ›
-    # value.1-3).
+    # value.3, value.4, value.7, value.8, value.10).
     try:
         text = _utf_8.decode(data)
-        value, end, repeated = _value(text, _whitespace(text, 0), "")
+        value, end, repeated = _read(text)
         end = _whitespace(text, end)
         if end != len(text):
             raise ValueError(f"text after the value at character {end}")
@@ -86,7 +110,7 @@ def encode(value: Any, indent: int = 0) -> bytes:
     # as insignificant whitespace (RFC 8259, 2. JSON Grammar; 3. Values;
     # 4. Objects; 5. Arrays; 6. Numbers; 7. Strings; 8.1. Character
     # Encoding).
-    return _text(value, indent, 1).encode("utf-8")
+    return _text(value, indent).encode("utf-8")
 
 
 def encode_string(value: str) -> str:
@@ -114,22 +138,109 @@ def type(value: Any) -> str:
     return "string"
 
 
-def _text(value: Any, indent: int, depth: int) -> str:
-    found = type(value)
-    if found in ("object", "array") and value:
+def _read(text: str) -> tuple[Any, int, list[tuple[int, str]]]:
+    # A value is read left to right, each object and array still open
+    # kept in a list, so any depth of nesting is read (RFC 8259, 3.
+    # Values; spec › value.3). It returns the value, the index after it,
+    # and the start and pointer of every object whose names repeat.
+    repeated: list[tuple[int, str]] = []
+    opened: list[_Open] = []
+    at = _whitespace(text, 0)
+    while True:
+        where = opened[-1].place() if opened else ""
+        char = text[at : at + 1]
+        if char in _BRACKETS:
+            container = _Open(char, where, at)
+            at = _whitespace(text, at + 1)
+            if text[at : at + 1] != container.close:
+                opened.append(container)
+                at = _first(text, at, container)
+                continue
+            value, at = container.container, at + 1
+        else:
+            value, at = _scalar(text, at)
+        # A value read is added to the container that holds it, and each
+        # container it completes to the one that holds that.
+        while opened:
+            holder = opened[-1]
+            holder.add(value)
+            at = _whitespace(text, at)
+            if text[at : at + 1] == ",":
+                at = _first(text, _whitespace(text, at + 1), holder)
+                break
+            if text[at : at + 1] != holder.close:
+                raise ValueError(f"no comma or end at character {at}")
+            opened.pop()
+            if holder.repeats:
+                repeated.append((holder.start, holder.where))
+            value, at = holder.container, at + 1
+        else:
+            return value, at, repeated
+
+
+def _first(text: str, at: int, container: _Open) -> int:
+    # An object's member begins with its name and a colon; an array's
+    # element begins with its value (RFC 8259, 4. Objects).
+    if container.close == "]":
+        return at
+    if text[at : at + 1] != '"':
+        raise ValueError(f"no name at character {at}")
+    container.name, at = _string(text, at)
+    at = _whitespace(text, at)
+    if text[at : at + 1] != ":":
+        raise ValueError(f"no colon at character {at}")
+    return _whitespace(text, at + 1)
+
+
+def _scalar(text: str, at: int) -> tuple[Any, int]:
+    # A value that holds none: a string, a number, or one of the three
+    # literal names (RFC 8259, 3. Values).
+    char = text[at : at + 1]
+    if char == '"':
+        return _string(text, at)
+    if char and char in "-" + _DIGITS:
+        return _number(text, at)
+    for name, literal in _LITERALS.items():
+        if text.startswith(name, at):
+            return literal, at + len(name)
+    raise ValueError(f"no JSON value at character {at}")
+
+
+def _text(value: Any, indent: int) -> str:
+    # A value is written left to right, what is still to write kept in a
+    # list, so any depth of nesting is written: a text piece as it is,
+    # a value with its depth (spec › value.3).
+    parts: list[str] = []
+    waiting: list[Any] = [(value, 1)]
+    while waiting:
+        item = waiting.pop()
+        if isinstance(item, str):
+            parts.append(item)
+            continue
+        value, depth = item
+        found = type(value)
+        if found not in ("object", "array") or not value:
+            parts.append(_simple(value, found))
+            continue
         inner = "\n" + " " * (indent * depth) if indent else ""
         outer = "\n" + " " * (indent * (depth - 1)) if indent else ""
         colon = ": " if indent else ":"
         if found == "object":
-            parts = [
-                f"{encode_string(k)}{colon}{_text(v, indent, depth + 1)}"
-                for k, v in value.items()
-            ]
+            children = [(encode_string(k) + colon, v) for k, v in value.items()]
             ends = "{}"
         else:
-            parts = [_text(element, indent, depth + 1) for element in value]
+            children = [("", v) for v in value]
             ends = "[]"
-        return ends[0] + inner + ("," + inner).join(parts) + outer + ends[1]
+        sequence: list[Any] = [ends[0]]
+        for i, (prefix, child) in enumerate(children):
+            sequence += [("," if i else "") + inner + prefix, (child, depth + 1)]
+        sequence.append(outer + ends[1])
+        waiting += reversed(sequence)
+    return "".join(parts)
+
+
+def _simple(value: Any, found: str) -> str:
+    # An empty object or array, a string, a number, or a literal name.
     if found == "object":
         return "{}"
     if found == "array":
@@ -145,78 +256,6 @@ def _whitespace(text: str, at: int) -> int:
     while at < len(text) and text[at] in _WHITESPACE:
         at += 1
     return at
-
-
-def _value(text: str, at: int, where: str) -> _Read:
-    # A value is an object, an array, a number, a string, or one of the
-    # three literal names (RFC 8259, 3. Values).
-    char = text[at : at + 1]
-    if char == "{":
-        return _object(text, at, where)
-    if char == "[":
-        return _array(text, at, where)
-    if char == '"':
-        string, end = _string(text, at)
-        return string, end, []
-    if char and char in "-" + _DIGITS:
-        number, end = _number(text, at)
-        return number, end, []
-    for name, literal in _LITERALS.items():
-        if text.startswith(name, at):
-            return literal, at + len(name), []
-    raise ValueError(f"no JSON value at character {at}")
-
-
-def _object(text: str, start: int, where: str) -> _Read:
-    # An object is zero or more members between curly brackets, a name
-    # and a value each, separated by commas; its names should be unique
-    # (RFC 8259, 4. Objects).
-    members: dict[str, Any] = {}
-    repeated: list[tuple[int, str]] = []
-    repeats = False
-    at = _whitespace(text, start + 1)
-    if text[at : at + 1] == "}":
-        return members, at + 1, repeated
-    while True:
-        if text[at : at + 1] != '"':
-            raise ValueError(f"no name at character {at}")
-        name, at = _string(text, at)
-        at = _whitespace(text, at)
-        if text[at : at + 1] != ":":
-            raise ValueError(f"no colon at character {at}")
-        at = _whitespace(text, at + 1)
-        value, at, inner = _value(text, at, pointer(where, name))
-        repeated += inner
-        repeats = repeats or name in members
-        members[name] = value
-        at = _whitespace(text, at)
-        if text[at : at + 1] == "}":
-            if repeats:
-                repeated.append((start, where))
-            return members, at + 1, repeated
-        if text[at : at + 1] != ",":
-            raise ValueError(f"no comma or end of object at character {at}")
-        at = _whitespace(text, at + 1)
-
-
-def _array(text: str, start: int, where: str) -> _Read:
-    # An array is zero or more values between square brackets,
-    # separated by commas (RFC 8259, 5. Arrays).
-    elements: list[Any] = []
-    repeated: list[tuple[int, str]] = []
-    at = _whitespace(text, start + 1)
-    if text[at : at + 1] == "]":
-        return elements, at + 1, repeated
-    while True:
-        value, at, inner = _value(text, at, pointer(where, len(elements)))
-        repeated += inner
-        elements.append(value)
-        at = _whitespace(text, at)
-        if text[at : at + 1] == "]":
-            return elements, at + 1, repeated
-        if text[at : at + 1] != ",":
-            raise ValueError(f"no comma or end of array at character {at}")
-        at = _whitespace(text, at + 1)
 
 
 def _string(text: str, start: int) -> tuple[str, int]:
