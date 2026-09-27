@@ -31,6 +31,59 @@
    "items": {
     "$ref": "#/definitions/BetaContentBlock"
    }
+  },
+  "stop_reason": {
+   "anyOf": [
+    {
+     "$ref": "#/definitions/BetaStopReason"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "stop_sequence": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "stop_details": {
+   "anyOf": [
+    {
+     "$ref": "#/definitions/BetaRefusalStopDetails"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "input_transformations": {
+   "anyOf": [
+    {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/BetaInputTransformation"
+     }
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "context_management": {
+   "anyOf": [
+    {
+     "$ref": "#/definitions/BetaContextManagementResponse"
+    },
+    {
+     "type": "null"
+    }
+   ]
   }
  },
  "definitions": {
@@ -45,16 +98,6 @@
      "type": "string",
      "enum": [
       "text"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "citations": {
@@ -279,26 +322,116 @@
     }
    ]
   },
-  "BetaCacheControlEphemeralParam": {
-   "$comment": "types/beta/beta_cache_control_ephemeral_param.py \u203a BetaCacheControlEphemeralParam",
+  "BetaStopReason": {
+   "$comment": "types/beta/beta_stop_reason.py \u203a BetaStopReason",
+   "type": "string",
+   "enum": [
+    "end_turn",
+    "max_tokens",
+    "stop_sequence",
+    "tool_use",
+    "pause_turn",
+    "compaction",
+    "refusal",
+    "model_context_window_exceeded"
+   ]
+  },
+  "BetaRefusalStopDetails": {
+   "$comment": "types/beta/beta_refusal_stop_details.py \u203a BetaRefusalStopDetails",
    "type": "object",
    "properties": {
+    "category": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "cyber",
+        "bio",
+        "frontier_llm",
+        "reasoning_extraction",
+        "general_harms"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "explanation": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "fallback_credit_token": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "fallback_has_prefill_claim": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "recommended_model": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
     "type": {
      "type": "string",
      "enum": [
-      "ephemeral"
-     ]
-    },
-    "ttl": {
-     "type": "string",
-     "enum": [
-      "5m",
-      "1h"
+      "refusal"
      ]
     }
    },
    "required": [
     "type"
+   ]
+  },
+  "BetaInputTransformation": {
+   "$comment": "types/beta/beta_input_transformation.py \u203a BetaInputTransformation",
+   "anyOf": [
+    {
+     "$ref": "#/definitions/BetaThinkingDroppedInputTransformation"
+    },
+    {
+     "$ref": "#/definitions/BetaThinkingMismatchAllowedInputTransformation"
+    }
+   ]
+  },
+  "BetaContextManagementResponse": {
+   "$comment": "types/beta/beta_context_management_response.py \u203a BetaContextManagementResponse",
+   "type": "object",
+   "properties": {
+    "applied_edits": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/beta_context_management_response.AppliedEdit"
+     }
+    }
+   },
+   "required": [
+    "applied_edits"
    ]
   },
   "BetaTextCitationParam": {
@@ -342,16 +475,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -425,16 +548,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -480,16 +593,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -537,16 +640,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -586,16 +679,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -637,16 +720,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -687,16 +760,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -717,16 +780,6 @@
      "type": "string",
      "enum": [
       "browser_toolset_20260801"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "configs": {
@@ -777,16 +830,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -846,16 +889,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -907,16 +940,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -976,16 +999,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -1038,16 +1051,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -1089,16 +1092,6 @@
      "type": "string",
      "enum": [
       "computer_toolset_20260801"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "configs": {
@@ -1143,16 +1136,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -1200,16 +1183,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -1255,16 +1228,6 @@
        "code_execution_20260521"
       ]
      }
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     },
     "defer_loading": {
      "type": "boolean"
@@ -1342,16 +1305,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
       },
       {
        "type": "null"
@@ -1438,16 +1391,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
       },
       {
        "type": "null"
@@ -1560,16 +1503,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -1650,16 +1583,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
       },
       {
        "type": "null"
@@ -1766,16 +1689,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
       },
       {
        "type": "null"
@@ -1891,16 +1804,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -1988,16 +1891,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
       },
       {
        "type": "null"
@@ -2097,16 +1990,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "caching": {
      "anyOf": [
       {
@@ -2179,16 +2062,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -2230,16 +2103,6 @@
       ]
      }
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "type": "boolean"
     },
@@ -2263,16 +2126,6 @@
      "type": "string",
      "enum": [
       "mcp_toolset"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "configs": {
@@ -2957,6 +2810,75 @@
     "mcp_server_name",
     "tools",
     "type"
+   ]
+  },
+  "BetaThinkingDroppedInputTransformation": {
+   "$comment": "types/beta/beta_thinking_dropped_input_transformation.py \u203a BetaThinkingDroppedInputTransformation",
+   "type": "object",
+   "properties": {
+    "path": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string",
+     "enum": [
+      "model_binding_mismatch",
+      "prefix_binding_mismatch",
+      "organization_binding_mismatch",
+      "end_user_binding_mismatch"
+     ]
+    },
+    "type": {
+     "type": "string",
+     "enum": [
+      "thinking_dropped"
+     ]
+    }
+   },
+   "required": [
+    "path",
+    "reason",
+    "type"
+   ]
+  },
+  "BetaThinkingMismatchAllowedInputTransformation": {
+   "$comment": "types/beta/beta_thinking_mismatch_allowed_input_transformation.py \u203a BetaThinkingMismatchAllowedInputTransformation",
+   "type": "object",
+   "properties": {
+    "path": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string",
+     "enum": [
+      "model_binding_mismatch",
+      "prefix_binding_mismatch",
+      "organization_binding_mismatch",
+      "end_user_binding_mismatch"
+     ]
+    },
+    "type": {
+     "type": "string",
+     "enum": [
+      "thinking_mismatch_allowed"
+     ]
+    }
+   },
+   "required": [
+    "path",
+    "reason",
+    "type"
+   ]
+  },
+  "beta_context_management_response.AppliedEdit": {
+   "$comment": "types/beta/beta_context_management_response.py \u203a AppliedEdit",
+   "anyOf": [
+    {
+     "$ref": "#/definitions/BetaClearToolUses20250919EditResponse"
+    },
+    {
+     "$ref": "#/definitions/BetaClearThinking20251015EditResponse"
+    }
    ]
   },
   "BetaCitationCharLocationParam": {
@@ -3782,6 +3704,28 @@
     }
    ]
   },
+  "BetaCacheControlEphemeralParam": {
+   "$comment": "types/beta/beta_cache_control_ephemeral_param.py \u203a BetaCacheControlEphemeralParam",
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "enum": [
+      "ephemeral"
+     ]
+    },
+    "ttl": {
+     "type": "string",
+     "enum": [
+      "5m",
+      "1h"
+     ]
+    }
+   },
+   "required": [
+    "type"
+   ]
+  },
   "BetaMCPToolConfigParam": {
    "$comment": "types/beta/beta_mcp_tool_config_param.py \u203a BetaMCPToolConfigParam",
    "type": "object",
@@ -3845,16 +3789,6 @@
       "image"
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "transformations": {
      "anyOf": [
       {
@@ -3882,16 +3816,6 @@
      "type": "string",
      "enum": [
       "document"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "citations": {
@@ -3950,16 +3874,6 @@
      "type": "string",
      "enum": [
       "search_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "citations": {
@@ -4034,16 +3948,6 @@
       "tool_use"
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "caller": {
      "$ref": "#/definitions/beta_tool_use_block_param.Caller"
     },
@@ -4076,16 +3980,6 @@
      "type": "string",
      "enum": [
       "tool_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "content": {
@@ -4149,16 +4043,6 @@
       "server_tool_use"
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "caller": {
      "$ref": "#/definitions/beta_server_tool_use_block_param.Caller"
     }
@@ -4184,16 +4068,6 @@
      "type": "string",
      "enum": [
       "web_search_tool_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "caller": {
@@ -4222,16 +4096,6 @@
       "web_fetch_tool_result"
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "caller": {
      "$ref": "#/definitions/beta_web_fetch_tool_result_block_param.Caller"
     }
@@ -4257,16 +4121,6 @@
      "enum": [
       "advisor_tool_result"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4289,16 +4143,6 @@
      "type": "string",
      "enum": [
       "code_execution_tool_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     }
    },
@@ -4323,16 +4167,6 @@
      "enum": [
       "bash_code_execution_tool_result"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4356,16 +4190,6 @@
      "enum": [
       "text_editor_code_execution_tool_result"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4388,16 +4212,6 @@
      "type": "string",
      "enum": [
       "tool_search_tool_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     }
    },
@@ -4428,16 +4242,6 @@
      "enum": [
       "mcp_tool_use"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4459,16 +4263,6 @@
      "type": "string",
      "enum": [
       "mcp_tool_result"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "content": {
@@ -4505,16 +4299,6 @@
      "enum": [
       "container_upload"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4530,16 +4314,6 @@
      "type": "string",
      "enum": [
       "compaction"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "content": {
@@ -4602,16 +4376,6 @@
      "enum": [
       "tool_addition"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -4630,16 +4394,6 @@
      "type": "string",
      "enum": [
       "tool_removal"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     }
    },
@@ -4945,6 +4699,52 @@
    "required": [
     "input_schema",
     "name"
+   ]
+  },
+  "BetaClearToolUses20250919EditResponse": {
+   "$comment": "types/beta/beta_clear_tool_uses_20250919_edit_response.py \u203a BetaClearToolUses20250919EditResponse",
+   "type": "object",
+   "properties": {
+    "cleared_input_tokens": {
+     "type": "integer"
+    },
+    "cleared_tool_uses": {
+     "type": "integer"
+    },
+    "type": {
+     "type": "string",
+     "enum": [
+      "clear_tool_uses_20250919"
+     ]
+    }
+   },
+   "required": [
+    "cleared_input_tokens",
+    "cleared_tool_uses",
+    "type"
+   ]
+  },
+  "BetaClearThinking20251015EditResponse": {
+   "$comment": "types/beta/beta_clear_thinking_20251015_edit_response.py \u203a BetaClearThinking20251015EditResponse",
+   "type": "object",
+   "properties": {
+    "cleared_input_tokens": {
+     "type": "integer"
+    },
+    "cleared_thinking_turns": {
+     "type": "integer"
+    },
+    "type": {
+     "type": "string",
+     "enum": [
+      "clear_thinking_20251015"
+     ]
+    }
+   },
+   "required": [
+    "cleared_input_tokens",
+    "cleared_thinking_turns",
+    "type"
    ]
   },
   "beta_tool_param.InputSchemaTyped": {
@@ -7819,16 +7619,6 @@
      "enum": [
       "tool_reference"
      ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
-     ]
     }
    },
    "required": [
@@ -7850,16 +7640,6 @@
      "type": "string",
      "enum": [
       "browser_state"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeralParam"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "state_changes": {
@@ -9311,16 +9091,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -9389,16 +9159,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -9479,16 +9239,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -9544,16 +9294,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -9621,16 +9361,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -9692,16 +9422,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -9736,16 +9456,6 @@
      "type": "string",
      "enum": [
       "browser_toolset_20260801"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "configs": {
@@ -9798,16 +9508,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -9900,16 +9600,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -9984,16 +9674,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -10086,16 +9766,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -10176,16 +9846,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -10257,16 +9917,6 @@
       "computer_toolset_20260801"
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "configs": {
      "anyOf": [
       {
@@ -10311,16 +9961,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -10401,16 +10041,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -10479,16 +10109,6 @@
          "code_execution_20260521"
         ]
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -10605,16 +10225,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -10716,16 +10326,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -10859,16 +10459,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -10970,16 +10560,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -11107,16 +10687,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -11260,16 +10830,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -11385,16 +10945,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
       },
       {
        "type": "null"
@@ -11529,16 +11079,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "caching": {
      "anyOf": [
       {
@@ -11632,16 +11172,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -11704,16 +11234,6 @@
       }
      ]
     },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
-     ]
-    },
     "defer_loading": {
      "anyOf": [
       {
@@ -11751,16 +11271,6 @@
      "type": "string",
      "enum": [
       "mcp_toolset"
-     ]
-    },
-    "cache_control": {
-     "anyOf": [
-      {
-       "$ref": "#/definitions/BetaCacheControlEphemeral"
-      },
-      {
-       "type": "null"
-      }
      ]
     },
     "configs": {
@@ -11832,35 +11342,6 @@
        "items": {
         "type": "string"
        }
-      },
-      {
-       "type": "null"
-      }
-     ]
-    }
-   },
-   "required": [
-    "type"
-   ]
-  },
-  "BetaCacheControlEphemeral": {
-   "$comment": "types/beta/beta_cache_control_ephemeral.py \u203a BetaCacheControlEphemeral",
-   "type": "object",
-   "properties": {
-    "type": {
-     "type": "string",
-     "enum": [
-      "ephemeral"
-     ]
-    },
-    "ttl": {
-     "anyOf": [
-      {
-       "type": "string",
-       "enum": [
-        "5m",
-        "1h"
-       ]
       },
       {
        "type": "null"
@@ -12470,6 +11951,35 @@
      ]
     }
    }
+  },
+  "BetaCacheControlEphemeral": {
+   "$comment": "types/beta/beta_cache_control_ephemeral.py \u203a BetaCacheControlEphemeral",
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "enum": [
+      "ephemeral"
+     ]
+    },
+    "ttl": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "5m",
+        "1h"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "type"
+   ]
   },
   "BetaMCPToolConfig": {
    "$comment": "types/beta/beta_mcp_tool_config.py \u203a BetaMCPToolConfig",

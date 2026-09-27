@@ -94,7 +94,7 @@ src/living_memory/
   integrations/               the set of integrations, each found as the package holds it
     anthropic/messages        the schema of what a model is given and generates, from the SDK's beta types
     anthropic/claude_code/raw_api_bodies
-                              Claude Code's recording as input values, each unit once, only what is new
+                              Claude Code's recording as input values, one per request, only what the request it extends does not hold
     anthropic/claude_code/install
                               what Claude Code is told: to record, and to run the conversion
   command

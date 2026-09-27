@@ -3,6 +3,7 @@
 __all__ = ["FILE", "schema", "values"]
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -15,44 +16,77 @@ from living_memory.integrations.anthropic import messages
 FILE = "index.jsonl"
 # The sheet of the input values is named after the recording.
 _TITLE = "raw_api_bodies"
-# The request's kept members, in the order the request holds them, and
-# the response's (raw_api_bodies.mtsv › values.1).
-_REQUEST = ("system", "tools", "messages")
+# The request's members that hold a list of units, each compared with
+# the parent's at its pointer, and the response's content, the message
+# that follows (raw_api_bodies.mtsv › values.1, values.3).
+_LISTS = ("system", "tools")
 _RESPONSE = "content"
-# Each value's members that name it, before the unit it holds.
-_NAMES = ("session_id", "query_source", "request", "version", "from", "line")
+# A value's names for its index line and for the index line of the
+# request it extends, names the living-memory specification's Fields do
+# not give (raw_api_bodies.mtsv › values.2, values.4).
+_LINE = "index_line"
+_EXTENDS = "extends"
+# The index line's members that name the request (values.4).
+_INDEX = ("session_id", "query_source", "model", "timestamp")
+# Index lines count from 1, so 0 names no parent (JSON Lines;
+# raw_api_bodies.mtsv › values.2).
+_NO_PARENT = 0
 
-# A unit: the member that holds it, its JSON Pointer in the request, and
-# the unit itself.
-_Unit = tuple[str, str, Any]
+
+@dataclass(frozen=True)
+class _Request:
+    # A request as it is compared: its index line and thread, its
+    # messages as they are kept, then its response as the message of its
+    # role and content that follows, and its system blocks and tools,
+    # each as it is kept.
+    line: int
+    thread: tuple[str, str]
+    sequence: list[Any]
+    lists: dict[str, list[Any]]
 
 
 def schema() -> bytes:
     """Return the schema of the input values, as a JSON text.
 
-    A value names its unit, by its conversation, its pointer in the
-    request, its version, from and line, and holds the unit under the
-    member that holds it (raw_api_bodies.mtsv › values.1, values.2).
+    A value names its request by index_line, session_id, query_source,
+    model and timestamp; names as extends the request it extends and as
+    kept how many of its messages it keeps; counts its system blocks and
+    tools; and holds the units the request it extends does not, each at
+    its pointer in the request, and the response's members kept beside
+    its content (raw_api_bodies.mtsv › values.2-4).
     """
     count = {"type": "integer", "minimum": Number("0")}
+    pointer = {
+        "type": "object",
+        "properties": {"pointer": {"type": "string"}},
+        "required": ["pointer"],
+        "additionalProperties": False,
+    }
+    unit = {
+        "type": "object",
+        "properties": {"request": pointer, **messages.units()},
+        "required": ["request"],
+        "additionalProperties": False,
+    }
+    counts = {
+        "type": "object",
+        "properties": {name: count for name in _LISTS},
+        "required": list(_LISTS),
+        "additionalProperties": False,
+    }
     root = {
         "title": _TITLE,
         "type": "object",
         "properties": {
-            "session_id": {"type": "string"},
-            "query_source": {"type": "string"},
-            "request": {
-                "type": "object",
-                "properties": {"pointer": {"type": "string"}},
-                "required": ["pointer"],
-                "additionalProperties": False,
-            },
-            "version": count,
-            "from": count,
-            "line": {"type": "integer", "minimum": Number("1")},
-            **messages.units(),
+            _LINE: {"type": "integer", "minimum": Number("1")},
+            **{name: {"type": "string"} for name in _INDEX},
+            _EXTENDS: count,
+            "kept": count,
+            "count": counts,
+            "units": {"type": "array", "items": unit},
+            **messages.ending(),
         },
-        "required": list(_NAMES),
+        "required": [_LINE, *_INDEX, _EXTENDS, "kept", "count", "units"],
         "additionalProperties": False,
         "definitions": messages.definitions(),
     }
@@ -66,15 +100,14 @@ def values(path: Path, held: list[dict[str, str]] | None) -> Iterator[bytes]:
     held -- the records of the output's sheet of the input values, each
         by its header's names, or None where the output holds none
 
-    Each kept unit once, in the order its conversation first gives it,
-    from the index lines after the last one held, until a line whose
-    files are not yet written (raw_api_bodies.mtsv › recording.4,
-    recording.5, values.1-6).
+    One value for each request, in the index's order, from the lines
+    after the last one held, until a line whose files are not yet
+    written (raw_api_bodies.mtsv › recording.4, recording.5,
+    values.1-6).
     """
     lines = _index(path)
-    after = max((int(record["line"]) for record in held or []), default=0)
-    versions = _versions(held or [])
-    last = _last(lines, after, path)
+    after = max((int(record[_LINE]) for record in held or []), default=0)
+    tips = _tips(lines, after, path)
     for number, entry in lines:
         if number <= after:
             continue
@@ -84,21 +117,10 @@ def values(path: Path, held: list[dict[str, str]] | None) -> Iterator[bytes]:
         if "request_file" not in entry:
             continue
         request, response = found
-        conversation = (entry["session_id"], entry["query_source"])
-        units = _units(request, response)
-        previous = last.get(conversation, [])
-        for member, pointer, unit in units:
-            if _held((member, pointer, unit), previous):
-                continue
-            key = (*conversation, pointer)
-            versions[key] = versions.get(key, -1) + 1
-            given = len(request["messages"])
-            if member == _RESPONSE:
-                given += 1
-            yield _value(
-                conversation, (member, pointer, unit), (versions[key], given, number)
-            )
-        last[conversation] = units
+        current = _request(number, entry, request, response)
+        parent = _parent(current, tips)
+        yield _value(entry, (request, response), current, parent)
+        tips[current.thread] = current
 
 
 def _index(path: Path) -> list[tuple[int, dict[str, Any]]]:
@@ -131,83 +153,114 @@ def _bodies(entry: dict[str, Any], path: Path) -> tuple[Any, Any] | None:
     return (read[0], read[1]) if len(read) == 2 else (None, read[0])
 
 
-def _units(request: dict[str, Any], response: dict[str, Any]) -> list[_Unit]:
-    # The request's system blocks, or its system prompt where it is a
-    # string, its tools and its messages, each by its JSON Pointer; then
-    # the response's content, as the message that follows, each unit as
-    # the bodies hold it (RFC 6901; raw_api_bodies.mtsv › recording.2,
-    # values.1).
-    units: list[_Unit] = []
-    for member in _REQUEST:
-        held = request.get(member)
-        if isinstance(held, list):
-            for position, unit in enumerate(held):
-                pointer = _json_pointer.pointer(f"/{member}", position)
-                units.append((member, pointer, unit))
-        elif held is not None:
-            units.append((member, f"/{member}", held))
-    following = _json_pointer.pointer("/messages", len(request["messages"]))
-    units.append((_RESPONSE, following, response[_RESPONSE]))
-    return units
+def _request(
+    number: int, entry: dict[str, Any], request: Any, response: Any
+) -> _Request:
+    # A request's messages, each whole as messages.mtsv keeps it, then
+    # its response as the message that follows, of its role, assistant,
+    # and its content, which is all it holds; and its system blocks and
+    # tools, each as it is kept (values.3).
+    said = [messages.kept("messages", m) for m in request.get("messages", [])]
+    answer = {
+        "role": "assistant",
+        "content": messages.kept(_RESPONSE, response[_RESPONSE]),
+    }
+    lists = {
+        name: [messages.kept(name, unit) for unit in request.get(name) or []]
+        for name in _LISTS
+        if isinstance(request.get(name), list)
+    }
+    thread = (entry["session_id"], entry["query_source"])
+    return _Request(number, thread, [*said, answer], lists)
 
 
-def _held(given: _Unit, previous: list[_Unit]) -> bool:
-    # A unit equal to the one the conversation's last request or
-    # response gave at its pointer is held; a message re-sent after a
-    # response is compared by its role and content (raw_api_bodies.mtsv
-    # › values.3, values.4).
-    member, pointer, unit = given
-    for earlier_member, earlier_pointer, earlier in previous:
-        if earlier_pointer != pointer:
-            continue
-        if earlier_member == member:
-            return _json_schema.equal(unit, earlier)
-        if earlier_member == _RESPONSE and member == "messages":
-            return unit.get("role") == "assistant" and _json_schema.equal(
-                unit.get("content"), earlier
-            )
-    return False
-
-
-def _versions(held: list[dict[str, str]]) -> dict[tuple[str, str, str], int]:
-    # The latest version held at each address (raw_api_bodies.mtsv ›
-    # values.2, values.5).
-    found: dict[tuple[str, str, str], int] = {}
-    for record in held:
-        key = (record["session_id"], record["query_source"], record["request.pointer"])
-        found[key] = max(found.get(key, -1), int(record["version"]))
-    return found
-
-
-def _last(
+def _tips(
     lines: list[tuple[int, dict[str, Any]]], after: int, path: Path
-) -> dict[tuple[str, str], list[_Unit]]:
-    # Each conversation's last request and response up to the last line
-    # held, read again, so the first new line is compared with them
-    # (raw_api_bodies.mtsv › values.6).
-    latest: dict[tuple[str, str], dict[str, Any]] = {}
+) -> dict[tuple[str, str], _Request]:
+    # The latest request of each thread up to the last line held, read
+    # again from its files (values.6).
+    latest: dict[tuple[str, str], tuple[int, dict[str, Any]]] = {}
     for number, entry in lines:
         if number <= after and "request_file" in entry:
-            latest[(entry["session_id"], entry["query_source"])] = entry
+            latest[(entry["session_id"], entry["query_source"])] = (number, entry)
     found = {}
-    for conversation, entry in latest.items():
+    for thread, (number, entry) in latest.items():
         request, response = _bodies(entry, path)
-        found[conversation] = _units(request, response)
+        found[thread] = _request(number, entry, request, response)
     return found
 
 
-def _value(conversation: tuple[str, str], unit: _Unit, counts: tuple) -> bytes:
-    # One input value: its names, then the unit under its member
-    # (raw_api_bodies.mtsv › values.2).
-    member, pointer, held = unit
-    version, given, line = counts
-    value = {
-        "session_id": conversation[0],
-        "query_source": conversation[1],
-        "request": {"pointer": pointer},
-        "version": Number(str(version)),
-        "from": Number(str(given)),
-        "line": Number(str(line)),
-        member: held,
+def _parent(current: _Request, tips: dict[tuple[str, str], _Request]) -> tuple:
+    # Of the latest request of each thread of the session, the one whose
+    # messages, then response, the request's messages agree with
+    # furthest, the later where two agree as far; none where none agrees
+    # with its first message (values.2).
+    own = current.sequence[:-1]
+    best: tuple[int, int, _Request | None] = (0, _NO_PARENT, None)
+    for tip in tips.values():
+        if tip.thread[0] != current.thread[0]:
+            continue
+        agree = 0
+        for mine, theirs in zip(own, tip.sequence):
+            if not _json_schema.equal(mine, theirs):
+                break
+            agree += 1
+        best = max(best, (agree, tip.line, tip), key=lambda b: (b[0], b[1]))
+    return best if best[0] else (0, _NO_PARENT, None)
+
+
+def _value(
+    entry: dict[str, Any],
+    bodies: tuple[Any, Any],
+    current: _Request,
+    parent: tuple,
+) -> bytes:
+    # One input value: the request's names, its parent and how many of
+    # its messages it keeps, its counts, the units the parent does not
+    # hold, and the response's members kept beside its content
+    # (values.2-4).
+    request, response = bodies
+    kept, parent_line, tip = parent
+    units: list[dict[str, Any]] = []
+    system = request.get("system")
+    if isinstance(system, str):
+        units.append(_unit("/system", "system", system))
+    for name in _LISTS:
+        before = tip.lists.get(name, []) if tip else []
+        for position, unit in enumerate(current.lists.get(name, [])):
+            if position >= len(before) or not _json_schema.equal(
+                unit, before[position]
+            ):
+                units.append(
+                    _unit(_json_pointer.pointer(f"/{name}", position), name, unit)
+                )
+    said = request.get("messages", [])
+    for position in range(kept, len(said)):
+        message = messages.kept("messages", said[position])
+        units.append(
+            _unit(_json_pointer.pointer("/messages", position), "messages", message)
+        )
+    answer = messages.kept(_RESPONSE, response[_RESPONSE])
+    units.append(
+        _unit(_json_pointer.pointer("/messages", len(said)), _RESPONSE, answer)
+    )
+    value: dict[str, Any] = {
+        _LINE: Number(str(current.line)),
+        **{name: entry[name] for name in _INDEX},
+        _EXTENDS: Number(str(parent_line)),
+        "kept": Number(str(kept)),
+        "count": {
+            name: Number(str(len(current.lists.get(name, [])))) for name in _LISTS
+        },
+        "units": units,
     }
+    for name in messages.ending():
+        if response.get(name) not in (None, [], {}):
+            value[name] = response[name]
     return _json.encode(value)
+
+
+def _unit(pointer: str, member: str, unit: Any) -> dict[str, Any]:
+    # A unit at its JSON Pointer in the request, under the member that
+    # holds it (values.3).
+    return {"request": {"pointer": pointer}, member: unit}

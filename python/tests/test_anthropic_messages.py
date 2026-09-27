@@ -13,6 +13,57 @@ class TestUnits(unittest.TestCase):
             sorted(module.units()), ["content", "messages", "system", "tools"]
         )
 
+    # kept.1: the response's members kept beside its content.
+    def test_ending(self):
+        self.assertEqual(
+            list(module.ending()),
+            [
+                "stop_reason",
+                "stop_sequence",
+                "stop_details",
+                "input_transformations",
+                "context_management",
+            ],
+        )
+
+    # kept.2: a cache control breakpoint is left out of every block,
+    # those within a block's content and its source's content included,
+    # and out of the schema; nothing else is touched.
+    def test_cache_control(self):
+        control = {"type": "ephemeral"}
+        message = {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "hi", "cache_control": control},
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "t",
+                    "cache_control": control,
+                    "content": [
+                        {"type": "text", "text": "x", "cache_control": control}
+                    ],
+                },
+                {
+                    "type": "tool_use",
+                    "id": "u",
+                    "name": "n",
+                    "input": {"cache_control": "kept: a tool's input"},
+                },
+            ],
+        }
+        kept = module.kept("messages", message)
+        self.assertNotIn("cache_control", kept["content"][0])
+        self.assertNotIn("cache_control", kept["content"][1])
+        self.assertNotIn("cache_control", kept["content"][1]["content"][0])
+        self.assertIn("cache_control", kept["content"][2]["input"])
+        tool = module.kept("tools", {"name": "n", "cache_control": control})
+        self.assertEqual(tool, {"name": "n"})
+        members = [
+            definition.get("properties", {})
+            for definition in module.definitions().values()
+        ]
+        self.assertFalse(any("cache_control" in each for each in members))
+
     # schema.1, schema.7: the core reads the schema whole, and a
     # recorded message and a string system prompt validate.
     def test_valid(self):
