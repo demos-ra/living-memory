@@ -2,11 +2,11 @@
 input	values
 storage.3.parts	2
 sheets
-input	place	sheet name	records
-storage.3.parts	0	calls	2
-storage.3.parts	1	calls.k	3
-storage.3.parts	2	instances	1
-storage.3.parts	3	runs	2
+input	place	sheet name
+storage.3.parts	0	calls
+storage.3.parts	1	calls.k
+storage.3.parts	2	instances
+storage.3.parts	3	runs
 fields
 input	place	position	field name
 storage.3.parts	0	0	pointer

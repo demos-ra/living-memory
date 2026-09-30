@@ -26,7 +26,7 @@ the extension (storage.2):
 |-----------------------|-----------------------------------------------------------|
 | `name.jsonl`          | the input values, in order, one JSON text per line        |
 | `name.schema.json`    | the schema the module specification supplies (schema.1)   |
-| `name.aggregate.mtsv` | the aggregate communicated at step 2 (communication.3)    |
+| `name.names.mtsv`     | the names communicated at step 2 (communication.3)        |
 | `name.new-1.mtsv`     | what is new, communicated at step 3 (communication.5)     |
 | `name.new-2.mtsv`     | what is new, communicated at step 5 (communication.5)     |
 | `name.again.mtsv`     | what is new, communicated again at step 6 (communication.6) |
@@ -51,7 +51,7 @@ that holds nothing, the parts split as value.2's are: the values before
 the middle, then the rest.
 
 1. Store part 1.
-2. Communicate the aggregate: `name.aggregate.mtsv`.
+2. Communicate the names: `name.names.mtsv`.
 3. Communicate what is new: `name.new-1.mtsv`.
 4. Store part 2.
 5. Communicate what is new: `name.new-2.mtsv`.
@@ -59,10 +59,10 @@ the middle, then the rest.
 7. Request every sheet of the input for every value stored: `name.all.mtsv`.
 8. Where the case has one, the request its row below states: `name.request.mtsv`.
 
-A range of positions includes its first and excludes its last.
+A range of positions includes its first and its last (communication.4).
 `storage.2.two-inputs` stores two inputs, `.a` then `.b`, each whole in
-one part, then communicates the aggregate and, for each input, every
-record: `name.aggregate.mtsv`, `name.a.all.mtsv`, `name.b.all.mtsv`. The
+one part, then communicates the names and, for each input, every
+record: `name.names.mtsv`, `name.a.all.mtsv`, `name.b.all.mtsv`. The
 tests read nothing of a data bank's storage but what it communicates
 (storage.6).
 
@@ -145,8 +145,8 @@ A case named for another rule also checks the rule it is listed under.
 | storage.6   | every case of `communicated/`: nothing is read but what is communicated |
 | communication.1 | every expected file of `communicated/`, each an MTSV file         |
 | communication.2 | every expected file of `communicated/`: values as stored, records in stored order |
-| communication.3 | every `name.aggregate.mtsv`; `storage.2.two-inputs` (two inputs, in the order stored) |
-| communication.4 | every `name.all.mtsv`; `storage.3.parts` request: values 1 to 3, the sheets at places 1 and 3 (a sheet holding none of them left out) |
+| communication.3 | every `name.names.mtsv`; `storage.2.two-inputs` (two inputs, in the order stored) |
+| communication.4 | every `name.all.mtsv`; `storage.3.parts` request: values 1 to 2, the sheets at places 1 and 3 (a sheet holding none of them left out) |
 | communication.5 | every `name.new-1.mtsv` (part 1) and `name.new-2.mtsv` (part 2 alone: part 1 was communicated at step 3) |
 | communication.6 | every `name.again.mtsv`; every `name.new-2.mtsv`                  |
 

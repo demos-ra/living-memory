@@ -79,10 +79,10 @@ storage.4	A converter writes the whole input's file or none (file.1); a data ban
 storage.5	A data bank MUST convert the next part of an input from the position equal to the number of values it stores (value.2).
 storage.6	Users of a data bank are protected from having to know how its data is organized, its internal representation [CODD1970]; a data bank MUST give what it stores only by communication (communication.1-6).
 communication.1	The array representation serves the communication of bulk data between systems [CODD1970], and the output of one tool is the input of another [WICKHAM2014]; a data bank MUST communicate what it stores as MTSV, which the receiving system reads as a parser [MTSV-DRAFT].
-communication.2	The verbs of data manipulation are filter, transform, aggregate and sort, each possibly by group [WICKHAM2014]; a data bank MUST derive what it communicates by filter and aggregate alone, and MUST NOT transform or sort: values as stored (field.1), records in stored order (order.2).
-communication.3	A data bank MUST communicate the aggregate of its storage, grouped by input, sheet and field [WICKHAM2014], as three sheets, each record beginning with its primary key (key.1): inputs, keyed by input, then values; sheets, keyed by input and place, then sheet name and records; and fields, keyed by input, place and position, then field name [MTSV-DRAFT].
-communication.4	Filtering subsets observations on a condition, by group [WICKHAM2014]; a data bank MUST communicate, on request, the records it stores of one input, of the values whose positions fall in a given range, and of the sheets asked for or else every sheet, each in its stored sheet, in its place in the order (order.1).
-communication.5	Each fact is expressed in only one place [WICKHAM2014]; a data bank MUST communicate what is new as communication.4 does, for the range from the number of values it has communicated to the number it stores.
+communication.2	The verbs of data manipulation are filter, transform, aggregate and sort, each possibly by group, and the output of one tool is the input of another [WICKHAM2014]; a data bank MUST derive what it communicates by filter, and by aggregate only to count an input's values (communication.3), and MUST NOT transform or sort: values as stored (field.1), records in stored order (order.2); any other aggregate is the receiving system's.
+communication.3	A user need not know more about a relation than its name and the names of its domains, which the system may offer on request [CODD1970]; a data bank MUST communicate, on request, the names of what it stores as three sheets, each record beginning with its primary key (key.1): inputs, keyed by input, then values, the number of its values stored; sheets, keyed by input and place, then sheet name; and fields, keyed by input, place and position, then field name [MTSV-DRAFT].
+communication.4	Filtering subsets observations on a condition, by group [WICKHAM2014], and only the keys are a condition every stored record answers; a data bank MUST communicate, on request, the records it stores of one input, of the values whose positions lie in a given range, its first and its last position both included [RFC7111], each position counted from 0 as key.2 counts it, and of the sheets asked for by their places, or else every sheet, each in its stored sheet, in its place in the order (order.1).
+communication.5	Each fact is expressed in only one place [WICKHAM2014]; a data bank MUST communicate what is new as communication.4 does, for the range from the number of values it has communicated to the last value it stores.
 communication.6	A data bank MUST keep, with each input's storage, the number of values it has communicated (communication.5).
 Fields
 Field	Definition
@@ -95,10 +95,9 @@ line	In the sheet of runs, the zero-based count of line breaks before the run of
 position	In the sheet of runs, the zero-based count of HT before the run of text within its line; in the sheet fields, the zero-based count of HT before the field within its header: HT moves to the next in a series of predetermined positions along the printing line (relation.14, communication.3) [RFC20].
 value	In the sheet of instances, the instance's text; in the sheet of runs, the run of text; in a sheet whose instances allow one simple type, the instance (relation.7, relation.14, field.2) [MTSV-DRAFT].
 input	In the sheets inputs, sheets and fields, the first column: an input's name, as its module specification names it (storage.2, communication.3).
-values	In the sheet inputs, the number of an input's values stored (communication.3) [RFC8259].
+values	In the sheet inputs, the number of an input's values stored, whose positions a request may name (communication.3, communication.4) [RFC8259].
 place	In the sheets sheets and fields, the zero-based place of a sheet among every sheet the schema gives, in the order of order.1, so that it does not change as values are inserted (storage.1, communication.3).
 sheet name	In the sheet sheets, the sheet's name (communication.3) [MTSV-DRAFT].
-records	In the sheet sheets, the number of records the sheet holds (communication.3) [MTSV-DRAFT].
 field name	In the sheet fields, the name of a field, as its sheet's header gives it (communication.3) [MTSV-DRAFT].
 References
 Tag	Reference	URI	Kind
@@ -114,6 +113,7 @@ RFC20	Cerf, V., "ASCII format for network interchange", STD 80, RFC 20, October 
 RFC3629	Yergeau, F., "UTF-8, a transformation format of ISO 10646", STD 63, RFC 3629, November 2003	https://www.rfc-editor.org/info/rfc3629	normative
 RFC3986	Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform Resource Identifier (URI): Generic Syntax", STD 66, RFC 3986, January 2005	https://www.rfc-editor.org/info/rfc3986	normative
 RFC6901	Bryan, P., Ed., Zyp, K., and M. Nottingham, Ed., "JavaScript Object Notation (JSON) Pointer", RFC 6901, April 2013	https://www.rfc-editor.org/info/rfc6901	normative
+RFC7111	Hausenblas, M., Wilde, E., and J. Tennison, "URI Fragment Identifiers for the text/csv Media Type", RFC 7111, January 2014	https://www.rfc-editor.org/info/rfc7111	normative
 RFC8259	Bray, T., Ed., "The JavaScript Object Notation (JSON) Data Interchange Format", STD 90, RFC 8259, December 2017	https://www.rfc-editor.org/info/rfc8259	normative
 WICKHAM2014	Wickham, H., "Tidy Data", Journal of Statistical Software 59(10), August 2014	https://doi.org/10.18637/jss.v059.i10	normative
 RFC9413	Thomson, M. and D. Schinazi, "Maintaining Robust Protocols", RFC 9413, June 2023	https://www.rfc-editor.org/info/rfc9413	informative

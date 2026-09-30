@@ -2,8 +2,8 @@
 input	values
 storage.4.rejected-part	2
 sheets
-input	place	sheet name	records
-storage.4.rejected-part	0	calls	2
+input	place	sheet name
+storage.4.rejected-part	0	calls
 fields
 input	place	position	field name
 storage.4.rejected-part	0	0	pointer
