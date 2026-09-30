@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "living-memory"
-version = "0.0.0"
+version = "0.1.0"
 description = "JSON described by a JSON Schema, converted to Multi-Sheet Tab-Separated Values (MTSV)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,6 +13,10 @@ license-files = ["LICENSE"]
 authors = [{ name = "Demos Ra", email = "demos_ra@hotmail.com" }]
 keywords = ["mtsv", "tsv", "tabular data", "json", "json schema"]
 dependencies = ["mtsv>=0.6"]
+
+[project.urls]
+source = "https://github.com/demos-ra/living-memory"
+issues = "https://github.com/demos-ra/living-memory/issues"
 
 [project.scripts]
 living-memory = "living_memory._command:main"
