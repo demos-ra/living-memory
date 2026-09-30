@@ -9,7 +9,7 @@ description = "JSON described by a JSON Schema, converted to Multi-Sheet Tab-Sep
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["LICENSE", "tools/anthropic_sdk/LICENSE"]
+license-files = ["LICENSE"]
 authors = [{ name = "Demos Ra", email = "demos_ra@hotmail.com" }]
 keywords = ["mtsv", "tsv", "tabular data", "json", "json schema"]
 dependencies = ["mtsv>=0.6"]
@@ -18,7 +18,5 @@ dependencies = ["mtsv>=0.6"]
 living-memory = "living_memory._command:main"
 
 [tool.black]
-# The versions requires-python allows; the SDK's type files are held as
-# the SDK wrote them, byte for byte.
+# The versions requires-python allows.
 target-version = ["py311"]
-extend-exclude = "tools/anthropic_sdk/"

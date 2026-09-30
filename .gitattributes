@@ -1,4 +1,3 @@
 *.mtsv -text
 *.jsonl -text
 *.json -text
-python/tools/anthropic_sdk/** -text

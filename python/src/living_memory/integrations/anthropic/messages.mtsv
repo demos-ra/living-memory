@@ -17,9 +17,8 @@ schema.6	TYPE_CHECKING is true during type checking and false at run time [PEP48
 schema.7	Each named type MUST be a definition reached by $ref [JSON-SCHEMA-07], named by its type's name where its package exports it, else by its module's name, '.', and its name.
 schema.8	Each definition MUST cite the file that defines it.
 schema.9	Each object MUST be left open, so a member newer than the SDK's commit is kept, as omitting additionalProperties allows every member [JSON-SCHEMA-07].
-schema.10	The schema is a generated file, and MUST be generated from the SDK's type files by the generator the implementation holds.
+schema.10	The schema is a generated file, and MUST be generated from the SDK's type files at the commit its reference cites [ANTHROPIC-SDK], by the generator the implementation holds.
 schema.11	The schema MUST say at its start that it is generated.
-schema.12	The schema MUST ship with the type files it is generated from and their licence [ANTHROPIC-SDK].
 References
 Tag	Reference	URI	Kind
 ANTHROPIC-API	Anthropic, "Messages" API reference, fetched 2026-09-24T02:01:56Z	https://platform.claude.com/docs/en/api/messages	normative

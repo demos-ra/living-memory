@@ -140,8 +140,8 @@ src/living_memory/
 tests/                        one file per module, and the conformance runner, which reads
                               ../conformance, a data bank's cases through the command, and so
                               runs from a clone
-tools/anthropic_schema.py     generates anthropic/messages.schema.json from anthropic_sdk/,
-                              the SDK's type files and their licence
+tools/anthropic_schema.py     generates anthropic/messages.schema.json from the SDK's
+                              type files, at the commit messages.mtsv cites
 ```
 
 ## Test
