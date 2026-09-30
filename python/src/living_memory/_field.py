@@ -1,6 +1,6 @@
 """How a value is written as a field's text, and what is not carried."""
 
-__all__ = ["carried", "name_carried", "text", "type"]
+__all__ = ["carried", "name_carried", "primitive_type", "text"]
 
 import re
 from typing import Any
@@ -34,11 +34,11 @@ def text(value: Any) -> str:
     return value
 
 
-def type(value: Any) -> str:
+def primitive_type(value: Any) -> str:
     # In a sheet of instances, a record's type is its instance's
     # primitive type (JSON Schema, 4.2.1. Instance Data Model; spec ›
     # field.2).
-    return _json.type(value)
+    return _json.primitive_type(value)
 
 
 def carried(value: str) -> tuple[str, bool]:

@@ -1,4 +1,5 @@
-"""Tests of _command: a source read by its integration, as MTSV."""
+"""Tests of _command: a source read by its integration, stored as MTSV
+in a data bank, and communicated."""
 
 import contextlib
 import io
@@ -20,7 +21,10 @@ READER = types.SimpleNamespace(
 
 
 def run(*argv: str) -> tuple[int, str, str]:
-    out, err = io.StringIO(), io.StringIO()
+    # The command's status, and what it writes to standard output, as
+    # the bytes it writes, and to standard error.
+    data = io.BytesIO()
+    out, err = io.TextIOWrapper(data, "utf-8"), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
             module.main(list(argv))
@@ -28,14 +32,16 @@ def run(*argv: str) -> tuple[int, str, str]:
         except SystemExit as exit:
             code = exit.code if isinstance(exit.code, int) else 1
             err.write(exit.code if isinstance(exit.code, str) else "")
-    return code, out.getvalue(), err.getvalue()
+    out.flush()
+    return code, data.getvalue().decode("utf-8"), err.getvalue()
 
 
 class TestConvert(unittest.TestCase):
-    # The output is the input's name with .mtsv, beside it, unless -o or
-    # an output operand names it; it is kept as its sheets' files, and
-    # a second conversion appends only what the reader gives after the
-    # output's last record.
+    # Register, Code row 104: the output is the input's name with .mtsv,
+    # beside it, unless -o or an output operand names it; storage.2,
+    # storage.5: the input is stored apart, named by its file, and a
+    # second conversion inserts only what the reader gives after the
+    # values stored.
     def test_output_beside_the_input(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder, "calls.x")
@@ -43,9 +49,9 @@ class TestConvert(unittest.TestCase):
                 self.assertEqual(run(str(source))[0], 0)
                 self.assertEqual(run(str(source))[0], 0)
                 self.assertEqual(run(str(source), "-o", f"{folder}/o.mtsv")[0], 0)
-            written = Path(folder, "calls.mtsv", "0 t.mtsv").read_text("utf-8")
+            written = Path(folder, "calls.mtsv", "calls", "0 t.mtsv").read_text("utf-8")
             self.assertEqual(written, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
-            other = Path(folder, "o.mtsv", "0 t.mtsv").read_text("utf-8")
+            other = Path(folder, "o.mtsv", "calls", "0 t.mtsv").read_text("utf-8")
             self.assertEqual(other, written)
 
     # POSIX.1-2017 XBD 12.2, Guideline 13: "-" is standard output.
@@ -125,16 +131,18 @@ class TestInputs(unittest.TestCase):
                 self.assertEqual(run("-k", f"{folder}/calls.x")[0], 0)
             self.assertTrue(Path(folder, "a").exists())
 
-    # --add-context=HOST converts, then writes the host's context of the
-    # output, and keeps what it has given beside each input's output.
+    # --add-context=HOST converts, then writes the host's context, which
+    # the host composes of the data bank's communications alone
+    # (storage.6); what is new advances the number communicated
+    # (communication.6).
     def test_add_context(self):
         with tempfile.TemporaryDirectory() as folder:
             reader = several(Path(folder))
             seen = {}
 
-            def context(hook_input, output, names, look):
-                seen["held"] = look("d/a")["held"]()
-                return "\fmap\nx\n", {"d/a": 1}
+            def context(hook_input, bank):
+                seen["new"] = bank.new("d/a", None)
+                return "\fmap\nx\n"
 
             host = types.SimpleNamespace(HOST="h", context=context)
             with mock.patch.object(integrations, "reader", return_value=reader):
@@ -144,9 +152,70 @@ class TestInputs(unittest.TestCase):
                         with mock.patch.object(module.sys, "stdout") as stdout:
                             module.main(["--add-context=h", f"{folder}/calls.x"])
             stdout.buffer.write.assert_called_once_with(b"\fmap\nx\n")
-            self.assertEqual(seen["held"], [{"pointer": "/0", "n": "1"}])
-            given = Path(folder, "calls.mtsv", "d", "a", ".context").read_text()
+            self.assertEqual(seen["new"], "\ft\npointer\tn\n/0\t1\n")
+            given = Path(folder, "calls.mtsv", "d", "a", ".communicated").read_text()
             self.assertEqual(given, "1\n")
+
+
+class TestCommunicate(unittest.TestCase):
+    # communication.3: --names gives the names of what is stored.
+    def test_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = f"{folder}/calls.x"
+            with mock.patch.object(integrations, "reader", return_value=READER):
+                run(source)
+                code, out, _ = run("--names", source)
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            out,
+            "\finputs\ninput\tvalues\ncalls\t2\n"
+            "\fsheets\ninput\tplace\tsheet name\ncalls\t0\tt\n"
+            "\ffields\ninput\tplace\tposition\tfield name\n"
+            "calls\t0\t0\tpointer\ncalls\t0\t1\tn\n",
+        )
+
+    # communication.4: --filter gives one input's records of a range of
+    # value positions, both ends included, of the places asked for.
+    def test_filter(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = f"{folder}/calls.x"
+            with mock.patch.object(integrations, "reader", return_value=READER):
+                run(source)
+                whole = run("--filter=calls", source)[1]
+                one = run("--filter=calls", "--values=1-1", "--places=0", source)[1]
+                none = run("--filter=calls", "--places=1", source)[1]
+        self.assertEqual(whole, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
+        self.assertEqual(one, "\ft\npointer\tn\n/1\t2\n")
+        self.assertEqual(none, "")
+
+    # communication.5, communication.6: --new gives what is new, then
+    # nothing, the number communicated kept.
+    def test_new(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = f"{folder}/calls.x"
+            with mock.patch.object(integrations, "reader", return_value=READER):
+                run(source)
+                first = run("--new=calls", source)[1]
+                again = run("--new=calls", source)[1]
+        self.assertEqual(first, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
+        self.assertEqual(again, "")
+
+    # A request names an input stored, and --values and --places narrow
+    # only the requests they belong to.
+    def test_request_errors(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = f"{folder}/calls.x"
+            with mock.patch.object(integrations, "reader", return_value=READER):
+                run(source)
+                self.assertEqual(run("--filter=none", source)[0], 1)
+                for argv in (
+                    ["--values=1", source],
+                    ["--places=0", "--names", source],
+                    ["--filter=calls", "--values=x", source],
+                    ["--new=calls", "--places=a", source],
+                ):
+                    with self.subTest(argv=argv):
+                        self.assertEqual(run(*argv)[0], 2)
 
 
 class TestHook(unittest.TestCase):

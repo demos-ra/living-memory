@@ -7,6 +7,7 @@ __all__ = [
     "RUN",
     "SUBORDINATE",
     "member",
+    "position",
     "root",
     "run",
     "values",
@@ -30,6 +31,12 @@ def root(position: int) -> str:
     # An input value's pointer has its zero-based position in the input
     # as the first reference token (spec › key.2).
     return _json_pointer.pointer("", position)
+
+
+def position(at: str) -> int:
+    # A record's value is at the position its pointer's first reference
+    # token gives, whatever the sheet (spec › key.2, key.3, key.5).
+    return int(_json_pointer.tokens(at)[0])
 
 
 def member(at: str, token: str | int) -> str:

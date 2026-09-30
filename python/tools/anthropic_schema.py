@@ -197,10 +197,11 @@ def _wrapper(annotation: ast.expr) -> str | None:
     return None
 
 
-def _schema(node: ast.expr, path: str, context: tuple) -> dict:
+def _schema(node: ast.expr, path: str, context: tuple) -> dict | None:
     # Union for alternatives, Optional for or null, Literal for fixed
     # values, an iterable for an array, Dict[str, X] for an object of X,
-    # and a named type for its definition (PEP 484; PEP 586).
+    # and a named type for its definition; None for what no JSON text
+    # holds (PEP 484; PEP 586).
     if isinstance(node, ast.Constant) and node.value is None:
         return SCALARS["None"]
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -283,7 +284,7 @@ def _statements(tree: ast.Module) -> list[ast.stmt]:
 def _key(context: tuple, name: str, path: str) -> str:
     # A type its package exports is named by its name; any other by its
     # module's name, '.', and its name, since two modules may hold types
-    # of one name (PEP 8, Public and Internal Interfaces).
+    # of one name (messages.mtsv › schema.7).
     package_path = (Path(path).parent / "__init__.py").as_posix()
     package = _module(context[0], package_path, context[1])
     exported = {

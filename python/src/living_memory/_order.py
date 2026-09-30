@@ -49,17 +49,6 @@ def columns(keys: Sequence[Any], domains: Sequence[Any]) -> list[Any]:
     return [*keys, *domains]
 
 
-def members(value: Any) -> list[tuple[str | int, Any]]:
-    # An object's members as written, and an array's elements as the
-    # array orders them (RFC 8259, 4. Objects; 5. Arrays; spec ›
-    # order.2).
-    if isinstance(value, dict):
-        return list(value.items())
-    if isinstance(value, list):
-        return list(enumerate(value))
-    return []
-
-
 def instances(value: Any) -> list[tuple[tuple[str | int, ...], Any]]:
     # Each instance within a value, the value itself first, and an
     # instance before the instances within it, each with the tokens
@@ -73,3 +62,14 @@ def instances(value: Any) -> list[tuple[tuple[str | int, ...], Any]]:
         inner = [((*tokens, token), child) for token, child in members(instance)]
         waiting += reversed(inner)
     return found
+
+
+def members(value: Any) -> list[tuple[str | int, Any]]:
+    # An object's members as written, and an array's elements as the
+    # array orders them (RFC 8259, 4. Objects; 5. Arrays; spec ›
+    # order.2).
+    if isinstance(value, dict):
+        return list(value.items())
+    if isinstance(value, list):
+        return list(enumerate(value))
+    return []

@@ -1,11 +1,10 @@
 """What Claude Code is told: to record, to run the conversion, and the
-context of what it holds."""
+context of what the data bank communicates."""
 
-__all__ = ["HOST", "change", "context", "install", "question"]
+__all__ = ["HOST", "change", "context", "groups", "install", "lineage", "question"]
 
 import os
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -22,14 +21,14 @@ _CAPTURE = "OTEL_LOG_RAW_API_BODIES"
 # The recording's folder under the data directory: the application,
 # then the path of the module that reads it (install.mtsv › folder.3).
 _FOLDER = ("living-memory", "anthropic", "claude_code", "raw_api_bodies")
+# The reader of the recording, the path of the module that reads it
+# (install.mtsv › hooks.5, folder.3).
+_READER = "/".join(_FOLDER[1:])
 # The command that converts it and gives the context.
 _COMMAND = "living-memory"
 # The host's own word for adding context (install.mtsv › hooks.3).
 _ADD_CONTEXT = f"--add-context={HOST}"
-# The reader each hook names, the path of the module that reads the
-# recording, as its folder's name gives it (install.mtsv › hooks.5,
-# folder.3).
-_FROM = f"--from={'/'.join(_FOLDER[1:])}"
+_FROM = f"--from={_READER}"
 # Added context is capped at 10,000 characters (install.mtsv ›
 # context.5).
 _CAP = 10_000
@@ -50,21 +49,20 @@ _COMPACT = "compact"
 # An input's name: its date, then '/', then its session
 # (raw_api_bodies.mtsv › values.7).
 _SEPARATOR = "/"
-# The columns of a group of requests (raw_api_bodies.mtsv › map.1).
+# The place of the sheet of the input values (living-memory.mtsv ›
+# order.1).
+_VALUES = 0
+# The columns of a group of requests, a role name qualifying each domain
+# name (install.mtsv › context.6).
 _GROUP = [
     "session_id",
     "query_source",
     "requests",
-    "first index_line",
-    "last index_line",
-    "first timestamp",
-    "last timestamp",
+    "first.index_line",
+    "last.index_line",
+    "first.timestamp",
+    "last.timestamp",
 ]
-
-# What the command gives for one input's output: its sheet files, the
-# records of its sheet of the input values, and how many a context has
-# given, each read when asked for.
-Look = Callable[[str], dict[str, Callable[[], Any]]]
 
 
 def change() -> str:
@@ -72,7 +70,7 @@ def change() -> str:
 
     It names the folder created, the variable set and what that
     records, that the request and response files are removed once
-    converted unless kept, the three hooks added, and that the recording
+    stored unless kept, the three hooks added, and that the recording
     begins with the next session (install.mtsv › install.2, capture.3).
     Raise OSError on Windows, where the command does not run (folder.2).
     """
@@ -85,23 +83,23 @@ def change() -> str:
         f"  in {_settings()}, set {_CAPTURE}=file:{folder}, which records the"
         " full requests and responses, your prompts, tool details and tool"
         " content included, from the next session;\n"
-        f"  add a Stop hook that converts that folder to MTSV, in {_store(folder)},"
-        " after each response, then removes the request and response files it"
-        " has converted, unless you keep them;\n"
-        "  add a SessionStart and a UserPromptSubmit hook that give Claude a"
-        " map of that MTSV."
+        "  add a Stop hook that stores that folder as MTSV in a data bank"
+        " beside it after each response, then removes the request and"
+        " response files it has stored, unless you keep them;\n"
+        "  add a SessionStart and a UserPromptSubmit hook that give Claude"
+        " what the data bank communicates."
     )
 
 
 def question() -> str:
     """Return the question install asks before it is made.
 
-    Whether to keep the request and response files once converted, No
-    by default (install.mtsv › install.5).
+    Whether to keep the request and response files once stored, No by
+    default (install.mtsv › install.5).
     """
     return (
         "Keep Claude Code's request and response files (raw API bodies)"
-        " after they are converted?"
+        " after they are stored?"
     )
 
 
@@ -125,130 +123,130 @@ def install(options: list[str]) -> None:
     _rename.replace(path, _json.encode(updated, _INDENT) + b"\n")
 
 
-def context(hook_input: bytes, output: Path, names: list[str], look: Look) -> tuple:
-    """Return the context of a hook's event, and what it has given.
+def context(hook_input: bytes, bank: Any) -> str:
+    """Return the context of a hook's event, as MTSV text.
 
     hook_input -- the hook's input, a JSON text
-    output -- the output's folder
-    names -- the names of the inputs the output holds
-    look -- what the command gives for an input's output
+    bank -- the data bank, which gives only its communications: names(),
+        filter(input, values, places) and new(input, places)
 
-    From SessionStart, the map of the output; from UserPromptSubmit,
-    the session's requests not yet given, grouped where they would pass
-    the cap; each as MTSV text, and for the session's input how many of
-    its requests have now been given (install.mtsv › context.1-5).
+    From SessionStart, the data bank, the requests by date and grouped,
+    and the session's sheets and fields; from UserPromptSubmit, what is
+    new of the session's requests, grouped where it would pass the cap
+    (install.mtsv › context.1-7).
     """
     event = _json.decode(hook_input)
-    this = raw_api_bodies.input_of(names, event["session_id"])
+    names = {s["sheet name"]: s for s in mtsv.loads(bank.names())}
+    inputs = [record[0] for record in names["inputs"]["records"]]
+    this = raw_api_bodies.input_of(inputs, event["session_id"])
     if event["hook_event_name"] == _START:
-        sheets = _start(event, output, names, this, look)
+        sheets = _start(event, bank, names, this)
     elif event["hook_event_name"] == _TURN and this is not None:
-        sheets = _turn(look(this))
+        sheets = _turn(bank, this)
     else:
         sheets = []
-    marks = {this: len(look(this)["held"]())} if this is not None else {}
-    return (mtsv.dumps(sheets) if sheets else ""), marks
+    return mtsv.dumps(sheets) if sheets else ""
 
 
 def _start(
-    event: dict[str, Any], output: Path, names: list[str], this: str | None, look: Look
+    event: dict[str, Any], bank: Any, names: dict[str, Any], this: str | None
 ) -> list[dict[str, Any]]:
-    # The store, its requests by date, the sessions of the session's
-    # date grouped, and the session's own sheet files and their columns;
-    # after compaction, the lineage of its latest request (context.1,
-    # context.2).
-    held = {name: look(name)["held"]() for name in names}
-    names = sorted(names, key=lambda n: _first(held[n]))
-    dates: dict[str, list[str]] = {}
-    for name in names:
-        dates.setdefault(name.split(_SEPARATOR)[0], []).append(name)
-    day = (this or (names[-1] if names else "")).split(_SEPARATOR)[0]
+    # The data bank, the requests by date, the requests of the session's
+    # date grouped, and the session's sheets and fields; after
+    # compaction, the lineage of its latest request; and what is new
+    # begins after the last value stored (context.1, context.2,
+    # context.4).
+    counts = [(record[0], int(record[1])) for record in names["inputs"]["records"]]
+    dates: dict[str, list[tuple[str, int]]] = {}
+    for name, values in counts:
+        dates.setdefault(name.split(_SEPARATOR)[0], []).append((name, values))
+    day = (this or (counts[-1][0] if counts else "")).split(_SEPARATOR)[0]
+    today = [
+        row for name, _ in dates.get(day, []) for row in groups(_values(bank, name))
+    ]
     sheets = [
-        _sheet("store", ["path", "inputs"], [[str(output), str(len(names))]]),
+        _sheet("data bank", ["source", "reader"], [[str(_folder()), _READER]]),
         _sheet(
             "raw_api_bodies by date",
             ["date", "sessions", "requests"],
             [
-                [date, str(len(group)), str(sum(len(held[n]) for n in group))]
+                [date, str(len(group)), str(sum(values for _, values in group))]
                 for date, group in dates.items()
             ],
         ),
-        _sheet(
-            "raw_api_bodies by session_id, query_source",
-            _GROUP,
-            [row for n in dates.get(day, []) for row in raw_api_bodies.groups(held[n])],
-        ),
+        _sheet("raw_api_bodies by session_id, query_source", _GROUP, today),
     ]
     if this is None:
         return sheets
-    files = look(this)["sheets"]()
-    sheets.append(
-        _sheet(
-            "store by sheet",
-            ["file", "sheet name", "records"],
-            [[f["file"], f["name"], str(len(f["positions"]))] for f in files],
-        )
-    )
-    sheets.append(
-        _sheet(
-            "store columns",
-            ["file", "position", "field name"],
-            [
-                [f["file"], str(place), field]
-                for f in files
-                for place, field in enumerate(f["header"], 1)
-            ],
-        )
-    )
+    for sheet_name in ("sheets", "fields"):
+        own = [r for r in names[sheet_name]["records"] if r[0] == this]
+        sheets.append({**names[sheet_name], "records": own})
     if event.get("source") == _COMPACT:
-        lineage = raw_api_bodies.lineage(held[this])
-        sheets.append(
-            _sheet("raw_api_bodies not kept", _GROUP, raw_api_bodies.groups(lineage))
-        )
+        chain = lineage(_values(bank, this))
+        sheets.append(_sheet("raw_api_bodies not kept", _GROUP, groups(chain)))
+    bank.new(this, [])
     return sheets
 
 
-def _first(held: list[dict[str, str]]) -> int:
-    # The index line of an input's first value, by which inputs are in
-    # the order of their first values (raw_api_bodies.mtsv › values.7).
-    return int(held[0]["index_line"]) if held else 0
-
-
-def _turn(output: dict[str, Callable[[], Any]]) -> list[dict[str, Any]]:
-    # The session's requests not yet given, as the store holds them, or
-    # their groups where they would pass the cap, and where their
-    # records are in each sheet file, counted from 1 (context.3,
-    # context.5).
-    held = output["held"]()
-    new = held[output["given"]() :]
+def _turn(bank: Any, this: str) -> list[dict[str, Any]]:
+    # What is new of the session's requests, of the sheet of the input
+    # values alone, or its groups where it would pass the cap
+    # (context.3, context.5).
+    new = mtsv.loads(bank.new(this, [_VALUES]))
     if not new:
         return []
-    positions = {int(record["pointer"].split("/")[1]) for record in new}
-    landed = []
-    for f in output["sheets"]():
-        places = [i for i, p in enumerate(f["positions"], 1) if p in positions]
-        if places:
-            landed.append(
-                [
-                    f["file"],
-                    f["name"],
-                    str(len(places)),
-                    str(places[0]),
-                    str(places[-1]),
-                ]
-            )
-    where = _sheet(
-        "store by sheet", ["file", "sheet name", "records", "first", "last"], landed
-    )
-    each = _sheet("raw_api_bodies", list(new[0]), [list(r.values()) for r in new])
-    if len(mtsv.dumps([each, where])) <= _CAP:
-        return [each, where]
-    grouped = _sheet(
-        "raw_api_bodies by session_id, query_source",
-        _GROUP,
-        raw_api_bodies.groups(new),
-    )
-    return [grouped, where]
+    if len(mtsv.dumps(new)) <= _CAP:
+        return new
+    records = [dict(zip(new[0]["header"], r)) for r in new[0]["records"]]
+    return [
+        _sheet("raw_api_bodies by session_id, query_source", _GROUP, groups(records))
+    ]
+
+
+def groups(records: list[dict[str, str]]) -> list[list[str]]:
+    """Return requests grouped by session_id and query_source.
+
+    Each group, in the order of its first index line: session_id,
+    query_source, how many requests, and the first and last index_line
+    and timestamp (install.mtsv › context.6).
+    """
+    found: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for record in records:
+        key = (record["session_id"], record["query_source"])
+        found.setdefault(key, []).append(record)
+    return [
+        [
+            *key,
+            str(len(group)),
+            group[0]["index_line"],
+            group[-1]["index_line"],
+            group[0]["timestamp"],
+            group[-1]["timestamp"],
+        ]
+        for key, group in found.items()
+    ]
+
+
+def lineage(records: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Return the lineage of an input's latest request, earliest first.
+
+    That request, then the request it extends, and so on until a request
+    that extends none (install.mtsv › context.7).
+    """
+    by_line = {record["index_line"]: record for record in records}
+    found = []
+    line = records[-1]["index_line"] if records else "0"
+    while line in by_line:
+        found.append(by_line[line])
+        line = by_line[line]["extends"]
+    return found[::-1]
+
+
+def _values(bank: Any, name: str) -> list[dict[str, str]]:
+    # An input's records of the sheet of the input values, as the data
+    # bank communicates them, each by its header's names.
+    found = mtsv.loads(bank.filter(name, None, [_VALUES]))
+    return [dict(zip(s["header"], r)) for s in found for r in s["records"]]
 
 
 def _sheet(name: str, header: list[str], records: list[list[str]]) -> dict[str, Any]:
@@ -276,11 +274,6 @@ def _data_home() -> Path:
 
 def _folder() -> Path:
     return _data_home().joinpath(*_FOLDER)
-
-
-def _store(folder: Path) -> Path:
-    # The command's output: the input's name with .mtsv, beside it.
-    return folder.with_suffix(".mtsv")
 
 
 def _settings() -> Path:

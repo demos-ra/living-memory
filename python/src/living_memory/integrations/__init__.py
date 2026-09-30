@@ -14,13 +14,14 @@ lines give values to, each the folder of the output it is written to,
 names being those the output holds; values takes the name and the
 lines, values(path, name, held, index); read(index, held, start), how
 many lines are read, held the records the outputs of those inputs hold;
-and it may supply
-spent(path, name, held, index), the files of the source its output has
-spent. One that installs into a host names the host, HOST, and supplies
-change(), the change it makes stated, question(), what it asks first,
-install(options), which makes it, the options those it runs the command
-with, and context(hook_input, output, names, look), the host's context
-of the output and, for each input, how many of its values it has given.
+and it may supply spent(path, name, held, index), the files of the
+source its data bank has spent. One that installs into a host names the
+host, HOST, and supplies change(), the change it makes stated,
+question(), what it asks first, install(options), which makes it, the
+options those it runs the command with, and context(hook_input, bank),
+the host's context, composed of what the data bank communicates:
+bank.names(), bank.filter(input, values, places) and bank.new(input,
+places).
 
 Functions:
 reader -- return the integration that reads a file or a directory

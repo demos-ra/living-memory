@@ -1,16 +1,18 @@
-"""The output kept as its sheets' files, each only appended to."""
+"""The data bank's storage: each input's sheets kept as files, appended
+to, and cut back to the values stored whole after a conversion cut
+short; only the command reads them."""
 
 __all__ = [
+    "add_input",
     "append",
-    "given",
-    "held",
+    "communicated",
     "inputs",
     "locked",
-    "mark_given",
+    "mark_communicated",
     "mark_read",
     "read",
     "repair",
-    "view",
+    "stored",
 ]
 
 import fcntl
@@ -20,22 +22,23 @@ from pathlib import Path
 
 import mtsv
 
-from living_memory import _rename
+from living_memory import _rename, _storage
+from living_memory._storage import Stored
 
 # The file a conversion holds its lock on, beside the sheets' files.
 _LOCK = ".lock"
-# The key column that names each record's value by its position in the
-# input, its pointer's first token.
-_POINTER = "pointer"
 # A sheet's file begins with two lines before its records: the FF line
 # with the sheet name, then the header.
 _HEAD = 2
-# The file beside an output that holds how many of its input values a
-# context has given.
-_GIVEN = ".context"
-# The file beside an output that holds how many lines of its source have
-# been read.
+# The file beside an input's storage that holds how many of its values
+# have been communicated (spec › communication.6).
+_COMMUNICATED = ".communicated"
+# The file beside the storage that holds how many lines of its source
+# have been read.
 _READ = ".read"
+# The file that names the inputs stored, one to a line, in the order
+# first stored.
+_INPUTS = ".inputs"
 # Every sheet's file ends with this extension (MTSV draft, Media Type
 # Registration).
 _EXTENSION = ".mtsv"
@@ -44,99 +47,87 @@ _EXTENSION = ".mtsv"
 @contextmanager
 def locked(folder: Path) -> Iterator[None]:
     # One conversion at a time: each waits for an exclusive lock on the
-    # output, which keeps every other conversion from locking it.
-    folder.mkdir(exist_ok=True)
+    # storage, which keeps every other conversion from locking it.
+    folder.mkdir(parents=True, exist_ok=True)
     with open(folder / _LOCK, "a") as fp:
         fcntl.lockf(fp, fcntl.LOCK_EX)
         yield
 
 
+def stored(folder: Path, names: list[str]) -> Stored:
+    # An input's stored sheets, each with its place among every sheet
+    # the schema gives; a sheet with no file holds no record.
+    found: Stored = []
+    for place, path in enumerate(_paths(folder, names)):
+        lines = _lines(path)
+        if len(lines) >= _HEAD:
+            found.append((place, mtsv.loads("".join(f"{l}\n" for l in lines))[0]))
+    return found
+
+
 def repair(folder: Path, names: list[str]) -> None:
-    # Before a conversion appends, a line not ended, and a record whose
-    # value's position the sheet of the input values does not hold, are
-    # left out.
-    paths = _paths(folder, names)
-    for path in paths:
+    # Before a part is inserted, a line not ended, and the records of a
+    # value not wholly stored, are no part of the storage (spec ›
+    # storage.4).
+    for path in _paths(folder, names):
         _end(path)
-    count = len(_lines(paths[0])[_HEAD:])
-    for path in paths[1:]:
-        _within(path, count)
-
-
-def held(folder: Path, names: list[str]) -> list[dict[str, str]]:
-    # The records of the sheet of the input values, each by its header's
-    # names; their number is the position of the next value.
-    lines = _lines(_paths(folder, names)[0])
-    if len(lines) < _HEAD:
-        return []
-    header = lines[_HEAD - 1].split("\t")
-    return [dict(zip(header, line.split("\t"))) for line in lines[_HEAD:]]
+    held = stored(folder, names)
+    kept = _storage.whole(held, _storage.count(held))
+    for (place, sheet), (_, whole) in zip(held, kept):
+        if whole["records"] != sheet["records"]:
+            _rename.replace(_paths(folder, names)[place], _text(whole))
 
 
 def append(folder: Path, text: str, names: list[str]) -> None:
     # Each sheet's new records are written at the end of its file, the
-    # file opened for appending, with its header when it is created;
-    # the sheet of the input values last, so a conversion cut short is
-    # found by it.
+    # file opened for appending, with its FF line and header when it is
+    # created; the sheet of the input values last, so a conversion cut
+    # short is found by it (spec › storage.3, storage.4).
     paths = _paths(folder, names)
     sheets = mtsv.loads(text)
     if sheets:
         folder.mkdir(parents=True, exist_ok=True)
     for sheet in sorted(sheets, key=lambda s: names.index(s["sheet name"]) == 0):
         path = paths[names.index(sheet["sheet name"])]
-        written = mtsv.dumps([sheet])
+        written = _text(sheet).decode("utf-8")
         if path.exists() and path.stat().st_size:
             written = written.split("\n", _HEAD)[_HEAD]
         with open(path, "ab") as fp:
             fp.write(written.encode("utf-8"))
 
 
-def view(folder: Path) -> list[dict]:
-    # Each of an output's sheet files in its order: its file name, sheet
-    # name and header, and the position of the value each record comes
-    # from, its pointer's first token.
-    found = []
-    files = sorted(folder.glob(f"*{_EXTENSION}")) if folder.is_dir() else []
-    for path in files:
-        lines = _lines(path)
-        if len(lines) < _HEAD:
-            continue
-        header = lines[_HEAD - 1].split("\t")
-        column = header.index(_POINTER)
-        positions = [int(r.split("\t")[column].split("/")[1]) for r in lines[_HEAD:]]
-        name = lines[0][1:]
-        found.append(
-            {"file": path.name, "name": name, "header": header, "positions": positions}
-        )
-    return found
-
-
 def inputs(folder: Path) -> list[str]:
-    # The names of the inputs an output holds, each the path of the
-    # folder of its sheets' files within the output.
-    if not folder.is_dir():
-        return []
-    found = {p.parent.relative_to(folder) for p in folder.rglob(f"*{_EXTENSION}")}
-    return sorted(str(p) for p in found if p != Path("."))
+    # The names of the inputs stored, each the path of the folder of its
+    # sheets' files within the storage, in the order first stored (spec
+    # › storage.2, communication.3).
+    path = folder / _INPUTS
+    return path.read_text("utf-8").splitlines() if path.exists() else []
 
 
-def given(folder: Path) -> int:
-    # How many of an output's input values a context has given.
-    return _count(folder / _GIVEN)
+def add_input(folder: Path, name: str) -> None:
+    # An input stored for the first time is added after those stored
+    # before it, the file replaced whole.
+    held = inputs(folder)
+    if name not in held:
+        text = "".join(f"{each}\n" for each in [*held, name])
+        _rename.replace(folder / _INPUTS, text.encode("utf-8"))
 
 
-def mark_given(folder: Path, count: int) -> None:
-    # A context has given the first count input values.
-    _mark(folder, _GIVEN, count)
+def communicated(folder: Path) -> int:
+    # How many of an input's values have been communicated.
+    return _count(folder / _COMMUNICATED)
+
+
+def mark_communicated(folder: Path, count: int) -> None:
+    _mark(folder, _COMMUNICATED, count)
 
 
 def read(folder: Path) -> int:
-    # How many lines of an output's source have been read.
+    # How many lines of the storage's source have been read.
     return _count(folder / _READ)
 
 
 def mark_read(folder: Path, count: int) -> None:
-    # The first count lines of an output's source have been read.
     _mark(folder, _READ, count)
 
 
@@ -146,18 +137,25 @@ def _count(path: Path) -> int:
 
 
 def _mark(folder: Path, name: str, count: int) -> None:
-    # A count kept beside an output, the file replaced whole.
+    # A count kept beside the storage, the file replaced whole.
     if folder.is_dir():
         _rename.replace(folder / name, f"{count}\n".encode("utf-8"))
 
 
 def _paths(folder: Path, names: list[str]) -> list[Path]:
-    # A sheet's file is named by its zero-based place in the file's
-    # order and its sheet name.
+    # A sheet's file is named by its zero-based place and its sheet
+    # name, the place written with as many digits as the last place, so
+    # the files in the order of their names are the file's sheets in
+    # order.
     width = len(str(len(names) - 1))
     return [
-        folder / f"{place:0{width}} {name}.mtsv" for place, name in enumerate(names)
+        folder / f"{place:0{width}} {name}{_EXTENSION}"
+        for place, name in enumerate(names)
     ]
+
+
+def _text(sheet: dict) -> bytes:
+    return mtsv.dumps([sheet]).encode("utf-8")
 
 
 def _lines(path: Path) -> list[str]:
@@ -177,17 +175,3 @@ def _end(path: Path) -> None:
     kept = "".join(f"{line}\n" for line in lines) if len(lines) >= _HEAD else ""
     if kept != path.read_bytes().decode("utf-8"):
         _rename.replace(path, kept.encode("utf-8"))
-
-
-def _within(path: Path, count: int) -> None:
-    # A record whose value's position the sheet of the input values
-    # does not hold is left out.
-    lines = _lines(path)
-    if len(lines) < _HEAD:
-        return
-    column = lines[_HEAD - 1].split("\t").index(_POINTER)
-    records = lines[_HEAD:]
-    kept = [r for r in records if int(r.split("\t")[column].split("/")[1]) < count]
-    if kept != records:
-        text = "".join(f"{line}\n" for line in [*lines[:_HEAD], *kept])
-        _rename.replace(path, text.encode("utf-8"))

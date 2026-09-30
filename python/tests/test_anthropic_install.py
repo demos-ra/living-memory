@@ -8,7 +8,7 @@ from unittest import mock
 
 import mtsv
 
-from living_memory import _json
+from living_memory import _communication, _json, _storage
 from living_memory.integrations.anthropic.claude_code import install as module
 
 FROM = "--from=anthropic/claude_code/raw_api_bodies"
@@ -112,31 +112,40 @@ class TestInstall(unittest.TestCase):
 
 
 HEADER = ["pointer", "index_line", "session_id", "query_source", "timestamp", "extends"]
-HELD = [
-    dict(zip(HEADER, ["/0", "1", "s", "q", "2026-09-27T01", "0"])),
-    dict(zip(HEADER, ["/1", "2", "s", "q", "2026-09-27T02", "1"])),
-]
-SHEETS = [
-    {
-        "file": "0 raw_api_bodies.mtsv",
-        "name": "raw_api_bodies",
-        "header": HEADER,
-        "positions": [0, 1],
-    },
-    {
-        "file": "1 BetaMessageParam.mtsv",
-        "name": "BetaMessageParam",
-        "header": ["parent", "pointer", "role"],
-        "positions": [0, 0, 1],
-    },
-]
 
 
-def look(given: int):
-    def outputs(name):
-        return {"sheets": lambda: SHEETS, "held": lambda: HELD, "given": lambda: given}
+def value(i: int, extends: int) -> list[str]:
+    return [f"/{i}", str(i + 1), "s", "q", f"2026-09-27T{i:02}", str(extends)]
 
-    return outputs
+
+class Bank:
+    # A data bank of one input, whose stored sheets are given, answering
+    # only by the core's communications (living-memory.mtsv ›
+    # communication.3-6).
+    def __init__(self, records: list[list[str]]) -> None:
+        roots = {"sheet name": "raw_api_bodies", "header": HEADER, "records": records}
+        messages = {
+            "sheet name": "BetaMessageParam",
+            "header": ["parent", "pointer", "role"],
+            "records": [[r[0], f"{r[0]}/units/0", "user"] for r in records],
+        }
+        self.stored = [(0, roots), (154, messages)]
+        self.communicated = 0
+
+    def names(self) -> str:
+        return _communication.names([("2026-09-27/s", self.stored)])
+
+    def filter(self, name, values, places):
+        first, last = values or (0, _storage.count(self.stored) - 1)
+        return _communication.records(self.stored, first, last, places)
+
+    def new(self, name, places):
+        values = _storage.count(self.stored)
+        text = _communication.records(
+            self.stored, self.communicated, values - 1, places
+        )
+        self.communicated = values
+        return text
 
 
 def hook(event: str, source: str = "startup") -> bytes:
@@ -144,90 +153,127 @@ def hook(event: str, source: str = "startup") -> bytes:
 
 
 class TestContext(unittest.TestCase):
-    NAMES = ["2026-09-27/s"]
-
-    # context.1, context.4: from SessionStart, the store, its dates, the
-    # date's sessions grouped, and the session's sheet files and
-    # columns; every request given.
+    # context.1, context.4: from SessionStart, the data bank, its dates,
+    # the date's requests grouped, and the session's sheets and fields,
+    # from the names; what is new then begins after the last value.
     def test_start(self):
-        text, marks = module.context(
-            hook("SessionStart"), Path("/out"), self.NAMES, look(0)
-        )
+        bank = Bank([value(0, 0), value(1, 1)])
+        text = module.context(hook("SessionStart"), bank)
         sheets = {s["sheet name"]: s for s in mtsv.loads(text)}
         self.assertEqual(
             list(sheets),
             [
-                "store",
+                "data bank",
                 "raw_api_bodies by date",
                 "raw_api_bodies by session_id, query_source",
-                "store by sheet",
-                "store columns",
+                "sheets",
+                "fields",
             ],
+        )
+        self.assertEqual(
+            sheets["data bank"]["records"][0][1], "anthropic/claude_code/raw_api_bodies"
         )
         self.assertEqual(
             sheets["raw_api_bodies by date"]["records"], [["2026-09-27", "1", "2"]]
         )
-        self.assertEqual(sheets["store by sheet"]["records"][1][2], "3")
-        self.assertEqual(marks, {"2026-09-27/s": 2})
-
-    # context.2: after compaction, the lineage of the latest request.
-    def test_compact(self):
-        text, _ = module.context(
-            hook("SessionStart", "compact"), Path("/out"), self.NAMES, look(0)
+        self.assertEqual(
+            sheets["sheets"]["records"],
+            [
+                ["2026-09-27/s", "0", "raw_api_bodies"],
+                ["2026-09-27/s", "154", "BetaMessageParam"],
+            ],
         )
+        self.assertEqual(bank.communicated, 2)
+
+    # context.2, context.7: after compaction, the lineage of the latest
+    # request, grouped.
+    def test_compact(self):
+        bank = Bank([value(0, 0), value(1, 1)])
+        text = module.context(hook("SessionStart", "compact"), bank)
         sheets = {s["sheet name"]: s for s in mtsv.loads(text)}
         self.assertEqual(
             sheets["raw_api_bodies not kept"]["records"],
-            [["s", "q", "2", "1", "2", "2026-09-27T01", "2026-09-27T02"]],
+            [["s", "q", "2", "1", "2", "2026-09-27T00", "2026-09-27T01"]],
         )
 
-    # context.3: from UserPromptSubmit, only the requests not yet given,
-    # and where their records are, counted from 1; with none, nothing.
+    # context.3: from UserPromptSubmit, what is new of the sheet of the
+    # input values alone; with none, nothing.
     def test_turn(self):
-        text, marks = module.context(
-            hook("UserPromptSubmit"), Path("/out"), self.NAMES, look(1)
-        )
-        sheets = {s["sheet name"]: s for s in mtsv.loads(text)}
-        self.assertEqual(sheets["raw_api_bodies"]["records"], [list(HELD[1].values())])
+        bank = Bank([value(0, 0), value(1, 1)])
+        bank.communicated = 1
+        text = module.context(hook("UserPromptSubmit"), bank)
         self.assertEqual(
-            sheets["store by sheet"]["records"],
+            mtsv.loads(text),
             [
-                ["0 raw_api_bodies.mtsv", "raw_api_bodies", "1", "2", "2"],
-                ["1 BetaMessageParam.mtsv", "BetaMessageParam", "1", "3", "3"],
+                {
+                    "sheet name": "raw_api_bodies",
+                    "header": HEADER,
+                    "records": [value(1, 1)],
+                }
             ],
         )
-        self.assertEqual(marks, {"2026-09-27/s": 2})
-        nothing, _ = module.context(
-            hook("UserPromptSubmit"), Path("/out"), self.NAMES, look(2)
-        )
-        self.assertEqual(nothing, "")
+        self.assertEqual(module.context(hook("UserPromptSubmit"), bank), "")
 
-    # context.5: requests that would pass the cap are given as their
-    # groups.
+    # context.5, context.6: requests that would pass the cap are given
+    # as their groups, a role name qualifying each domain name.
     def test_cap(self):
-        many = [
-            dict(zip(HEADER, [f"/{i}", str(i + 1), "s", "q", "2026-09-27T01", "0"]))
-            for i in range(400)
-        ]
-        sheets_of = [{**SHEETS[0], "positions": list(range(400))}]
-
-        def outputs(name):
-            return {
-                "sheets": lambda: sheets_of,
-                "held": lambda: many,
-                "given": lambda: 0,
-            }
-
-        text, _ = module.context(
-            hook("UserPromptSubmit"), Path("/out"), self.NAMES, outputs
-        )
+        bank = Bank([value(i, 0) for i in range(400)])
+        text = module.context(hook("UserPromptSubmit"), bank)
         sheets = {s["sheet name"]: s for s in mtsv.loads(text)}
-        self.assertNotIn("raw_api_bodies", sheets)
-        self.assertEqual(
-            sheets["raw_api_bodies by session_id, query_source"]["records"],
-            [["s", "q", "400", "1", "400", "2026-09-27T01", "2026-09-27T01"]],
-        )
+        self.assertEqual(list(sheets), ["raw_api_bodies by session_id, query_source"])
+        group = sheets["raw_api_bodies by session_id, query_source"]
+        self.assertEqual(group["header"][3:5], ["first.index_line", "last.index_line"])
+        self.assertEqual(group["records"][0][:5], ["s", "q", "400", "1", "400"])
         self.assertLessEqual(len(text), 10_000)
+
+
+class TestMap(unittest.TestCase):
+    RECORDS = [
+        {
+            "index_line": "1",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "a",
+            "extends": "0",
+        },
+        {
+            "index_line": "3",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "b",
+            "extends": "1",
+        },
+        {
+            "index_line": "4",
+            "session_id": "s",
+            "query_source": "p",
+            "timestamp": "c",
+            "extends": "3",
+        },
+        {
+            "index_line": "5",
+            "session_id": "s",
+            "query_source": "q",
+            "timestamp": "d",
+            "extends": "0",
+        },
+    ]
+
+    # context.6: grouped by session_id and query_source, in the order of
+    # their first lines.
+    def test_groups(self):
+        self.assertEqual(
+            module.groups(self.RECORDS[:3]),
+            [["s", "q", "2", "1", "3", "a", "b"], ["s", "p", "1", "4", "4", "c", "c"]],
+        )
+
+    # context.7: the lineage of the latest request, earliest first,
+    # ending at a request that extends none.
+    def test_lineage(self):
+        self.assertEqual(
+            [r["index_line"] for r in module.lineage(self.RECORDS[:3])], ["1", "3", "4"]
+        )
+        self.assertEqual([r["index_line"] for r in module.lineage(self.RECORDS)], ["5"])
 
 
 if __name__ == "__main__":

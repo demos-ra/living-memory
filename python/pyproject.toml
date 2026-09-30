@@ -16,3 +16,9 @@ dependencies = ["mtsv>=0.6"]
 
 [project.scripts]
 living-memory = "living_memory._command:main"
+
+[tool.black]
+# The versions requires-python allows; the SDK's type files are held as
+# the SDK wrote them, byte for byte.
+target-version = ["py311"]
+extend-exclude = "tools/anthropic_sdk/"

@@ -282,55 +282,6 @@ class TestSpent(unittest.TestCase):
             )
 
 
-class TestMap(unittest.TestCase):
-    RECORDS = [
-        {
-            "index_line": "1",
-            "session_id": "s",
-            "query_source": "q",
-            "timestamp": "a",
-            "extends": "0",
-        },
-        {
-            "index_line": "3",
-            "session_id": "s",
-            "query_source": "q",
-            "timestamp": "b",
-            "extends": "1",
-        },
-        {
-            "index_line": "4",
-            "session_id": "s",
-            "query_source": "p",
-            "timestamp": "c",
-            "extends": "3",
-        },
-        {
-            "index_line": "5",
-            "session_id": "s",
-            "query_source": "q",
-            "timestamp": "d",
-            "extends": "0",
-        },
-    ]
-
-    # map.1: grouped by session_id and query_source, in the order of
-    # their first lines.
-    def test_groups(self):
-        self.assertEqual(
-            module.groups(self.RECORDS[:3]),
-            [["s", "q", "2", "1", "3", "a", "b"], ["s", "p", "1", "4", "4", "c", "c"]],
-        )
-
-    # map.2: the lineage of the latest request, earliest first, ending
-    # at a request that extends none.
-    def test_lineage(self):
-        self.assertEqual(
-            [r["index_line"] for r in module.lineage(self.RECORDS[:3])], ["1", "3", "4"]
-        )
-        self.assertEqual([r["index_line"] for r in module.lineage(self.RECORDS)], ["5"])
-
-
 class TestSchema(unittest.TestCase):
     # values.4: a value's names are required, and the core reads it.
     def test_schema(self):

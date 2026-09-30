@@ -133,7 +133,7 @@ class TestType(unittest.TestCase):
         cases += [(Number("1"), "number"), (True, "boolean"), (None, "null")]
         for value, expected in cases:
             with self.subTest(value=value):
-                self.assertEqual(module.type(value), expected)
+                self.assertEqual(module.primitive_type(value), expected)
         self.assertEqual(set(module.TYPES), {expected for _, expected in cases})
 
 

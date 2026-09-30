@@ -20,6 +20,13 @@ class TestValues(unittest.TestCase):
         self.assertEqual(module.root(3), "/3")
         self.assertEqual(module.member("/0", "a/b~c"), "/0/a~1b~0c")
 
+    # key.2, key.3, key.5: a record's value is at its pointer's first
+    # reference token, whatever the sheet.
+    def test_position(self):
+        for pointer in ("/12", "/12/a/0", "/12/s"):
+            with self.subTest(pointer=pointer):
+                self.assertEqual(module.position(pointer), 12)
+
     # key.3, key.5: the parent's key is copied down where the sheet has
     # it, and a run is keyed by its string's pointer.
     def test_records_and_runs(self):

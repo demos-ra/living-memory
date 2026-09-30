@@ -2,10 +2,8 @@
 
 __all__ = [
     "FILE",
-    "groups",
     "input_of",
     "inputs",
-    "lineage",
     "lines",
     "read",
     "schema",
@@ -245,46 +243,6 @@ def spent(
         for field in _FILES
         if field in entries[number]
     ]
-
-
-def groups(records: list[dict[str, str]]) -> list[list[str]]:
-    """Return values grouped by session_id and query_source.
-
-    Each group, in the order of its first index line: session_id,
-    query_source, how many requests, and the first and last index_line
-    and timestamp (raw_api_bodies.mtsv › map.1).
-    """
-    found: dict[tuple[str, str], list[dict[str, str]]] = {}
-    for record in records:
-        found.setdefault((record["session_id"], record["query_source"]), []).append(
-            record
-        )
-    return [
-        [
-            *key,
-            str(len(group)),
-            group[0][_LINE],
-            group[-1][_LINE],
-            group[0]["timestamp"],
-            group[-1]["timestamp"],
-        ]
-        for key, group in found.items()
-    ]
-
-
-def lineage(records: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Return the lineage of an input's latest request, earliest first.
-
-    That request, then the request it extends, and so on until a request
-    that extends none (raw_api_bodies.mtsv › map.2).
-    """
-    by_line = {record[_LINE]: record for record in records}
-    found = []
-    line = records[-1][_LINE] if records else str(_NO_PARENT)
-    while line in by_line:
-        found.append(by_line[line])
-        line = by_line[line][_EXTENDS]
-    return found[::-1]
 
 
 def _session(

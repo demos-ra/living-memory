@@ -24,8 +24,8 @@ class TestText(unittest.TestCase):
 
     # field.2: the type of an instance is its primitive type.
     def test_type(self):
-        self.assertEqual(module.type(Number("1")), "number")
-        self.assertEqual(module.type({}), "object")
+        self.assertEqual(module.primitive_type(Number("1")), "number")
+        self.assertEqual(module.primitive_type({}), "object")
 
 
 class TestCarried(unittest.TestCase):

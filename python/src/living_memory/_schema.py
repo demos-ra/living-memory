@@ -143,7 +143,7 @@ def read(schema: bytes) -> Any:
     if not _json_schema.validates(root, _METASCHEMA, _METASCHEMA):
         place = _json_schema.locate(root, _METASCHEMA, _METASCHEMA)
         raise PlacedError("not a schema of draft-07", place)
-    if _json.type(root) != "object" or "title" not in root:
+    if _json.primitive_type(root) != "object" or "title" not in root:
         raise PlacedError("the root schema holds no title", "")
     _check(root, root, "")
     _loops(root, root, "")
@@ -221,7 +221,7 @@ def _check(schema: Any, root: Any, at: str) -> None:
         keyword_at = _json_pointer.pointer(at, keyword)
         for key in schema.get(keyword, {}):
             _name(key, _json_pointer.pointer(keyword_at, key))
-    if _json.type(schema.get("pattern")) == "string":
+    if _json.primitive_type(schema.get("pattern")) == "string":
         _placed(lambda: _json_schema.compile_pattern(schema["pattern"]), at, "pattern")
     patterns_at = _json_pointer.pointer(at, "patternProperties")
     for pattern in schema.get("patternProperties", {}):
@@ -278,7 +278,7 @@ def _name(text: Any, at: str) -> None:
     # A title, a property's name, a key of patternProperties or
     # dependencies and the last reference token of a $ref are text a
     # field can hold (MTSV draft, Generators; spec › schema.3).
-    if _json.type(text) != "string" or _separators.cannot_hold(text):
+    if _json.primitive_type(text) != "string" or _separators.cannot_hold(text):
         raise PlacedError(f"{text!r} is not a name a field can hold", at)
 
 

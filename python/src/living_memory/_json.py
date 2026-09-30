@@ -8,7 +8,7 @@ __all__ = [
     "decode",
     "encode",
     "encode_string",
-    "type",
+    "primitive_type",
 ]
 
 import re
@@ -127,7 +127,7 @@ def encode_string(value: str) -> str:
     return '"' + "".join(_escaped(char, written) for char in value) + '"'
 
 
-def type(value: Any) -> str:
+def primitive_type(value: Any) -> str:
     # A value has one of the six primitive types; an integer is a
     # number (JSON Schema, 4.2.1. Instance Data Model).
     if isinstance(value, dict):
@@ -223,7 +223,7 @@ def _text(value: Any, indent: int) -> str:
             parts.append(item)
             continue
         value, depth = item
-        found = type(value)
+        found = primitive_type(value)
         if found not in ("object", "array") or not value:
             parts.append(_simple(value, found))
             continue

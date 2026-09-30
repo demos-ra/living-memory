@@ -1,21 +1,28 @@
-"""Run every conformance case through the public interface."""
+"""Run every conformance case: a converter's through the public
+interface, a data bank's through the command."""
 
+import contextlib
+import io
 import json
 import logging
 import re
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import mtsv
 
 import living_memory
+from living_memory import _command, integrations
 
 CONFORMANCE = Path(__file__).resolve().parents[2] / "conformance"
 
 # These match a row of the table of expected reports and rejections,
 # and a rejected value's place (conformance/README.md).
 _EXPECTED = re.compile(r"^\| `([^`]+)` +\| (not carried|rejected): (.*?) +\|$")
-_REJECTED = re.compile(r"value (\d+), pointer `(.*)`")
+_REJECTED = re.compile(r"value (\d+), pointer `(.*?)`")
 
 
 def expected_table() -> dict[str, tuple[str, str]]:
@@ -131,6 +138,108 @@ class TestConformance(unittest.TestCase):
                     self.assertIsInstance(error, living_memory.NonConformingInputError)
                     self.assertEqual(error.position, int(match[1]))
                     self.assertEqual(error.pointer, json.loads(match[2]))
+
+
+class Part:
+    # A reader of one conformance input, stored in parts: it gives the
+    # values after those its data bank stores, to the end of the part
+    # (conformance/README.md, A data bank's steps).
+    def __init__(self, case: Path, schema: Path) -> None:
+        lines = case.read_bytes().split(b"\n")
+        self.all = lines[:-1] if lines[-1] == b"" else lines
+        self.end = len(self.all) // 2
+        self.schema_text = schema.read_bytes()
+
+    def schema(self) -> bytes:
+        return self.schema_text
+
+    def values(self, path: Path, held: list | None) -> list[bytes]:
+        stored = sum(1 for r in held or [] if r["pointer"].count("/") == 1)
+        return self.all[stored : self.end]
+
+
+def bank(reader: Part, *argv: str) -> tuple[int, str, str]:
+    # The data bank's command, its reader the case's, with what it
+    # writes to standard output and standard error.
+    data = io.BytesIO()
+    out, err = io.TextIOWrapper(data, "utf-8"), io.StringIO()
+    with mock.patch.object(integrations, "reader", return_value=reader):
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                _command.main(list(argv))
+                code = 0
+            except SystemExit as exit:
+                code = exit.code if isinstance(exit.code, int) else 1
+                err.write(exit.code if isinstance(exit.code, str) else "")
+    out.flush()
+    return code, data.getvalue().decode("utf-8"), err.getvalue()
+
+
+# The request of step 8, where a case has one (conformance/README.md,
+# communication.4).
+REQUESTS = {"storage.3.parts": ["--values=1-2", "--places=1;3"]}
+
+
+class TestDataBank(unittest.TestCase):
+    def expected(self, name: str) -> str:
+        return (CONFORMANCE / "communicated" / name).read_text("utf-8")
+
+    # conformance.2, storage.1-6, communication.1-6: each case stored in
+    # two parts and communicated in the README's eight steps.
+    def test_communicated(self):
+        table = expected_table()
+        for case in cases("communicated"):
+            if case.stem.count(".") > 2:
+                continue
+            with self.subTest(case=case.name), tempfile.TemporaryDirectory() as tmp:
+                name = case.stem
+                source = str(shutil.copy(case, Path(tmp) / case.name))
+                reader = Part(case, case.with_suffix(".schema.json"))
+                steps = {}
+                self.assertEqual(bank(reader, source)[0], 0)
+                steps["names"] = bank(reader, "--names", source)[1]
+                steps["new-1"] = bank(reader, f"--new={name}", source)[1]
+                reader.end = len(reader.all)
+                code, _, err = bank(reader, source)
+                if name in table:
+                    self.assertEqual(code, 1)
+                    self.assertIn(_rejected(table[name][1]), err)
+                steps["new-2"] = bank(reader, f"--new={name}", source)[1]
+                steps["again"] = bank(reader, f"--new={name}", source)[1]
+                steps["all"] = bank(reader, f"--filter={name}", source)[1]
+                if name in REQUESTS:
+                    argv = [f"--filter={name}", *REQUESTS[name], source]
+                    steps["request"] = bank(reader, *argv)[1]
+                for step, text in steps.items():
+                    with self.subTest(step=step):
+                        self.assertEqual(text, self.expected(f"{name}.{step}.mtsv"))
+
+    # storage.2: two inputs stored apart in one data bank, each whole.
+    def test_two_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = f"{tmp}/bank.mtsv"
+            for part in ("a", "b"):
+                case = (
+                    CONFORMANCE / "communicated" / f"storage.2.two-inputs.{part}.jsonl"
+                )
+                reader = Part(case, case.with_name("storage.2.two-inputs.schema.json"))
+                reader.end = len(reader.all)
+                source = str(shutil.copy(case, Path(tmp) / case.name))
+                self.assertEqual(bank(reader, "-o", output, source)[0], 0)
+            names = bank(reader, "-o", output, "--names", source)[1]
+            self.assertEqual(names, self.expected("storage.2.two-inputs.names.mtsv"))
+            for part in ("a", "b"):
+                with self.subTest(part=part):
+                    name = f"storage.2.two-inputs.{part}"
+                    text = bank(reader, "-o", output, f"--filter={name}", source)[1]
+                    self.assertEqual(text, self.expected(f"{name}.all.mtsv"))
+
+
+def _rejected(expected: str) -> str:
+    # A part rejected at a value is reported by the value's position and
+    # its pointer, as the converter names it.
+    match = re.search(r"value (\d+), pointer `(.*)`", expected)
+    return f"value {match[1]}, {match[2]}"
 
 
 if __name__ == "__main__":

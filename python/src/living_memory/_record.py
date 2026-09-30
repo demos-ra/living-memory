@@ -20,7 +20,7 @@ def fields(placed: Placed) -> list[str]:
         elif column not in held:
             written.append("")
         elif column.role == "type":
-            written.append(_field.type(held[column]))
+            written.append(_field.primitive_type(held[column]))
         elif column.role == "run":
             written.append(held[column])
         else:

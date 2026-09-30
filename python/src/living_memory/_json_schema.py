@@ -181,8 +181,8 @@ def equal(one: Any, other: Any) -> bool:
     waiting = [(one, other)]
     while waiting:
         one, other = waiting.pop()
-        found = _json.type(one)
-        if found != _json.type(other):
+        found = _json.primitive_type(one)
+        if found != _json.primitive_type(other):
             return False
         if found == "number":
             if Decimal(one) != Decimal(other):
@@ -222,7 +222,7 @@ def _applied(instance: Any, schema: dict[str, Any]) -> list[tuple[Any, Any, Any]
     # patternProperties and additionalProperties to member values (JSON
     # Schema Validation, 3.1. Applicability).
     found: list[tuple[Any, Any, Any]] = []
-    if _json.type(instance) == "array":
+    if _json.primitive_type(instance) == "array":
         items = schema.get("items", True)
         rest = schema.get("additionalItems", True)
         for position, element in enumerate(instance):
@@ -232,7 +232,7 @@ def _applied(instance: Any, schema: dict[str, Any]) -> list[tuple[Any, Any, Any]
                 found.append((position, element, items[position]))
             else:
                 found.append((position, element, rest))
-    if _json.type(instance) == "object":
+    if _json.primitive_type(instance) == "object":
         for name, member in instance.items():
             for child in _member_schemas(name, schema):
                 found.append((name, member, child))
@@ -256,14 +256,14 @@ def _is(instance: Any, kind: str) -> bool:
     # An assertion on a type other than the instance's always succeeds
     # (JSON Schema Validation, 3.2.1. Assertions and Instance Primitive
     # Types).
-    return _json.type(instance) == kind
+    return _json.primitive_type(instance) == kind
 
 
 def _type(instance: Any, schema: dict[str, Any]) -> bool:
     # The type integer matches any number with a zero fractional part
     # (JSON Schema Validation, 6.1.1. type).
     names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
-    found = _json.type(instance)
+    found = _json.primitive_type(instance)
     if found == "number" and "integer" in names:
         return Decimal(instance) == Decimal(instance).to_integral_value()
     return found in names

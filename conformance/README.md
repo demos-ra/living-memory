@@ -192,4 +192,4 @@ value.10). A non-conforming input may break the rules of JSON Lines, as
 | `value.9.schema-mismatch`     | rejected: value 1, pointer `"/n"`                          |
 | `value.9.maximum`             | rejected: value 0, pointer `"/n"`                          |
 | `value.10.deepest-place`      | rejected: value 0, pointer `"/p/k"`                        |
-| `storage.4.rejected-part`     | part 2 rejected: value 3, pointer `"/n"`                   |
+| `storage.4.rejected-part`     | rejected: value 3, pointer `"/n"` (part 2)                 |

@@ -10,9 +10,15 @@ Every value is written once, and text holding tabs, line breaks or form
 feeds is laid out by page, line and position. The module that reads a
 source supplies its schema, so the conversion names no source.
 
+A data bank stores what the converter writes, each input apart, only
+ever adding to it, and gives it only by what it communicates: the names
+of what it stores, an input's records by their positions and sheets,
+and what is new since it was last asked.
+
 The first integration reads Claude Code's recording of its API calls,
 keeping each piece of a conversation once; `living-memory
---install=claude-code` turns the recording and the conversion on.
+--install=claude-code` turns on the recording, the data bank, and
+Claude's context of what the data bank communicates.
 
 * [MTSV specification](https://github.com/demos-ra/mtsv-spec)
 * [MTSV implementation](https://github.com/demos-ra/mtsv)

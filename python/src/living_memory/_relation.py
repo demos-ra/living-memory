@@ -611,7 +611,7 @@ def _cell(
     # A string keeps what a field can hold, what is left out reported by
     # its pointer; one holding FF, a line break or HT has its runs
     # written to the sheet of runs (spec › relation.14, field.4).
-    if _json.type(value) != "string":
+    if _json.primitive_type(value) != "string":
         return value, [], []
     kept, dropped = _field.carried(value)
     reports = [at] if dropped else []
