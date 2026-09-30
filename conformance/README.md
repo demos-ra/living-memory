@@ -4,9 +4,14 @@ Every implementation is tested against the same files. Each case checks
 one requirement of `spec/living-memory.mtsv`, a rule, and is named for
 it: the rule's Id, then what it asserts, as `relation.14.text`. Every
 expected file is derived from the rules by hand, never from an
-implementation's output.
+implementation's output. The specification defines two classes of
+product (conformance.1): a converter, tested by the first three folders,
+and a data bank, tested by `communicated/`, only by what it communicates
+(conformance.2, storage.6).
 
 ## Files of a case
+
+A converter's case:
 
 | File               | Holds                                                    |
 |--------------------|----------------------------------------------------------|
@@ -14,13 +19,50 @@ implementation's output.
 | `name.schema.json` | the schema the module specification supplies (schema.1)  |
 | `name.mtsv`        | the expected file, the caller naming it `name` (file.1)  |
 
-## Folders, by what a converter does with each case
+A data bank's case, whose input is named by its `.jsonl` file, without
+the extension (storage.2):
+
+| File                  | Holds                                                     |
+|-----------------------|-----------------------------------------------------------|
+| `name.jsonl`          | the input values, in order, one JSON text per line        |
+| `name.schema.json`    | the schema the module specification supplies (schema.1)   |
+| `name.aggregate.mtsv` | the aggregate communicated at step 2 (communication.3)    |
+| `name.new.mtsv`       | what is new, communicated at step 4 (communication.5)     |
+| `name.again.mtsv`     | what is new, communicated again at step 5 (communication.6) |
+| `name.all.mtsv`       | every record, requested at step 6 (communication.4)       |
+| `name.request.mtsv`   | the records requested at step 7, where the case has one   |
+
+An expected file with no sheet is empty, a file of no bytes.
+
+## Folders, by what an implementation does with each case
 
 | Folder                   | Holds                                                   | Rules                            |
 |--------------------------|---------------------------------------------------------|----------------------------------|
 | `conforming/`            | cases converted whole                                   | conformance.2                    |
 | `cannot-be-represented/` | cases with text not carried, the pointers listed below  | conformance.2, field.4, field.5  |
 | `non-conforming/`        | cases rejected, as listed below                         | conformance.2, schema.9, value.7-10 |
+| `communicated/`          | cases stored by a data bank and communicated            | conformance.2, storage.1-6, communication.1-7 |
+
+## A data bank's steps
+
+Each case of `communicated/` runs these steps, in order, on a data bank
+that holds nothing, the parts split as value.2's are: the values before
+the middle, then the rest.
+
+1. Store part 1.
+2. Communicate the aggregate: `name.aggregate.mtsv`.
+3. Store part 2.
+4. Communicate what is new: `name.new.mtsv`.
+5. Communicate what is new again: `name.again.mtsv`.
+6. Request every sheet of the input for every value stored: `name.all.mtsv`.
+7. Where the case has one, the request its row below states: `name.request.mtsv`.
+
+A range of positions includes its first and excludes its last.
+`storage.2.two-inputs` stores two inputs, `.a` then `.b`, each whole in
+one part, then communicates the aggregate and, for each input, every
+record: `name.aggregate.mtsv`, `name.a.all.mtsv`, `name.b.all.mtsv`. The
+tests read nothing of a data bank's storage but what it communicates
+(storage.6).
 
 ## Rules and their cases, in the spec's order
 
@@ -46,7 +88,7 @@ A case named for another rule also checks the rule it is listed under.
 | schema.16   | `schema.16.ignored-keyword`                                           |
 | value.1     | `value.1.order`                                                       |
 | value.2     | every conforming case of more than one value, converted in two parts: its values before the middle, then the rest, each part's sheets appended in the file's order |
-| value.3     | no case of its own: a text deep enough to show it, past any recursion's depth, would have an expected file too long to derive and keep by hand; the implementation's tests show it |
+| value.3     | no case: the rule sets no limit, and every finite case lies within some limit, so no case can show it |
 | value.4     | non-conforming `value.4.byte-order-mark`                              |
 | value.5     | `value.5.member-order`                                                |
 | value.6     | `value.6.number-as-written`, `value.6.integer`                        |
@@ -93,6 +135,19 @@ A case named for another rule also checks the rule it is listed under.
 | field.3     | `relation.14.text`, `relation.14.empty-runs` (an empty field), `sheet.3.runs-name` (a property's member) |
 | field.4     | cannot-be-represented `field.4.lone-cr`, `field.4.surrogate`, `field.4.member-name` (HT, LF, FF, CR) |
 | field.5     | cannot-be-represented `field.4.lone-cr`, `field.4.surrogate`, `field.4.member-name` |
+| storage.1   | `storage.3.parts` (part 2 adds to part 1: its `all` holds both, and part 1's records unchanged) |
+| storage.2   | `storage.2.two-inputs` (each input stored and communicated apart, named by its file); every case's `inputs` |
+| storage.3   | `storage.3.parts` (every record, requested, is the input's MTSV file for the values stored); `storage.2.two-inputs`, `storage.4.rejected-part` |
+| storage.4   | `storage.4.rejected-part` (part 2 rejected: nothing of it stored, value 2 included) |
+| storage.5   | `storage.3.parts` (part 2's pointers begin at `/2`)                   |
+| storage.6   | every case of `communicated/`: nothing is read but what is communicated |
+| communication.1 | every expected file of `communicated/`, each an MTSV file         |
+| communication.2 | every expected file of `communicated/`: values as stored, records in stored order |
+| communication.3 | every `name.aggregate.mtsv`; `storage.2.two-inputs` (two inputs, in the order stored) |
+| communication.4 | every `name.all.mtsv`; `storage.3.parts` request: values 1 to 3, the sheets at places 1 and 3 (a sheet holding none of them left out) |
+| communication.5 | every `name.new.mtsv`                                             |
+| communication.6 | every `name.again.mtsv`                                           |
+| communication.7 | every `name.new.mtsv`: the aggregate at step 2 set the number communicated, so part 1 is not given again |
 
 ## Expected reports and rejections
 
@@ -136,3 +191,4 @@ value.10). A non-conforming input may break the rules of JSON Lines, as
 | `value.9.schema-mismatch`     | rejected: value 1, pointer `"/n"`                          |
 | `value.9.maximum`             | rejected: value 0, pointer `"/n"`                          |
 | `value.10.deepest-place`      | rejected: value 0, pointer `"/p/k"`                        |
+| `storage.4.rejected-part`     | part 2 rejected: value 3, pointer `"/n"`                   |

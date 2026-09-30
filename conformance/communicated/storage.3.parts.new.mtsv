@@ -1,0 +1,15 @@
+calls
+pointer
+/2
+/3
+calls.k
+parent	pointer	value
+/3	/3/k/0	4
+instances
+parent	pointer	type	value
+/2	/2/s	string	c
+/3	/3/s	string	
+runs
+pointer	page	line	position	value
+/3/s	0	0	0	d
+/3/s	0	0	1	e

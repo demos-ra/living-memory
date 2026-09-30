@@ -1,0 +1,24 @@
+inputs
+input	values
+storage.3.parts	2
+sheets
+input	place	sheet name	records
+storage.3.parts	0	calls	2
+storage.3.parts	1	calls.k	3
+storage.3.parts	2	instances	1
+storage.3.parts	3	runs	2
+fields
+input	place	position	field name
+storage.3.parts	0	0	pointer
+storage.3.parts	1	0	parent
+storage.3.parts	1	1	pointer
+storage.3.parts	1	2	value
+storage.3.parts	2	0	parent
+storage.3.parts	2	1	pointer
+storage.3.parts	2	2	type
+storage.3.parts	2	3	value
+storage.3.parts	3	0	pointer
+storage.3.parts	3	1	page
+storage.3.parts	3	2	line
+storage.3.parts	3	3	position
+storage.3.parts	3	4	value
