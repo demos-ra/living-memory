@@ -82,16 +82,32 @@ def kept(member: str, unit: Any) -> Any:
 
 
 def _block(block: Any) -> Any:
-    # A block without its breakpoint, and the blocks within it likewise.
+    # A block without its breakpoint, and the blocks within its content
+    # and its source's content likewise; the blocks still to clear are
+    # kept in a list, so blocks of any depth of nesting are cleared
+    # (spec › value.3).
+    top = _cleared(block)
+    waiting = [top]
+    while waiting:
+        found = waiting.pop()
+        if not isinstance(found, dict):
+            continue
+        if isinstance(found.get("content"), list):
+            found["content"] = [_cleared(each) for each in found["content"]]
+            waiting += found["content"]
+        source = found.get("source")
+        if isinstance(source, dict) and isinstance(source.get("content"), list):
+            inner = [_cleared(each) for each in source["content"]]
+            found["source"] = {**source, "content": inner}
+            waiting += inner
+    return top
+
+
+def _cleared(block: Any) -> Any:
+    # A block without its breakpoint, as a new object.
     if not isinstance(block, dict):
         return block
-    found = {k: v for k, v in block.items() if k != _CONTROL}
-    if isinstance(found.get("content"), list):
-        found["content"] = [_block(each) for each in found["content"]]
-    source = found.get("source")
-    if isinstance(source, dict) and isinstance(source.get("content"), list):
-        found["source"] = {**source, "content": [_block(e) for e in source["content"]]}
-    return found
+    return {k: v for k, v in block.items() if k != _CONTROL}
 
 
 def _generated() -> dict[str, Any]:

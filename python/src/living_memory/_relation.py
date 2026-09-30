@@ -59,16 +59,18 @@ class Segment:
 
 @dataclass(frozen=True, eq=False)
 class Domain:
-    # A column: its label, and whether its field is a value's text, an
-    # instance's type or a run of text.
+    # A column: its label, whether its field is a value's text, an
+    # instance's type or a run of text, and whether the specification
+    # fixes its label (spec › sheet.3).
     label: str
     role: str
+    fixed: bool = False
 
 
 @dataclass(frozen=True, eq=False)
 class Relation:
     # A relation is a sheet: what names it, its key columns, its simple
-    # domains and the sheets it refers to, in the order schema.12 takes
+    # domains and the sheets it refers to, in the order schema.11 takes
     # them; a kind's sheet is referred to by its schema's pointer.
     segment: Segment
     keys: tuple[str, ...]
@@ -99,59 +101,42 @@ class Layout:
 # The sheets a place gives: relations, and kinds by their pointers.
 _Refs = tuple[Relation | str, ...]
 _Written = tuple[list[Placed], list[str]]
-_Filled = tuple[dict[Domain, Any], list[Placed], list[str]]
 
 
 def layout(schema: Any) -> Layout:
-    # The input values are one relation, named by the root schema's
-    # title; an object's or an array's, else the sheet of instances.
+    # The input values are one relation: an object's or an array's,
+    # else the sheet of instances; where a $ref references the root
+    # schema, it is a kind, and the input values its kind's one sheet.
     # Each schema a $ref references is a kind, one relation wherever it
     # is referred to; a kind may refer to itself, so each is built
     # after every node that refers to it by its pointer is (spec ›
     # relation.1, relation.2, relation.15).
     built: dict[str, tuple[Any, _Refs]] = {}
     kinds = MappingProxyType(built)
-    allowed = _allowed(schema, schema)
-    molten = allowed not in ({"object"}, {"array"})
-    text, instances = _shared(schema["title"] if molten else None)
+    text, instances = _shared()
     scope = _Scope(_File(schema, kinds, text, instances), (), None, frozenset())
-    for at, target in _kinds(schema, schema, "").items():
+    for at, target in _kinds(schema, schema).items():
         title = target.get("title") if isinstance(target, dict) else None
         name = _json_pointer.tokens(at)[-1] if title is None else title
-        built[at] = _child(_Sub(target, at), scope, Segment("kind", (), name))
-    named = Segment("root", (), schema["title"])
-    if allowed == {"object"}:
-        node, one = _object(_Sub(schema, ""), scope, named)
-    elif allowed == {"array"}:
-        node, one = _array(_Sub(schema, ""), scope, named)
+        named = Segment("kind", (), name)
+        if at == "":
+            node, one = _run(_root(schema, scope, named))
+            built[at] = node, (one,)
+        else:
+            built[at] = _run(_child(_Sub(target, at), scope, named))
+    if "" in built:
+        node, (one,) = built[""]
     else:
-        node, one = instances, instances.relation
+        node, one = _run(_root(schema, scope, Segment("root", (), schema["title"])))
     return Layout(one, node, kinds, (instances.relation, text.relation))
 
 
 def place(sheet_layout: Layout, value: Any, position: int) -> _Written:
     # An input value is placed, each value once, with the pointers of
-    # the text not carried. A write that holds others hands each of them
-    # back to be done, the writes still open kept in a list, so any
-    # depth of nesting is placed (spec › relation.16, field.5, value.3).
-    task = sheet_layout.node.write(value, _key.root(position), None)
-    if not isinstance(task, Generator):
-        return task
-    writes: list[Generator] = [task]
-    answer: Any = None
-    while writes:
-        try:
-            request = writes[-1].send(answer)
-        except StopIteration as done:
-            writes.pop()
-            answer = done.value
-            continue
-        if isinstance(request, Generator):
-            writes.append(request)
-            answer = None
-        else:
-            answer = request
-    return answer
+    # the text not carried; its instances are numbered first, by their
+    # pointers within the input (spec › relation.16, field.5, key.3).
+    at = _key.root(position)
+    return _run(sheet_layout.node.write(value, at, None, _key.numbered(value, at)))
 
 
 def root(sheet_layout: Layout) -> Relation:
@@ -159,21 +144,17 @@ def root(sheet_layout: Layout) -> Relation:
 
 
 def children(sheet_layout: Layout, one: Relation) -> tuple[Relation, ...]:
-    # The sheets a relation refers to, a kind's by its pointer.
-    return _expand(sheet_layout, one.children)
-
-
-def _expand(sheet_layout: Layout, refs: _Refs) -> tuple[Relation, ...]:
-    # A kind's pointer stands for the sheets the kind gives.
-    return tuple(
-        found
-        for ref in refs
-        for found in (
-            _expand(sheet_layout, sheet_layout.kinds[ref][1])
-            if isinstance(ref, str)
-            else (ref,)
-        )
-    )
+    # The sheets a relation refers to, a kind's by its pointer standing
+    # for the sheets the kind gives.
+    found: list[Relation] = []
+    waiting = list(reversed(one.children))
+    while waiting:
+        ref = waiting.pop()
+        if isinstance(ref, str):
+            waiting += reversed(sheet_layout.kinds[ref][1])
+        else:
+            found.append(ref)
+    return tuple(found)
 
 
 def last(sheet_layout: Layout) -> tuple[Relation, ...]:
@@ -202,6 +183,30 @@ def key(placed: Placed, column: str) -> str:
 
 def content(placed: Placed) -> Mapping[Domain, Any]:
     return placed.content
+
+
+def _run(task: Any) -> Any:
+    # A task that holds others yields each of them to be done and is
+    # sent back its result, the tasks still open kept in a list, so a
+    # schema and a value of any depth of nesting are walked; a task that
+    # holds none is its result (spec › schema.1, value.3).
+    if not isinstance(task, Generator):
+        return task
+    tasks: list[Generator] = [task]
+    answer: Any = None
+    while tasks:
+        try:
+            request = tasks[-1].send(answer)
+        except StopIteration as done:
+            tasks.pop()
+            answer = done.value
+            continue
+        if isinstance(request, Generator):
+            tasks.append(request)
+            answer = None
+        else:
+            answer = request
+    return answer
 
 
 @dataclass(frozen=True)
@@ -246,40 +251,41 @@ class _Rule:
 
 @dataclass(frozen=True)
 class _Place:
-    # Where a value is: its pointer, and the pointer of the record that
-    # holds it.
+    # Where a value is: its pointer within the input, and the pointer of
+    # the record that holds it.
     at: str
     record: str
 
 
-def _shared(title: str | None) -> tuple[_Text, _Instances]:
+def _shared() -> tuple[_Text, _Instances]:
     # The file's one sheet of runs, and its one sheet of instances,
-    # which is the sheet of the input values where it is named by the
-    # root schema's title (spec › relation.14, relation.15, key.2).
-    run = Domain("value", "run")
-    runs = Relation(Segment("runs", (), "runs"), _key.RUN, (run,), ())
+    # named as the specification fixes them and keyed as every sheet
+    # but the sheet of runs is, the sheet of instances also where it is
+    # the sheet of the input values (spec › relation.14, relation.15,
+    # key.2, key.3, sheet.3).
+    run = Domain("_value", "run", True)
+    runs = Relation(Segment("runs", (), "_runs"), _key.RUN, (run,), ())
     text = _Text(runs, run)
-    kind, value = Domain("type", "type"), Domain("value", "value")
-    if title is None:
-        named, keyed = Segment("instances", (), "instances"), _key.SUBORDINATE
-    else:
-        named, keyed = Segment("root", (), title), _key.ROOT
-    one = Relation(named, keyed, (kind, value), (runs,))
+    kind, value = Domain("_type", "type", True), Domain("_value", "value", True)
+    named = Segment("instances", (), "_instances")
+    one = Relation(named, _key.SUBORDINATE, (kind, value), (runs,))
     return text, _Instances(one, kind, value, text)
 
 
-def _kinds(schema: Any, root_schema: Any, at: str) -> dict[str, Any]:
+def _kinds(schema: Any, root_schema: Any) -> dict[str, Any]:
     # Each schema a $ref references is a kind, by its pointer, in the
     # order the schema holds the $refs; a $ref that allOf applies adds
     # to its instance's own schema, and refers to none (spec ›
-    # schema.11, relation.2, relation.3).
+    # schema.10, relation.2, relation.3).
     found: dict[str, Any] = {}
-    applied_by_all_of = _json_pointer.tokens(at)[-2:-1] == ["allOf"]
-    if _refers(schema) and not applied_by_all_of:
-        target, target_at = _schema.resolve(schema, root_schema, at)
-        found[target_at] = target
-    for child_at, child in _json_schema.subschemas(schema, at):
-        found |= _kinds(child, root_schema, child_at)
+    waiting: list[tuple[str, Any]] = [("", schema)]
+    while waiting:
+        at, one = waiting.pop()
+        applied_by_all_of = _json_pointer.tokens(at)[-2:-1] == ["allOf"]
+        if _refers(one) and not applied_by_all_of:
+            target, target_at = _schema.resolve(one, root_schema, at)
+            found.setdefault(target_at, target)
+        waiting += reversed(_json_schema.subschemas(one, at))
     return found
 
 
@@ -288,6 +294,10 @@ def _refers(schema: Any) -> bool:
 
 
 def _allowed(schema: Any, root_schema: Any) -> set[str]:
+    return _run(_types(schema, root_schema))
+
+
+def _types(schema: Any, root_schema: Any) -> Generator:
     # The types a location allows are its type keyword's, all six
     # without one, narrowed by allOf and by the union of anyOf and
     # oneOf; an integer is a number (spec › relation.4, value.6).
@@ -301,35 +311,49 @@ def _allowed(schema: Any, root_schema: Any) -> set[str]:
     else:
         types = set(_json.TYPES)
     for child in schema.get("allOf", []):
-        types &= _allowed(child, root_schema)
-    for word in ("anyOf", "oneOf"):
+        types &= yield _types(child, root_schema)
+    for word in _UNIONS:
         if word in schema:
-            types &= set().union(*(_allowed(c, root_schema) for c in schema[word]))
+            union: set[str] = set()
+            for child in schema[word]:
+                union |= yield _types(child, root_schema)
+            types &= union
     return types
 
 
-def _child(sub: _Sub, scope: _Scope, named: Segment) -> tuple[Any, _Refs]:
+def _root(schema: Any, scope: _Scope, named: Segment) -> Generator:
+    # The input values' relation: an object's or an array's, else the
+    # sheet of instances (spec › relation.1, relation.15).
+    allowed = _allowed(schema, schema)
+    if allowed == {"object"}:
+        return (yield _object(_Sub(schema, ""), scope, named))
+    if allowed == {"array"}:
+        return (yield _array(_Sub(schema, ""), scope, named))
+    return scope.file.instances, scope.file.instances.relation
+
+
+def _child(sub: _Sub, scope: _Scope, named: Segment) -> Generator:
     # A child location's instances go to its kind's sheet where a $ref
     # applies to it; they are placed branch by branch where anyOf or
     # oneOf gives the branches and the location's own schema gives it
     # nothing; else they are the records of its own sheet: an object's,
-    # an array's, one simple type's with the column value; else they are
-    # placed branch by branch where the branches are of several types,
-    # and else molten (spec › relation.2, relation.5, relation.7,
+    # an array's, one simple type's with the column _value; else they
+    # are placed branch by branch where the branches are of several
+    # types, and else molten (spec › relation.2, relation.5, relation.7,
     # relation.9, relation.12, relation.15).
     if _refers(sub.schema):
         return _kind(sub, scope)
     allowed = _allowed(sub.schema, scope.file.root)
-    if _branched(sub, scope) and _gives_nothing(sub, allowed, scope):
-        return _union(sub, scope, named)
+    if _branched(sub, scope) and (yield _gives_nothing(sub, allowed, scope)):
+        return (yield _union(sub, scope, named))
     if allowed == {"object"}:
-        node, one = _object(sub, scope, named)
+        node, one = yield _object(sub, scope, named)
     elif allowed == {"array"}:
-        node, one = _array(sub, scope, named)
+        node, one = yield _array(sub, scope, named)
     elif len(allowed) == 1 and allowed <= _SIMPLE:
         node, one = _value(allowed, named, scope)
     elif _branched(sub, scope):
-        return _union(sub, scope, named)
+        return (yield _union(sub, scope, named))
     else:
         node, one = scope.file.instances, scope.file.instances.relation
     return node, (one,)
@@ -350,7 +374,7 @@ def _branched(sub: _Sub, scope: _Scope) -> bool:
     return any(schema.get(word) for word in _UNIONS)
 
 
-def _gives_nothing(sub: _Sub, allowed: set[str], scope: _Scope) -> bool:
+def _gives_nothing(sub: _Sub, allowed: set[str], scope: _Scope) -> Generator:
     # Whether an object or an array location's own schema, apart from
     # its branches, gives it no column and no sheet but those the whole
     # file shares, so its record would hold only that an instance
@@ -360,15 +384,16 @@ def _gives_nothing(sub: _Sub, allowed: set[str], scope: _Scope) -> bool:
     shared = (scope.file.instances.relation, scope.file.text.relation)
     if allowed == {"object"}:
         inner = _Scope(scope.file, (), None, frozenset())
-        _, found, below = _frame(own, inner)
+        _, found, below = yield _frame(own, inner)
     elif allowed == {"array"}:
-        found, below = (), _array(own, scope, Segment("keyword", (), ""))[1].children
+        found = ()
+        below = (yield _array(own, scope, Segment("keyword", (), "")))[1].children
     else:
         return False
     return not found and all(any(ref is one for one in shared) for ref in below)
 
 
-def _union(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Union, _Refs]:
+def _union(sub: _Sub, scope: _Scope, named: Segment) -> Generator:
     # A location of several types is placed branch by branch: each
     # instance as the location would be if its schema were the branch,
     # a property's being taken as not required; each branch named by
@@ -384,9 +409,9 @@ def _union(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Union, _Refs]:
         several = counts[word] > 1
         branch = Segment("branch", (), word, k, title, several, named)
         if _is_property(named):
-            node, refs = _optional(_Sub(child, child_at), scope, branch)
+            node, refs = yield _optional(_Sub(child, child_at), scope, branch)
         else:
-            node, refs = _child(_Sub(child, child_at), scope, branch)
+            node, refs = yield _child(_Sub(child, child_at), scope, branch)
         branches.append((child, node))
         below += refs
     return _Union(tuple(branches), scope.file.root), tuple(below)
@@ -394,27 +419,28 @@ def _union(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Union, _Refs]:
 
 def _is_property(named: Segment) -> bool:
     # Whether a location is a property, or a branch of one.
-    if named.within is not None:
-        return _is_property(named.within)
+    while named.within is not None:
+        named = named.within
     return named.kind == "property"
 
 
-def _object(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Object, Relation]:
+def _object(sub: _Sub, scope: _Scope, named: Segment) -> Generator:
     # Each object is one record, its frame giving its columns and the
     # sheets it refers to (spec › relation.6, relation.8).
     inner = _Scope(scope.file, (), None, frozenset())
-    frame, found, below = _frame(sub, inner)
+    frame, found, below = yield _frame(sub, inner)
     one = Relation(named, _keys(named), found, below)
     return _Object(one, frame), one
 
 
 def _keys(named: Segment) -> tuple[str, ...]:
-    # The sheet of the input values is keyed by pointer alone, every
-    # other by parent, then pointer (spec › key.2, key.3).
+    # The sheet of the input values is keyed by its input value alone,
+    # every other by instance, parent and pointer too (spec › key.2,
+    # key.3).
     return _key.ROOT if named.kind == "root" else _key.SUBORDINATE
 
 
-def _array(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Array, Relation]:
+def _array(sub: _Sub, scope: _Scope, named: Segment) -> Generator:
     # Each array is one record; one schema of items holds every element,
     # and else each schema of items and additionalItems the elements at
     # its positions (spec › relation.9, relation.13).
@@ -429,7 +455,7 @@ def _array(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Array, Relation]:
             continue
         several = word == "items" and listed > 1
         item = Segment("keyword", (), word, k, several=several)
-        node, refs = _child(_Sub(child, child_at), scope, item)
+        node, refs = yield _child(_Sub(child, child_at), scope, item)
         below += refs
         if k is None:
             rest = node
@@ -441,9 +467,9 @@ def _array(sub: _Sub, scope: _Scope, named: Segment) -> tuple[_Array, Relation]:
 
 def _value(allowed: set[str], named: Segment, scope: _Scope) -> tuple[_Value, Relation]:
     # A child instance of one simple type is one record, in the column
-    # value, with its string's runs where it can be a string (spec ›
-    # relation.7, relation.14).
-    domain = Domain("value", "value")
+    # _value, with its string's runs where it can be a string (spec ›
+    # relation.7, relation.14, Fields).
+    domain = Domain("_value", "value", True)
     text, below = _text(allowed, scope)
     one = Relation(named, _keys(named), (domain,), below)
     return _Value(one, domain, text), one
@@ -459,13 +485,11 @@ def _text(
     return scope.file.text, (scope.file.text.relation,)
 
 
-def _frame(
-    sub: _Sub, scope: _Scope
-) -> tuple[_Frame, tuple[Domain, ...], tuple[Relation | str, ...]]:
+def _frame(sub: _Sub, scope: _Scope) -> Generator:
     # An object location's members are placed by its schema: a simple
     # required property a column, a required object's members and
     # allOf's the instance's own, and every other subschema a sheet of
-    # its own or its kind's, in the order schema.12 takes them (spec ›
+    # its own or its kind's, in the order schema.11 takes them (spec ›
     # relation.5-17).
     schema, at = _schema.resolve(sub.schema, scope.file.root, sub.at)
     own = frozenset(schema.get("properties", {}))
@@ -492,25 +516,25 @@ def _frame(
             elif domain and allowed == {"object"}:
                 if k in scope.excluded:
                     continue
-                member, columns, sheets = _absorbed(k, child_sub, scope)
+                member, columns, sheets = yield _absorbed(k, child_sub, scope)
             else:
-                member, columns, sheets = _property(k, child_sub, scope)
+                member, columns, sheets = yield _property(k, child_sub, scope)
             members[k] = member
             found += columns
             below += sheets
         elif word == "patternProperties":
             several = counts[word] > 1
             item = Segment("keyword", scope.prefix, word, k, several=several)
-            node, refs = _child(child_sub, scope, item)
+            node, refs = yield _child(child_sub, scope, item)
             matching.append((k, node))
             below += refs
         elif word == "additionalProperties" and child is not False:
             item = Segment("keyword", scope.prefix, word)
-            additional, refs = _child(child_sub, scope, item)
+            additional, refs = yield _child(child_sub, scope, item)
             below += refs
         elif word == "allOf":
             inner = _Scope(scope.file, scope.prefix, location, earlier)
-            merged, columns, sheets = _frame(child_sub, inner)
+            merged, columns, sheets = yield _frame(child_sub, inner)
             earlier |= merged.own
             same.append(_Merged(merged))
             found += columns
@@ -520,7 +544,7 @@ def _frame(
             conditions["else"] = schema.get("if")
             several = counts.get(word, 0) > 1
             rule = _Rule(word, k, several, conditions.get(word, child))
-            branch, refs = _branch(rule, child_sub, scope)
+            branch, refs = yield _branch(rule, child_sub, scope)
             same.append(branch)
             below += refs
     frame = _Frame(schema, own, members, tuple(matching), additional, tuple(same))
@@ -536,21 +560,22 @@ def _column(name: str, allowed: set[str], scope: _Scope) -> tuple[Any, ...]:
     return _Column(domain, text), (domain,), below
 
 
-def _absorbed(name: str, sub: _Sub, scope: _Scope) -> tuple[Any, ...]:
+def _absorbed(name: str, sub: _Sub, scope: _Scope) -> Generator:
     # A required object's members are the instance's own (spec ›
     # relation.8).
     inner = _Scope(scope.file, (*scope.prefix, name), None, frozenset())
-    return _frame(sub, inner)
+    return (yield _frame(sub, inner))
 
 
-def _property(name: str, sub: _Sub, scope: _Scope) -> tuple[Any, ...]:
+def _property(name: str, sub: _Sub, scope: _Scope) -> Generator:
     # A property that is no column is placed as a property its schema
     # does not require (spec › relation.9, relation.10, relation.15).
-    node, refs = _optional(sub, scope, Segment("property", scope.prefix, name))
+    named = Segment("property", scope.prefix, name)
+    node, refs = yield _optional(sub, scope, named)
     return node, (), refs
 
 
-def _optional(sub: _Sub, scope: _Scope, named: Segment) -> tuple[Any, _Refs]:
+def _optional(sub: _Sub, scope: _Scope, named: Segment) -> Generator:
     # A kind goes to its kind's sheet; an array and an optional object
     # are sheets of their own, an array whose items is one schema
     # giving the sheet of its elements; a property of several types is
@@ -562,16 +587,16 @@ def _optional(sub: _Sub, scope: _Scope, named: Segment) -> tuple[Any, _Refs]:
         items = sub.schema.get("items", True)
         if not isinstance(items, list):
             items_at = _json_pointer.pointer(sub.at, "items")
-            node, refs = _child(_Sub(items, items_at), scope, named)
+            node, refs = yield _child(_Sub(items, items_at), scope, named)
             return _Elements(node), refs
     if _refers(sub.schema) or allowed in ({"object"}, {"array"}):
-        return _child(sub, scope, named)
+        return (yield _child(sub, scope, named))
     if len(allowed) > 1 and _branched(sub, scope):
-        return _union(sub, scope, named)
+        return (yield _union(sub, scope, named))
     return scope.file.instances, (scope.file.instances.relation,)
 
 
-def _branch(rule: _Rule, sub: _Sub, scope: _Scope) -> tuple[_Branch, _Refs]:
+def _branch(rule: _Rule, sub: _Sub, scope: _Scope) -> Generator:
     # A subschema applied to the same location that allows exactly one
     # type, object, is its kind's sheet where a $ref applies it, else a
     # subordinate sheet of that location's sheet, named by its title,
@@ -582,31 +607,42 @@ def _branch(rule: _Rule, sub: _Sub, scope: _Scope) -> tuple[_Branch, _Refs]:
         return _Branch(rule, node, scope.file.root), refs
     title = sub.schema.get("title")
     named = Segment("branch", scope.prefix, rule.keyword, rule.key, title, rule.several)
-    node, one = _object(sub, scope, named)
+    node, one = yield _object(sub, scope, named)
     return _Branch(rule, node, scope.file.root), (one,)
 
 
 def _member(at: str, token: str | int) -> tuple[str, list[str]]:
-    # A member name within a pointer holds no HT, LF, FF or CR, nor what
-    # is not text; what is left out is reported by the pointer as
-    # written (spec › field.4, field.5, key.3).
+    # A member's pointer within the input; a member name holding HT, LF,
+    # FF or CR, or what is not text, is reported by that pointer, as
+    # what a pointer cannot hold of it is left out (spec › field.4,
+    # field.5).
+    found = _json_pointer.pointer(at, token)
     if isinstance(token, int):
-        return _key.member(at, token), []
-    kept, dropped = _field.name_carried(token)
-    return _key.member(at, kept), [_key.member(at, token)] if dropped else []
+        return found, []
+    return found, [found] if _field.name_carried(token)[1] else []
 
 
-def _pointer(at: str, tokens: tuple[str | int, ...]) -> tuple[str, list[str]]:
-    # An instance's pointer through the tokens that lead to it; only the
-    # last token's name is its own to report (spec › field.5, key.3).
-    missed: list[str] = []
-    for token in tokens:
-        at, missed = _member(at, token)
-    return at, missed
+def _relative(parent: str | None, at: str) -> str:
+    # The pointer to an instance evaluated from its parent's, each
+    # member name keeping what a pointer can hold (RFC 6901, 4.
+    # Evaluation; spec › key.3, key.4, field.4).
+    if parent is None:
+        return ""
+    found = ""
+    for token in _json_pointer.tokens(at)[len(_json_pointer.tokens(parent)) :]:
+        found = _json_pointer.pointer(found, _field.name_carried(token)[0])
+    return found
+
+
+def _keyed(
+    one: Relation, numbers: dict[str, int], at: str, parent: str | None
+) -> dict[str, str]:
+    # A record's key values (spec › key.2, key.3).
+    return _key.values(one.keys, numbers, at, parent, _relative(parent, at))
 
 
 def _cell(
-    value: Any, at: str, text: _Text | None
+    value: Any, at: str, text: _Text | None, numbers: dict[str, int]
 ) -> tuple[Any, list[Placed], list[str]]:
     # A string keeps what a field can hold, what is left out reported by
     # its pointer; one holding FF, a line break or HT has its runs
@@ -617,11 +653,11 @@ def _cell(
     reports = [at] if dropped else []
     if text is None or not _separators.holds_separator(kept):
         return kept, [], reports
-    return kept, text.write(kept, at), reports
+    return kept, text.write(kept, at, numbers), reports
 
 
 # A write either returns its records and reports, or is a generator
-# that yields each write it holds and is sent back its result (place).
+# that yields each write it holds and is sent back its result (_run).
 
 
 @dataclass(frozen=True)
@@ -633,11 +669,11 @@ class _Text:
     relation: Relation
     run: Domain
 
-    def write(self, text: str, at: str) -> list[Placed]:
+    def write(self, text: str, at: str, numbers: dict[str, int]) -> list[Placed]:
         return [
             Placed(
                 self.relation,
-                _key.run(at, (page, line, position)),
+                _key.run(numbers, at, (page, line, position)),
                 MappingProxyType({self.run: run}),
             )
             for page, page_text in enumerate(_separators.pages(text))
@@ -651,7 +687,7 @@ class _Kind:
     # A place a $ref applies a kind to writes to the kind's one sheet,
     # found by its schema's pointer (spec › relation.2).
     at: str
-    kinds: Mapping[str, tuple[Any, Relation]]
+    kinds: Mapping[str, tuple[Any, _Refs]]
 
     @property
     def node(self) -> Any:
@@ -665,23 +701,27 @@ class _Kind:
     def frame(self) -> _Frame:
         return self.node.frame
 
-    def write(self, value: Any, at: str, parent: str | None) -> Any:
-        return self.node.write(value, at, parent)
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> Any:
+        return self.node.write(value, at, parent, numbers)
 
 
 @dataclass(frozen=True)
 class _Union:
     # A location of several types: each instance is placed by the first
-    # branch, in schema.12's order, that it is valid against, each value
+    # branch, in schema.11's order, that it is valid against, each value
     # once (spec › relation.12, relation.16).
     branches: tuple[tuple[Any, Any], ...]
     root: Any
 
-    def write(self, value: Any, at: str, parent: str | None) -> Any:
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> Any:
         node = self.chosen(value)
         if node is None:
             return [], []
-        return node.write(value, at, parent)
+        return node.write(value, at, parent, numbers)
 
     def chosen(self, value: Any) -> Any:
         for schema, node in self.branches:
@@ -700,16 +740,18 @@ class _Column:
 @dataclass(frozen=True)
 class _Value:
     # A child instance of one simple type is one record, in the column
-    # value (spec › relation.7).
+    # _value (spec › relation.7).
     relation: Relation
     domain: Domain
     text: _Text | None
 
-    def write(self, value: Any, at: str, parent: str | None) -> _Written:
-        kept, runs, reports = _cell(value, at, self.text)
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> _Written:
+        kept, runs, reports = _cell(value, at, self.text, numbers)
         values = MappingProxyType({self.domain: kept})
         record = Placed(
-            self.relation, _key.values(self.relation.keys, parent, at), values
+            self.relation, _keyed(self.relation, numbers, at, parent), values
         )
         return [record, *runs], reports
 
@@ -717,22 +759,29 @@ class _Value:
 @dataclass(frozen=True)
 class _Instances:
     # Each instance within the value is one record, in the order
-    # order.2 gives them, its parent the pointer of the instance that
-    # holds it (spec › relation.15, key.3).
+    # order.2 gives them, its parent the instance that holds it (spec ›
+    # relation.15, key.3).
     relation: Relation
     kind: Domain
     value: Domain
     text: _Text
 
-    def write(self, value: Any, at: str, parent: str | None) -> _Written:
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> _Written:
         placed: list[Placed] = []
         reports: list[str] = []
+        holders: dict[tuple[str | int, ...], str] = {}
         for tokens, instance in _order.instances(value):
-            where, missed = _pointer(at, tokens)
-            holder = _pointer(at, tokens[:-1])[0] if tokens else parent
-            kept, runs, cell = _cell(instance, where, self.text)
+            if tokens:
+                where, missed = _member(holders[tokens[:-1]], tokens[-1])
+                holder: str | None = holders[tokens[:-1]]
+            else:
+                where, missed, holder = at, [], parent
+            holders[tokens] = where
+            kept, runs, cell = _cell(instance, where, self.text, numbers)
             values = MappingProxyType({self.kind: instance, self.value: kept})
-            keyed = _key.values(self.relation.keys, holder, where)
+            keyed = _keyed(self.relation, numbers, where, holder)
             placed += [Placed(self.relation, keyed, values), *runs]
             reports += missed + cell
         return placed, reports
@@ -747,14 +796,17 @@ class _Array:
     items: tuple[Any, ...]
     rest: Any
 
-    def write(self, value: Any, at: str, parent: str | None) -> Generator:
-        keyed = _key.values(self.relation.keys, parent, at)
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> Generator:
+        keyed = _keyed(self.relation, numbers, at, parent)
         placed = [Placed(self.relation, keyed, MappingProxyType({}))]
         reports: list[str] = []
         for position, element in _order.members(value):
             node = self.items[position] if position < len(self.items) else self.rest
             if node is not None:
-                found, missed = yield node.write(element, _key.member(at, position), at)
+                where = _json_pointer.pointer(at, position)
+                found, missed = yield node.write(element, where, at, numbers)
                 placed += found
                 reports += missed
         return placed, reports
@@ -767,13 +819,14 @@ class _Elements:
     # holds the array (spec › relation.13).
     node: Any
 
-    def write(self, value: Any, at: str, parent: str | None) -> Generator:
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> Generator:
         placed: list[Placed] = []
         reports: list[str] = []
         for position, element in _order.members(value):
-            found, missed = yield self.node.write(
-                element, _key.member(at, position), parent
-            )
+            where = _json_pointer.pointer(at, position)
+            found, missed = yield self.node.write(element, where, parent, numbers)
             placed += found
             reports += missed
         return placed, reports
@@ -786,9 +839,13 @@ class _Object:
     relation: Relation
     frame: _Frame
 
-    def write(self, value: Any, at: str, parent: str | None) -> Generator:
-        values, placed, reports = yield self.frame.write(value, _Place(at, at), None)
-        keyed = _key.values(self.relation.keys, parent, at)
+    def write(
+        self, value: Any, at: str, parent: str | None, numbers: dict[str, int]
+    ) -> Generator:
+        values, placed, reports = yield self.frame.write(
+            value, _Place(at, at), None, numbers
+        )
+        keyed = _keyed(self.relation, numbers, at, parent)
         record = Placed(self.relation, keyed, MappingProxyType(values))
         return [record, *placed], reports
 
@@ -797,7 +854,7 @@ class _Object:
 class _Frame:
     # The placement of an object location's members: its properties'
     # columns and sheets, its patterns', its additionalProperties', and
-    # the subschemas applied to the same location, in schema.12's order.
+    # the subschemas applied to the same location, in schema.11's order.
     schema: Mapping[str, Any]
     own: frozenset[str]
     members: Mapping[str, Any]
@@ -812,7 +869,11 @@ class _Frame:
         return self.additional is not None
 
     def write(
-        self, value: dict[str, Any], where: _Place, names: frozenset[str] | None
+        self,
+        value: dict[str, Any],
+        where: _Place,
+        names: frozenset[str] | None,
+        numbers: dict[str, int],
     ) -> Generator:
         # The members placed here are written in order.2's order; each
         # subschema that collects the instance writes those placed on
@@ -829,14 +890,14 @@ class _Frame:
                 continue
             at, missed = _member(where.at, name)
             found, written, cell = yield self._write(
-                name, member, _Place(at, where.record)
+                name, member, _Place(at, where.record), numbers
             )
             values |= found
             placed += written
             reports += missed + cell
         for same in collecting:
             held = frozenset(n for n, owner in owners.items() if owner is same)
-            found, written, cell = yield same.write(value, where, held)
+            found, written, cell = yield same.write(value, where, held, numbers)
             values |= found
             placed += written
             reports += cell
@@ -847,7 +908,7 @@ class _Frame:
     ) -> dict[str, Any]:
         # Each member is written once: by the location's own schema
         # where it covers it, else by the first subschema, in
-        # schema.12's order, that collects the instance and covers it,
+        # schema.11's order, that collects the instance and covers it,
         # else by the first additionalProperties that applies (spec ›
         # relation.16).
         owners: dict[str, Any] = {}
@@ -866,7 +927,9 @@ class _Frame:
                 owners[name] = taking[0]
         return owners
 
-    def _write(self, name: str, value: Any, where: _Place) -> Generator:
+    def _write(
+        self, name: str, value: Any, where: _Place, numbers: dict[str, int]
+    ) -> Generator:
         # A member goes to its property's column, frame or sheet, else
         # to the first matching pattern's sheet, else to
         # additionalProperties'.
@@ -875,13 +938,13 @@ class _Frame:
             matched = (n for p, n in self.patterns if _json_schema.search(p, name))
             member = next(matched, self.additional)
         if isinstance(member, _Column):
-            kept, runs, reports = _cell(value, where.at, member.text)
+            kept, runs, reports = _cell(value, where.at, member.text, numbers)
             return {member.domain: kept}, runs, reports
         if isinstance(member, _Frame):
-            return (yield member.write(value, where, None))
+            return (yield member.write(value, where, None, numbers))
         if member is None:
             return {}, [], []
-        placed, reports = yield member.write(value, where.at, where.record)
+        placed, reports = yield member.write(value, where.at, where.record, numbers)
         return {}, placed, reports
 
 
@@ -903,8 +966,14 @@ class _Merged:
     def takes(self) -> bool:
         return self.frame.takes()
 
-    def write(self, value: Any, where: _Place, names: frozenset[str]) -> Generator:
-        return self.frame.write(value, where, names)
+    def write(
+        self,
+        value: Any,
+        where: _Place,
+        names: frozenset[str],
+        numbers: dict[str, int],
+    ) -> Generator:
+        return self.frame.write(value, where, names, numbers)
 
 
 @dataclass(frozen=True)
@@ -913,8 +982,10 @@ class _Branch:
     # annotations under a dependency's key, where then's if is valid,
     # where else's if is not, and else where the instance is valid
     # against it; each instance it collects is one record of its sheet,
-    # or of its kind's (JSON Schema Validation, 3.3.1. Annotations and
-    # Validation Outcomes; spec › relation.2, relation.11).
+    # or of its kind's, keyed as its location's record, the record that
+    # holds the location's instance, with no parent and no pointer (JSON
+    # Schema Validation, 3.3.1. Annotations and Validation Outcomes;
+    # spec › relation.2, relation.8, relation.11, key.3).
     rule: _Rule
     sheet: Any
     root: Any
@@ -941,9 +1012,17 @@ class _Branch:
     def takes(self) -> bool:
         return self.sheet.frame.takes()
 
-    def write(self, value: Any, where: _Place, names: frozenset[str]) -> Generator:
-        own = _Place(where.at, where.at)
-        values, placed, reports = yield self.sheet.frame.write(value, own, names)
-        keyed = _key.values(self.sheet.relation.keys, where.record, where.at)
+    def write(
+        self,
+        value: Any,
+        where: _Place,
+        names: frozenset[str],
+        numbers: dict[str, int],
+    ) -> Generator:
+        own = _Place(where.at, where.record)
+        values, placed, reports = yield self.sheet.frame.write(
+            value, own, names, numbers
+        )
+        keyed = _keyed(self.sheet.relation, numbers, where.record, None)
         record = Placed(self.sheet.relation, keyed, MappingProxyType(values))
         return {}, [record, *placed], reports

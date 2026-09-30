@@ -24,7 +24,7 @@ _FRAGMENT = frozenset(
 class PlacedError(ValueError):
     # A JSON document that does not conform names the place where it
     # fails by the JSON Pointer to it (RFC 6901, 1. Introduction; spec ›
-    # schema.9, value.10).
+    # schema.8, value.10).
     def __init__(self, msg: str, at: str) -> None:
         super().__init__(msg, at)
         self.msg = msg
@@ -47,7 +47,7 @@ def tokens(at: str) -> list[str]:
 def evaluate(document: Any, at: str) -> Any:
     # Each token names a member of an object, or an array element by its
     # zero-based index, which has no leading zero; any other token fails
-    # (RFC 6901, 4. Evaluation; spec › schema.5, schema.11).
+    # (RFC 6901, 4. Evaluation; spec › schema.5, schema.10).
     found = document
     for token in tokens(at):
         if isinstance(found, list):
@@ -64,7 +64,7 @@ def from_fragment(fragment: str) -> str:
     # UTF-8, the characters a fragment does not allow percent-encoded;
     # decoded, it is empty or each token follows '/' (RFC 6901, 3.
     # Syntax; 6. URI Fragment Identifier Representation; spec ›
-    # schema.6, schema.11).
+    # schema.6, schema.10).
     data = bytearray()
     at = 0
     while at < len(fragment):

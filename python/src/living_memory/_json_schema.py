@@ -50,7 +50,7 @@ def validates(instance: Any, schema: Any, root: Any) -> bool:
     # a subschema to is kept in a list of checks still open, so any
     # depth of nesting is validated (JSON Schema, 4.3.1. JSON Schema
     # Values and Keywords; 8.3. Schema References With "$ref"; spec ›
-    # schema.11, schema.13, schema.15, value.3, value.9).
+    # schema.10, schema.12, schema.14, value.3, value.9).
     checks: list[_Check] = [_valid(instance, schema, root)]
     answer: bool | None = None
     while checks:
@@ -99,7 +99,7 @@ def resolve(reference: str, root: Any) -> tuple[Any, str]:
     # A reference resolves within the one schema given, to the schema
     # and its pointer, its fragment a JSON Pointer (JSON Schema, 8.3.1.
     # Loading a referenced schema; 8.3.2. Dereferencing; spec ›
-    # schema.5, schema.6, schema.11).
+    # schema.5, schema.6, schema.10).
     base, _, fragment = reference.partition("#")
     if base:
         raise ValueError(f"$ref {reference!r} is outside the supplied schema")
@@ -158,10 +158,41 @@ def compile_pattern(pattern: str) -> _Group:
     # anchors ^ and $, and simple grouping and alternation; any other
     # token is refused (JSON Schema Validation, 4.3. Regular
     # Expressions; spec › schema.4).
-    group, at = _alternation(pattern, 0)
-    if at < len(pattern):
-        raise ValueError(f"an unmatched ) in {pattern!r}")
-    return group
+    # The groups still open are kept in a list, each as its
+    # alternatives so far, so a pattern of any depth of nesting is read.
+    opened: list[list[list[object]]] = [[[]]]
+    at = 0
+    while at < len(pattern):
+        char = pattern[at]
+        if char == "(":
+            if pattern.startswith("(?", at):
+                raise ValueError(f"not a simple group in {pattern!r}")
+            opened.append([[]])
+            at += 1
+            continue
+        if char == "|":
+            opened[-1].append([])
+            at += 1
+            continue
+        if char == ")":
+            if len(opened) == 1:
+                raise ValueError(f"an unmatched ) in {pattern!r}")
+            node: object = _Group(tuple(tuple(s) for s in opened.pop()))
+            at += 1
+        else:
+            node, at = _atom(pattern, at)
+        # A quantifier follows a character, a class or a group.
+        if pattern[at : at + 1] in ("*", "+", "?", "{"):
+            if isinstance(node, (_Start, _End)):
+                raise ValueError(f"a quantifier with nothing to repeat in {pattern!r}")
+            least, most, at = _bounds(pattern, at)
+            if pattern[at : at + 1] == "?":
+                at += 1
+            node = _Repeat(node, least, most)
+        opened[-1][-1].append(node)
+    if len(opened) > 1:
+        raise ValueError(f"an unmatched ( in {pattern!r}")
+    return _Group(tuple(tuple(s) for s in opened[0]))
 
 
 def search(pattern: str, text: str) -> bool:
@@ -169,7 +200,7 @@ def search(pattern: str, text: str) -> bool:
     # it, not implicitly anchored at either end (JSON Schema Validation,
     # 4.3. Regular Expressions; 6.3.3. pattern).
     group = compile_pattern(pattern)
-    return bool(group.step(text, frozenset(range(len(text) + 1))))
+    return bool(_matched(group, text, frozenset(range(len(text) + 1))))
 
 
 def equal(one: Any, other: Any) -> bool:
@@ -499,42 +530,10 @@ _APPLICATORS: dict[str, Callable[[Any, dict[str, Any]], _Check]] = {
 }
 
 
-def _alternation(pattern: str, at: int) -> tuple[_Group, int]:
-    sequences = []
-    sequence, at = _sequence(pattern, at)
-    sequences.append(sequence)
-    while pattern[at : at + 1] == "|":
-        sequence, at = _sequence(pattern, at + 1)
-        sequences.append(sequence)
-    return _Group(tuple(sequences)), at
-
-
-def _sequence(pattern: str, at: int) -> tuple[tuple[object, ...], int]:
-    # A sequence runs to an alternation or the end of its group; a
-    # quantifier follows a character, a class or a group.
-    nodes: list[object] = []
-    while at < len(pattern) and pattern[at] not in "|)":
-        node, at = _atom(pattern, at)
-        if pattern[at : at + 1] in ("*", "+", "?", "{"):
-            if isinstance(node, (_Start, _End)):
-                raise ValueError(f"a quantifier with nothing to repeat in {pattern!r}")
-            least, most, at = _bounds(pattern, at)
-            if pattern[at : at + 1] == "?":
-                at += 1
-            node = _Repeat(node, least, most)
-        nodes.append(node)
-    return tuple(nodes), at
-
-
 def _atom(pattern: str, at: int) -> tuple[object, int]:
+    # A character, a class or an anchor; compile_pattern reads groups
+    # and alternations.
     char = pattern[at]
-    if char == "(":
-        if pattern.startswith("(?", at):
-            raise ValueError(f"not a simple group in {pattern!r}")
-        group, end = _alternation(pattern, at + 1)
-        if pattern[end : end + 1] != ")":
-            raise ValueError(f"an unmatched ( in {pattern!r}")
-        return group, end + 1
     if char == "[":
         return _class(pattern, at)
     if char == "^":
@@ -593,6 +592,33 @@ def _decimal(digits: str) -> bool:
     return bool(digits) and all(digit in _DIGITS for digit in digits)
 
 
+def _matched(node: object, text: str, positions: frozenset[int]) -> frozenset[int]:
+    # A node takes the positions a match may have reached in the text
+    # and returns the positions it may reach after it; a group or a
+    # repeat yields each node it holds with the positions it gives it,
+    # and is sent back those that node reaches, the steps still open
+    # kept in a list, so a pattern of any depth of nesting is matched.
+    task = node.step(text, positions)
+    if not isinstance(task, Generator):
+        return task
+    steps: list[Generator] = [task]
+    answer: Any = None
+    while steps:
+        try:
+            inner, at = steps[-1].send(answer)
+        except StopIteration as done:
+            steps.pop()
+            answer = done.value
+            continue
+        task = inner.step(text, at)
+        if isinstance(task, Generator):
+            steps.append(task)
+            answer = None
+        else:
+            answer = task
+    return answer
+
+
 # Each node of a pattern takes the positions a match may have reached in
 # the text and returns the positions it may reach after the node.
 
@@ -640,12 +666,12 @@ class _Group:
     # sequence of nodes matched one after another.
     sequences: tuple[tuple[object, ...], ...]
 
-    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+    def step(self, text: str, positions: frozenset[int]) -> Generator:
         reached: frozenset[int] = frozenset()
         for sequence in self.sequences:
             current = positions
             for node in sequence:
-                current = node.step(text, current)
+                current = yield node, current
             reached |= current
         return reached
 
@@ -659,12 +685,12 @@ class _Repeat:
     least: int
     most: float
 
-    def step(self, text: str, positions: frozenset[int]) -> frozenset[int]:
+    def step(self, text: str, positions: frozenset[int]) -> Generator:
         current = positions
         reached = positions if self.least == 0 else frozenset()
         count = 0
         while current and count < self.most:
-            current = self.node.step(text, current)
+            current = yield self.node, current
             count += 1
             if count >= self.least:
                 # Once past least, positions already reached lead only

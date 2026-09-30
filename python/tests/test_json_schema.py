@@ -153,6 +153,13 @@ class TestDepth(unittest.TestCase):
         one = decode(deep.encode())
         self.assertTrue(module.equal(one, decode(deep.encode())))
 
+    # schema.1, schema.4: a pattern of any depth of nesting is read and
+    # matched.
+    def test_pattern_any_depth(self):
+        pattern = "(" * 5000 + "a" + ")" * 5000
+        self.assertTrue(module.search(pattern, "a"))
+        self.assertFalse(module.search(pattern, "b"))
+
 
 class TestLocate(unittest.TestCase):
     # value.10: for an instance that does not validate, the place named
@@ -184,7 +191,7 @@ class TestLocate(unittest.TestCase):
 
 
 class TestPatterns(unittest.TestCase):
-    # value.9: a pattern of the subset matches, not anchored.
+    # schema.4: a pattern of the subset matches, not anchored.
     def test_subset_matches_unanchored(self):
         cases = [
             ("es", "expression", True),
@@ -227,7 +234,7 @@ class TestReferences(unittest.TestCase):
         self.assertTrue(valid('["x"]', schema))
         self.assertFalse(valid("[1]", schema))
 
-    # schema.5, schema.6, schema.11: a reference resolves to the schema
+    # schema.5, schema.6, schema.10: a reference resolves to the schema
     # and its pointer, its fragment percent-decoded as UTF-8; one
     # outside the schema, or whose fragment is not a JSON Pointer, is
     # refused.

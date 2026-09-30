@@ -12,20 +12,22 @@ class TestFields(unittest.TestCase):
     # record.1, field.1, field.2, relation.17: keys first, then each
     # column's text; a column written elsewhere is empty.
     def test_fields(self):
-        kind, value = Domain("type", "type"), Domain("value", "value")
+        kind, value = Domain("_type", "type", True), Domain("_value", "value", True)
         absent = Domain("x", "value")
         one = Relation(Segment("root", (), "t"), _key.ROOT, (kind, value, absent), ())
-        placed = Placed(one, {"pointer": "/0"}, {kind: Number("1"), value: Number("1")})
-        self.assertEqual(module.fields(placed), ["/0", "number", "1", ""])
+        placed = Placed(
+            one, {"_input value": "0"}, {kind: Number("1"), value: Number("1")}
+        )
+        self.assertEqual(module.fields(placed), ["0", "number", "1", ""])
 
     # record.1: each run of text is one record.
     def test_run(self):
-        run = Domain("value", "run")
-        text = Relation(Segment("runs", (), "runs"), _key.RUN, (run,), ())
-        keys = {"pointer": "/0/s", "page": "0", "line": "1", "position": "2"}
+        run = Domain("_value", "run", True)
+        text = Relation(Segment("runs", (), "_runs"), _key.RUN, (run,), ())
+        keys = dict(zip(_key.RUN, ("0", "1", "0", "1", "2")))
         self.assertEqual(
             module.fields(Placed(text, keys, {run: "a"})),
-            ["/0/s", "0", "1", "2", "a"],
+            ["0", "1", "0", "1", "2", "a"],
         )
 
 

@@ -27,13 +27,22 @@ def keyed(found: list, one: module.Relation) -> list[dict]:
     ]
 
 
+def key(position: str, instance: str, parent: str, pointer: str) -> dict:
+    return {
+        "_input value": position,
+        "_instance": instance,
+        "_parent": parent,
+        "_pointer": pointer,
+    }
+
+
 def below(sheet_layout: module.Layout) -> list[module.Relation]:
     return list(module.children(sheet_layout, module.root(sheet_layout)))
 
 
 class TestLayout(unittest.TestCase):
     # relation.5-15: a column, a sheet of its own, or the sheet of
-    # instances, each sheet referred to in the order schema.12 takes it.
+    # instances, each sheet referred to in the order schema.11 takes it.
     def test_places(self):
         schema = (
             b'{"title":"t","type":"object","required":["a","p"],"properties":'
@@ -47,7 +56,7 @@ class TestLayout(unittest.TestCase):
         self.assertEqual([d.label for d in module.domains(root)], ["a", "p.b"])
         sheets = below(sheet_layout)
         found = [(module.segment(c).kind, module.segment(c).name) for c in sheets]
-        expected = [("runs", "runs"), ("property", "l"), ("instances", "instances")]
+        expected = [("runs", "_runs"), ("property", "l"), ("instances", "_instances")]
         self.assertEqual(found, expected)
         self.assertEqual(module.last(sheet_layout), (sheets[2], sheets[0]))
 
@@ -67,6 +76,21 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(module.segment(first), module.Segment("kind", (), "n"))
         self.assertEqual(module.children(sheet_layout, first), (first,))
 
+    # relation.1: where a $ref references the root schema, the sheet of
+    # the input values is its kind's one sheet, keyed as key.3 keys it.
+    def test_root_kind(self):
+        schema = (
+            b'{"title":"t","type":"object","properties":{"n":{"$ref":"#"}},'
+            b'"additionalProperties":false}'
+        )
+        sheet_layout, found, _ = placed(schema, b'{"n":{}}')
+        root = module.root(sheet_layout)
+        self.assertEqual(module.segment(root), module.Segment("kind", (), "t"))
+        self.assertEqual(below(sheet_layout), [root])
+        self.assertEqual(
+            keyed(found, root), [key("0", "0", "", ""), key("0", "1", "0", "/n")]
+        )
+
     # relation.3: a $ref that allOf applies adds to its instance's own
     # schema, and is no kind.
     def test_all_of_ref_no_kind(self):
@@ -80,18 +104,37 @@ class TestLayout(unittest.TestCase):
         root = module.root(sheet_layout)
         self.assertEqual([d.label for d in module.domains(root)], ["m"])
 
-    # relation.15: a root schema of other than one type, object or
-    # array, is the sheet of instances.
+    # relation.15, key.2: a root schema of other than one type, object
+    # or array, is the sheet of instances, keyed as key.3 keys it.
     def test_root_instances(self):
         sheet_layout = module.layout(decode(b'{"title":"t","type":"string"}'))
         root = module.root(sheet_layout)
-        self.assertEqual([d.label for d in module.domains(root)], ["type", "value"])
+        self.assertEqual([d.label for d in module.domains(root)], ["_type", "_value"])
         self.assertIs(module.last(sheet_layout)[0], root)
+        self.assertEqual(module.keys(root), tuple(key("", "", "", "")))
+
+    # schema.1: a schema of any depth of nesting is laid out.
+    def test_any_depth(self):
+        schema = b'{"type":"object","properties":{"n":' * DEEP + b"{}" + b"}}" * DEEP
+        sheet_layout = module.layout(decode(b'{"title":"t",' + schema[1:]))
+        depth, one = 0, module.root(sheet_layout)
+        while any(
+            module.segment(c).name == "n" for c in module.children(sheet_layout, one)
+        ):
+            one = next(
+                c
+                for c in module.children(sheet_layout, one)
+                if module.segment(c).name == "n"
+            )
+            depth += 1
+        self.assertEqual(depth, DEEP - 1)
 
 
 class TestPlace(unittest.TestCase):
-    # relation.16, relation.17: a member two collecting branches name is
-    # written by the first, and its field in the later one is empty.
+    # relation.16, relation.17, key.3: a member two collecting branches
+    # name is written by the first, and its field in the later one is
+    # empty; a branch of a required object's location is keyed as the
+    # record that holds it.
     def test_each_value_once(self):
         schema = (
             b'{"title":"t","type":"object","required":["p"],'
@@ -110,27 +153,33 @@ class TestPlace(unittest.TestCase):
         ]
         self.assertEqual([d.label for d in module.content(first)], ["k"])
         self.assertEqual([d.label for d in module.content(second)], ["m"])
-        self.assertEqual(
-            keyed(found, branches[0]), [{"parent": "/0", "pointer": "/0/p"}]
-        )
+        self.assertEqual(keyed(found, branches[0]), [key("0", "0", "", "")])
 
-    # relation.14, key.5, field.4, field.5: a string's runs are records
-    # of the sheet of runs, keyed by its pointer, and what a field
-    # cannot hold is reported by its pointer.
+    # relation.14, key.3, key.5, field.4, field.5: a string's runs are
+    # records of the sheet of runs, keyed by its instance; a pointer
+    # keeps what it can hold of a name; what a field cannot hold is
+    # reported by its pointer within the input.
     def test_runs_and_reports(self):
         sheet_layout, found, reports = placed(
             b'{"title":"t"}', b'{"a\\tb":"x\\ny\\rz"}'
         )
-        text = module.last(sheet_layout)[1]
+        instances, text = module.last(sheet_layout)
         runs = [p for p in found if module.relation(p) is text]
         self.assertEqual(
             [list(module.content(p).values()) for p in runs], [["x"], ["yz"]]
         )
         self.assertEqual(
             keyed(found, text)[1],
-            {"pointer": "/0/ab", "page": "0", "line": "1", "position": "0"},
+            {
+                "_input value": "0",
+                "_instance": "1",
+                "_page": "0",
+                "_line": "1",
+                "_position": "0",
+            },
         )
-        self.assertEqual(reports, ["/0/a\tb", "/0/ab"])
+        self.assertEqual(keyed(found, instances)[1], key("0", "1", "0", "/ab"))
+        self.assertEqual(reports, ["/0/a\tb", "/0/a\tb"])
 
     # relation.12: a property of several types is placed branch by
     # branch: a string molten, an array by its elements.
@@ -144,10 +193,8 @@ class TestPlace(unittest.TestCase):
         sheet_layout, found, _ = placed(schema, b'{"p":"x"}', b'{"p":[1]}')
         instances, elements = module.last(sheet_layout)[0], below(sheet_layout)[1]
         self.assertEqual(module.segment(elements).within.name, "p")
-        self.assertEqual(keyed(found, instances), [{"parent": "/0", "pointer": "/0/p"}])
-        self.assertEqual(
-            keyed(found, elements), [{"parent": "/1", "pointer": "/1/p/0"}]
-        )
+        self.assertEqual(keyed(found, instances), [key("0", "1", "0", "/p")])
+        self.assertEqual(keyed(found, elements), [key("1", "2", "0", "/p/0")])
 
     # relation.2, relation.12: a kind whose own schema gives nothing is
     # placed branch by branch, with no sheet of its own, also where a
@@ -164,20 +211,18 @@ class TestPlace(unittest.TestCase):
         sheet_layout, found, _ = placed(schema, b'{"a":"s","x":1}')
         names = {module.segment(c).name: c for c in below(sheet_layout)}
         self.assertNotIn("u", names)
-        self.assertEqual(keyed(found, names["x"]), [{"parent": "/0", "pointer": "/0"}])
+        self.assertEqual(keyed(found, names["x"]), [key("0", "0", "", "")])
         self.assertEqual(keyed(found, names["y"]), [])
 
-    # key.3: an instance's parent is the instance that holds it.
+    # key.3: an instance's parent is the instance that holds it, and its
+    # pointer is evaluated from it.
     def test_instance_parent(self):
         schema = b'{"title":"t","type":"object","additionalProperties":{}}'
         sheet_layout, found, _ = placed(schema, b'{"o":{"p":1}}')
         instances = module.last(sheet_layout)[0]
         self.assertEqual(
             keyed(found, instances),
-            [
-                {"parent": "/0", "pointer": "/0/o"},
-                {"parent": "/0/o", "pointer": "/0/o/p"},
-            ],
+            [key("0", "1", "0", "/o"), key("0", "2", "1", "/p")],
         )
 
     # relation.10: an optional object is one record or none.
@@ -188,8 +233,7 @@ class TestPlace(unittest.TestCase):
         )
         sheet_layout, found, _ = placed(schema, b"{}", b'{"o":{}}')
         self.assertEqual(
-            keyed(found, below(sheet_layout)[0]),
-            [{"parent": "/1", "pointer": "/1/o"}],
+            keyed(found, below(sheet_layout)[0]), [key("1", "1", "0", "/o")]
         )
 
     # value.3: a value of any depth is placed, a kind that holds itself

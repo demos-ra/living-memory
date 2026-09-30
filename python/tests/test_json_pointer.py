@@ -13,7 +13,7 @@ class TestPointer(unittest.TestCase):
 
 
 class TestPlacedError(unittest.TestCase):
-    # schema.9, value.10: a failure names its place by its pointer.
+    # schema.8, value.10: a failure names its place by its pointer.
     def test_fields(self):
         error = module.PlacedError("a name is repeated", "/a")
         self.assertIsInstance(error, ValueError)
@@ -29,7 +29,7 @@ class TestTokens(unittest.TestCase):
 
 
 class TestEvaluate(unittest.TestCase):
-    # schema.11: a token names a member or an element.
+    # schema.10: a token names a member or an element.
     def test_members_and_elements(self):
         document = {"a/b": [1, {"~": 2}]}
         self.assertEqual(module.evaluate(document, "/a~1b/1/~0"), 2)
@@ -46,7 +46,7 @@ class TestEvaluate(unittest.TestCase):
 
 
 class TestFromFragment(unittest.TestCase):
-    # schema.6, schema.11: a fragment is percent-decoded as UTF-8, and
+    # schema.6, schema.10: a fragment is percent-decoded as UTF-8, and
     # is a JSON Pointer; any other is refused.
     def test_decoded(self):
         self.assertEqual(module.from_fragment("/a%20b%C3%A9/~1"), "/a bé/~1")

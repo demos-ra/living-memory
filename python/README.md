@@ -109,8 +109,8 @@ src/living_memory/
     _key            level 3   how each record is identified: key.1-5
     _field          level 4   how a value is written as a field's text, and what is not carried: field.1-5
     _json_schema    level 4   whether a JSON value validates against a JSON Schema of draft-07
-    _storage        level 4   what a data bank holds of an input: its values stored, each whole: storage.3-5
-    _schema         level 5   what a module specification supplies, and how its schema is read: schema.1-16
+    _storage        level 4   what a data bank holds of an input: the records of its values stored whole: storage.4
+    _schema         level 5   what a module specification supplies, and how its schema is read: schema.1-15
     _value          level 5   how each input value is read, and when it is rejected: value.1-10
     _communication  level 5   what a data bank communicates: the names, and records by their keys: communication.1-5
     _relation       level 6   which relation and column each value is written to: relation.1-17
@@ -133,9 +133,10 @@ src/living_memory/
   command
     _store          level 5   the data bank's storage, its secret: each input's sheets as files,
                               appended to, and cut back to the values stored whole after a conversion
-                              cut short, the inputs in the order stored, how many values are
-                              communicated and how many lines of the source are read: storage.1-6
-    _command        level 10  the command: a source read by its integration, stored in a data bank,
+                              cut short, the inputs in the order stored, how many values are stored
+                              whole and communicated, and how many lines of the source are read:
+                              storage.1-6
+    _command        level 11  the command: a source read by its integration, stored in a data bank,
                               and communicated: communication.6
 tests/                        one file per module, and the conformance runner, which reads
                               ../conformance, a data bank's cases through the command, and so

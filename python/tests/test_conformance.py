@@ -47,8 +47,7 @@ def convert(case: Path) -> str:
 
 
 class Reports(logging.Handler):
-    # The handler keeps what the converter reports as not carried, in
-    # order.
+    # The handler keeps what the converter reports as not carried.
     def __init__(self) -> None:
         super().__init__()
         self.messages: list[str] = []
@@ -114,10 +113,12 @@ class TestConformance(unittest.TestCase):
         table = expected_table()
         for case in cases("cannot-be-represented"):
             with self.subTest(case=case.name):
+                # field.5: each thing left out is reported, in no order
+                # a rule gives.
                 kind, pointers = table[case.stem]
                 self.assertEqual(kind, "not carried")
                 want = [f"not carried: {p}" for p in re.findall(r"`(.*?)`", pointers)]
-                self.assertEqual(self.assertWritten(case), want)
+                self.assertCountEqual(self.assertWritten(case), want)
 
     def test_non_conforming(self):
         table = expected_table()
@@ -154,7 +155,7 @@ class Part:
         return self.schema_text
 
     def values(self, path: Path, held: list | None) -> list[bytes]:
-        stored = sum(1 for r in held or [] if r["pointer"].count("/") == 1)
+        stored = len({record["_input value"] for record in held or []})
         return self.all[stored : self.end]
 
 
@@ -175,9 +176,9 @@ def bank(reader: Part, *argv: str) -> tuple[int, str, str]:
     return code, data.getvalue().decode("utf-8"), err.getvalue()
 
 
-# The request of step 8, where a case has one (conformance/README.md,
-# communication.4).
-REQUESTS = {"storage.3.parts": ["--values=1-2", "--places=1;3"]}
+# The request a case's last step makes, where it has one
+# (conformance/README.md, communication.4).
+REQUESTS = {"storage.3.parts": ["--values=1-2", "--places=1;2"]}
 
 
 class TestDataBank(unittest.TestCase):
@@ -185,7 +186,8 @@ class TestDataBank(unittest.TestCase):
         return (CONFORMANCE / "communicated" / name).read_text("utf-8")
 
     # conformance.2, storage.1-6, communication.1-6: each case stored in
-    # two parts and communicated in the README's eight steps.
+    # two parts and communicated in the README's steps, each
+    # communication compared where the case expects it.
     def test_communicated(self):
         table = expected_table()
         for case in cases("communicated"):
@@ -211,8 +213,11 @@ class TestDataBank(unittest.TestCase):
                     argv = [f"--filter={name}", *REQUESTS[name], source]
                     steps["request"] = bank(reader, *argv)[1]
                 for step, text in steps.items():
+                    expected = CONFORMANCE / "communicated" / f"{name}.{step}.mtsv"
+                    if not expected.exists():
+                        continue
                     with self.subTest(step=step):
-                        self.assertEqual(text, self.expected(f"{name}.{step}.mtsv"))
+                        self.assertEqual(text, expected.read_text("utf-8"))
 
     # storage.2: two inputs stored apart in one data bank, each whole.
     def test_two_inputs(self):

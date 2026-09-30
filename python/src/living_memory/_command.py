@@ -13,7 +13,7 @@ from typing import Any, NoReturn
 
 import mtsv
 
-from living_memory import _communication, _storage, _store, integrations
+from living_memory import _communication, _store, integrations
 from living_memory._converter import convert, sheets
 
 # POSIX.1-2017 XBD 12.2, Guideline 13: the operand "-" means standard
@@ -255,22 +255,23 @@ def _insert(
     schema: tuple[bytes, list[str]],
 ) -> list[dict[str, str]]:
     # One input's next part, from the number of its values stored,
-    # inserted whole or not at all; the records of its sheet of the
-    # input values are returned as it now holds them (spec ›
-    # storage.1-5).
+    # inserted whole or not at all, then the number stored kept; the
+    # records of its sheet of the input values are returned as it now
+    # holds them (spec › storage.1-5).
     path, name, index = source
     folder = output / name
     text_schema, sheet_names = schema
     _store.repair(folder, sheet_names)
     held = _held(folder, sheet_names)
-    found = (
+    found = list(
         module.values(path, name, held or None, index)
         if hasattr(module, "lines")
         else module.values(path, held or None)
     )
-    start = _storage.count(_store.stored(folder, sheet_names))
+    start = _store.values(folder)
     text = convert(found, text_schema, start)
     _store.append(folder, text, sheet_names)
+    _store.mark_values(folder, start + len(found))
     now = _held(folder, sheet_names)
     if now:
         _store.add_input(output, name)
@@ -282,7 +283,7 @@ def _held(folder: Path, sheet_names: list[str]) -> list[dict[str, str]]:
     # bank communicates them, each by its header's names (spec ›
     # communication.4).
     stored = _store.stored(folder, sheet_names)
-    values = _storage.count(stored)
+    values = _store.values(folder)
     text = _communication.records(stored, 0, values - 1, [0])
     return [
         dict(zip(sheet["header"], record))
@@ -321,14 +322,18 @@ class _Bank:
 
     def names(self) -> str:
         return _communication.names(
-            [(name, self._stored(name)) for name in self.inputs()]
+            [
+                (name, self._stored(name), _store.values(self.output / name))
+                for name in self.inputs()
+            ]
         )
 
     def filter(
         self, name: str, values: tuple[int, int] | None, places: list[int] | None
     ) -> str:
         stored = self._stored(name)
-        first, last = values if values is not None else (0, _storage.count(stored) - 1)
+        whole = _store.values(self.output / name)
+        first, last = values if values is not None else (0, whole - 1)
         return _communication.records(stored, first, last, places)
 
     def new(self, name: str, places: list[int] | None) -> str:
@@ -337,7 +342,7 @@ class _Bank:
         # communication.6).
         folder = self.output / name
         stored = self._stored(name)
-        values = _storage.count(stored)
+        values = _store.values(folder)
         text = _communication.records(
             stored, _store.communicated(folder), values - 1, places
         )

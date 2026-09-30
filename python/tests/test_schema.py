@@ -6,9 +6,12 @@ from living_memory import _schema as module
 from living_memory._json import decode
 from living_memory._json_pointer import PlacedError
 
+# Deeper than any recursion Python allows by default.
+DEEP = 3000
+
 
 class TestRead(unittest.TestCase):
-    # schema.1-9: a schema that does not conform is refused at its
+    # schema.1-8: a schema that does not conform is refused at its
     # place.
     def test_refused_at_its_place(self):
         cases = [
@@ -45,7 +48,6 @@ class TestRead(unittest.TestCase):
                 b'{"title":"t","definitions":{"A":{"$ref":"#/none"}}}',
                 "/definitions/A/$ref",
             ),
-            (b'{"title":"t","properties":{"n":{"$ref":"#"}}}', "/properties/n/$ref"),
             (
                 b'{"title":"t","properties":{"n":{"$ref":"#/definitions/a\\tb"}},'
                 b'"definitions":{"a\\tb":{}}}',
@@ -63,17 +65,26 @@ class TestRead(unittest.TestCase):
                     module.read(schema)
                 self.assertEqual(raised.exception.pointer, expected)
 
-    # schema.8: a kind may hold itself at a child location.
+    # schema.7, relation.1: a kind may hold itself at a child location,
+    # the root schema among them.
     def test_conforming(self):
-        schema = (
+        schemas = [
             b'{"title":"t","definitions":{"A":{"properties":'
-            b'{"a":{"$ref":"#/definitions/A"}}}},"anyOf":[{"$ref":"#/definitions/A"}]}'
-        )
-        self.assertEqual(module.read(schema)["title"], "t")
+            b'{"a":{"$ref":"#/definitions/A"}}}},"anyOf":[{"$ref":"#/definitions/A"}]}',
+            b'{"title":"t","properties":{"n":{"$ref":"#"}}}',
+        ]
+        for schema in schemas:
+            with self.subTest(schema=schema):
+                self.assertEqual(module.read(schema)["title"], "t")
+
+    # schema.1: a schema of any depth of nesting is read and checked.
+    def test_any_depth(self):
+        schema = b'{"properties":{"n":' * DEEP + b"{}" + b"}}" * DEEP
+        self.assertEqual(module.read(b'{"title":"t",' + schema[1:])["title"], "t")
 
 
 class TestResolve(unittest.TestCase):
-    # schema.11: a $ref is read as the schema it references, its other
+    # schema.10: a $ref is read as the schema it references, its other
     # members ignored; true is the empty schema.
     def test_references(self):
         root = decode(
@@ -87,8 +98,8 @@ class TestResolve(unittest.TestCase):
 
 
 class TestTaken(unittest.TestCase):
-    # schema.12: subschemas are taken in the order JSON Schema
-    # Validation defines the keywords, and within a keyword as written.
+    # schema.11: subschemas are taken in the order JSON Schema
+    # Validation presents the keywords, and within a keyword as written.
     def test_order(self):
         schema = decode(
             b'{"oneOf":[{}],"anyOf":[{}],"allOf":[{}],"else":{},"then":{},"if":{},'
@@ -108,7 +119,7 @@ class TestTaken(unittest.TestCase):
             places, ["/s/items/0", "/s/additionalItems", "/s/properties/b"]
         )
 
-    # schema.12: an omitted items or additionalProperties is the empty
+    # schema.11: an omitted items or additionalProperties is the empty
     # schema; additionalItems applies only beside a list of items, and
     # then and else only beside if.
     def test_omitted(self):

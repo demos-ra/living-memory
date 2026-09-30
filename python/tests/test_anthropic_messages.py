@@ -64,6 +64,17 @@ class TestUnits(unittest.TestCase):
         ]
         self.assertFalse(any("cache_control" in each for each in members))
 
+    # kept.2: blocks of any depth of nesting are cleared of breakpoints.
+    def test_any_depth(self):
+        block = {"type": "text", "text": "x", "cache_control": {}}
+        for _ in range(3000):
+            block = {"type": "tool_result", "content": [block], "cache_control": {}}
+        kept = module.kept("tools", block)
+        for _ in range(3000):
+            self.assertNotIn("cache_control", kept)
+            kept = kept["content"][0]
+        self.assertEqual(kept, {"type": "text", "text": "x"})
+
     # schema.1, schema.7: the core reads the schema whole, and a
     # recorded message and a string system prompt validate.
     def test_valid(self):

@@ -8,7 +8,7 @@ from unittest import mock
 
 import mtsv
 
-from living_memory import _communication, _json, _storage
+from living_memory import _communication, _json
 from living_memory.integrations.anthropic.claude_code import install as module
 
 FROM = "--from=anthropic/claude_code/raw_api_bodies"
@@ -25,7 +25,11 @@ def installed(home: str, options: list[str], fresh: bool = True) -> tuple[bytes,
     settings.parent.mkdir(exist_ok=True)
     if fresh:
         settings.write_bytes(SETTINGS)
-    environ = {"XDG_DATA_HOME": f"{home}/data", "CLAUDE_CONFIG_DIR": ""}
+    environ = {
+        "XDG_DATA_HOME": f"{home}/data",
+        "XDG_CONFIG_HOME": "",
+        "CLAUDE_CONFIG_DIR": "",
+    }
     with mock.patch.object(Path, "home", return_value=Path(home)):
         with mock.patch.dict(os.environ, environ):
             with mock.patch.object(module.sys, "platform", "linux"):
@@ -37,27 +41,34 @@ def installed(home: str, options: list[str], fresh: bool = True) -> tuple[bytes,
 
 
 class TestInstall(unittest.TestCase):
-    # install.3, hooks.1-3, hooks.5: the capture variable and three
-    # matcher groups are added, each naming its reader, what the
-    # settings held is kept, and a second install adds nothing.
+    # install.3, hooks.1-3, hooks.5, folder.4: the capture variable and
+    # three matcher groups are added, each naming its reader and the
+    # data bank, what the settings held is kept, and a second install
+    # adds nothing; each folder made is readable by the user alone.
     def test_adds_once(self):
         with tempfile.TemporaryDirectory() as home:
             _, written = installed(home, [])
             folder = f"{home}/data/living-memory/anthropic/claude_code/raw_api_bodies"
+            bank = f"{home}/Documents/living-memory/anthropic/claude_code"
+            output = f"--output={bank}/raw_api_bodies.mtsv"
             self.assertEqual(
                 written["env"]["OTEL_LOG_RAW_API_BODIES"], f"file:{folder}"
             )
             self.assertEqual(written["hooks"]["Stop"][0], {"hooks": []})
             self.assertEqual(
-                written["hooks"]["Stop"][1]["hooks"][0]["args"], [FROM, folder]
+                written["hooks"]["Stop"][1]["hooks"][0]["args"], [FROM, output, folder]
             )
-            context = [FROM, "--add-context=claude-code", folder]
+            context = [FROM, "--add-context=claude-code", output, folder]
             for event in ("SessionStart", "UserPromptSubmit"):
                 with self.subTest(event=event):
                     self.assertEqual(
                         written["hooks"][event][0]["hooks"][0]["args"], context
                     )
-            self.assertEqual(os.stat(folder).st_mode & 0o777, 0o700)
+            made = [folder, f"{home}/data/living-memory", f"{bank}/raw_api_bodies.mtsv"]
+            made += [f"{home}/Documents/living-memory", f"{home}/Documents"]
+            for one in made:
+                with self.subTest(folder=one):
+                    self.assertEqual(os.stat(one).st_mode & 0o777, 0o700)
 
     # install.5: kept, each hook runs living-memory with --keep-files.
     def test_keep_files(self):
@@ -86,6 +97,25 @@ class TestInstall(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": "/config"}):
             self.assertEqual(module._settings(), Path("/config/settings.json"))
 
+    # folder.4: the user's documents directory is ~/Documents, on Linux
+    # as the last line of user-dirs.dirs that names it gives it, under
+    # the configuration home.
+    def test_documents(self):
+        with tempfile.TemporaryDirectory() as home:
+            with mock.patch.object(Path, "home", return_value=Path(home)):
+                with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": ""}):
+                    with mock.patch.object(module.sys, "platform", "linux"):
+                        self.assertEqual(module._documents(), Path(home, "Documents"))
+                        Path(home, ".config").mkdir()
+                        Path(home, ".config", "user-dirs.dirs").write_text(
+                            'XDG_DOCUMENTS_DIR="$HOME/Dokumente"\n'
+                            'XDG_DOCUMENTS_DIR="relative"\n'
+                            "# a comment\n"
+                        )
+                        self.assertEqual(module._documents(), Path(home, "Dokumente"))
+                    with mock.patch.object(module.sys, "platform", "darwin"):
+                        self.assertEqual(module._documents(), Path(home, "Documents"))
+
     # folder.1: a relative XDG_DATA_HOME is ignored.
     def test_relative_data_home(self):
         with mock.patch.dict(os.environ, {"XDG_DATA_HOME": "relative"}):
@@ -98,7 +128,9 @@ class TestInstall(unittest.TestCase):
     def test_change(self):
         with mock.patch.object(module.sys, "platform", "linux"):
             stated = module.change()
-        for part in ("tool content", "from the next session", "unless you keep them"):
+        parts = ("tool content", "from the next session", "unless you keep them")
+        parts += ("among your documents",)
+        for part in parts:
             with self.subTest(part=part):
                 self.assertIn(part, stated)
         self.assertIn("raw API bodies", module.question())
@@ -111,11 +143,12 @@ class TestInstall(unittest.TestCase):
                     step()
 
 
-HEADER = ["pointer", "index_line", "session_id", "query_source", "timestamp", "extends"]
+HEADER = ["_input value", "index_line", "session_id", "query_source"]
+HEADER += ["timestamp", "extends"]
 
 
 def value(i: int, extends: int) -> list[str]:
-    return [f"/{i}", str(i + 1), "s", "q", f"2026-09-27T{i:02}", str(extends)]
+    return [str(i), str(i + 1), "s", "q", f"2026-09-27T{i:02}", str(extends)]
 
 
 class Bank:
@@ -126,21 +159,22 @@ class Bank:
         roots = {"sheet name": "raw_api_bodies", "header": HEADER, "records": records}
         messages = {
             "sheet name": "BetaMessageParam",
-            "header": ["parent", "pointer", "role"],
-            "records": [[r[0], f"{r[0]}/units/0", "user"] for r in records],
+            "header": ["_input value", "_instance", "_parent", "_pointer", "role"],
+            "records": [[r[0], "2", "0", "/units/0", "user"] for r in records],
         }
         self.stored = [(0, roots), (154, messages)]
+        self.values = len(records)
         self.communicated = 0
 
     def names(self) -> str:
-        return _communication.names([("2026-09-27/s", self.stored)])
+        return _communication.names([("2026-09-27/s", self.stored, self.values)])
 
     def filter(self, name, values, places):
-        first, last = values or (0, _storage.count(self.stored) - 1)
+        first, last = values or (0, self.values - 1)
         return _communication.records(self.stored, first, last, places)
 
     def new(self, name, places):
-        values = _storage.count(self.stored)
+        values = self.values
         text = _communication.records(
             self.stored, self.communicated, values - 1, places
         )
@@ -166,8 +200,8 @@ class TestContext(unittest.TestCase):
                 "data bank",
                 "raw_api_bodies by date",
                 "raw_api_bodies by session_id, query_source",
-                "sheets",
-                "fields",
+                "_sheets",
+                "_fields",
             ],
         )
         self.assertEqual(
@@ -177,7 +211,7 @@ class TestContext(unittest.TestCase):
             sheets["raw_api_bodies by date"]["records"], [["2026-09-27", "1", "2"]]
         )
         self.assertEqual(
-            sheets["sheets"]["records"],
+            sheets["_sheets"]["records"],
             [
                 ["2026-09-27/s", "0", "raw_api_bodies"],
                 ["2026-09-27/s", "154", "BetaMessageParam"],

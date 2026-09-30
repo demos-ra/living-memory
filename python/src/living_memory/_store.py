@@ -1,6 +1,7 @@
 """The data bank's storage: each input's sheets kept as files, appended
 to, and cut back to the values stored whole after a conversion cut
-short; only the command reads them."""
+short, with how many values are stored whole; only the command reads
+them."""
 
 __all__ = [
     "add_input",
@@ -10,9 +11,11 @@ __all__ = [
     "locked",
     "mark_communicated",
     "mark_read",
+    "mark_values",
     "read",
     "repair",
     "stored",
+    "values",
 ]
 
 import fcntl
@@ -30,6 +33,10 @@ _LOCK = ".lock"
 # A sheet's file begins with two lines before its records: the FF line
 # with the sheet name, then the header.
 _HEAD = 2
+# The file beside an input's storage that holds how many of its values
+# are stored whole, replaced whole once a part is appended, so a part
+# cut short is no part of it (spec › storage.4, storage.5).
+_VALUES = ".values"
 # The file beside an input's storage that holds how many of its values
 # have been communicated (spec › communication.6).
 _COMMUNICATED = ".communicated"
@@ -72,7 +79,7 @@ def repair(folder: Path, names: list[str]) -> None:
     for path in _paths(folder, names):
         _end(path)
     held = stored(folder, names)
-    kept = _storage.whole(held, _storage.count(held))
+    kept = _storage.whole(held, values(folder))
     for (place, sheet), (_, whole) in zip(held, kept):
         if whole["records"] != sheet["records"]:
             _rename.replace(_paths(folder, names)[place], _text(whole))
@@ -81,13 +88,12 @@ def repair(folder: Path, names: list[str]) -> None:
 def append(folder: Path, text: str, names: list[str]) -> None:
     # Each sheet's new records are written at the end of its file, the
     # file opened for appending, with its FF line and header when it is
-    # created; the sheet of the input values last, so a conversion cut
-    # short is found by it (spec › storage.3, storage.4).
+    # created (spec › storage.3).
     paths = _paths(folder, names)
     sheets = mtsv.loads(text)
     if sheets:
         folder.mkdir(parents=True, exist_ok=True)
-    for sheet in sorted(sheets, key=lambda s: names.index(s["sheet name"]) == 0):
+    for sheet in sheets:
         path = paths[names.index(sheet["sheet name"])]
         written = _text(sheet).decode("utf-8")
         if path.exists() and path.stat().st_size:
@@ -111,6 +117,15 @@ def add_input(folder: Path, name: str) -> None:
     if name not in held:
         text = "".join(f"{each}\n" for each in [*held, name])
         _rename.replace(folder / _INPUTS, text.encode("utf-8"))
+
+
+def values(folder: Path) -> int:
+    # How many of an input's values are stored whole.
+    return _count(folder / _VALUES)
+
+
+def mark_values(folder: Path, count: int) -> None:
+    _mark(folder, _VALUES, count)
 
 
 def communicated(folder: Path) -> int:

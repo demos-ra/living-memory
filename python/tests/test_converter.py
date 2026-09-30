@@ -16,7 +16,7 @@ SCHEMA += b' "properties": {"s": {"type": "string"}}, "additionalProperties": fa
 
 
 class TestNonConformingError(unittest.TestCase):
-    # schema.9: a module specification is rejected, naming the place in
+    # schema.8: a module specification is rejected, naming the place in
     # the schema.
     def test_module_specification(self):
         error = NonConformingError("the schema: a pattern", "/pattern")
@@ -50,16 +50,16 @@ class TestConvert(unittest.TestCase):
     # that hold a record; without values, no sheet.
     def test_one_file(self):
         text = convert([b'{"s": "a"}', b'{"s": "b"}'], SCHEMA)
-        self.assertEqual(text, "\ft\npointer\ts\n/0\ta\n/1\tb\n")
+        self.assertEqual(text, "\ft\n_input value\ts\n0\ta\n1\tb\n")
         self.assertEqual(convert([], SCHEMA), "")
 
     # value.2: a part of an input keeps its values' positions in the
     # whole input; sheets names every sheet the schema gives, in order.
     def test_parts(self):
         self.assertEqual(
-            convert([b'{"s": "b"}'], SCHEMA, 1), "\ft\npointer\ts\n/1\tb\n"
+            convert([b'{"s": "b"}'], SCHEMA, 1), "\ft\n_input value\ts\n1\tb\n"
         )
-        self.assertEqual(sheets(SCHEMA), ["t", "runs"])
+        self.assertEqual(sheets(SCHEMA), ["t", "_runs"])
 
     # value.9, value.10: an input value is rejected by its position and
     # place.
@@ -70,7 +70,7 @@ class TestConvert(unittest.TestCase):
             (raised.exception.position, raised.exception.pointer), (1, "/s")
         )
 
-    # schema.1-9: a schema is rejected at its place.
+    # schema.1-8: a schema is rejected at its place.
     def test_schema_placed(self):
         cases = [
             (

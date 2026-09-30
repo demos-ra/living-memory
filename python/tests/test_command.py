@@ -50,7 +50,7 @@ class TestConvert(unittest.TestCase):
                 self.assertEqual(run(str(source))[0], 0)
                 self.assertEqual(run(str(source), "-o", f"{folder}/o.mtsv")[0], 0)
             written = Path(folder, "calls.mtsv", "calls", "0 t.mtsv").read_text("utf-8")
-            self.assertEqual(written, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
+            self.assertEqual(written, "\ft\n_input value\tn\n0\t1\n1\t2\n")
             other = Path(folder, "o.mtsv", "calls", "0 t.mtsv").read_text("utf-8")
             self.assertEqual(other, written)
 
@@ -152,7 +152,7 @@ class TestInputs(unittest.TestCase):
                         with mock.patch.object(module.sys, "stdout") as stdout:
                             module.main(["--add-context=h", f"{folder}/calls.x"])
             stdout.buffer.write.assert_called_once_with(b"\fmap\nx\n")
-            self.assertEqual(seen["new"], "\ft\npointer\tn\n/0\t1\n")
+            self.assertEqual(seen["new"], "\ft\n_input value\tn\n0\t1\n")
             given = Path(folder, "calls.mtsv", "d", "a", ".communicated").read_text()
             self.assertEqual(given, "1\n")
 
@@ -168,10 +168,10 @@ class TestCommunicate(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(
             out,
-            "\finputs\ninput\tvalues\ncalls\t2\n"
-            "\fsheets\ninput\tplace\tsheet name\ncalls\t0\tt\n"
-            "\ffields\ninput\tplace\tposition\tfield name\n"
-            "calls\t0\t0\tpointer\ncalls\t0\t1\tn\n",
+            "\f_inputs\n_input\t_values\ncalls\t2\n"
+            "\f_sheets\n_input\t_place\t_sheet name\ncalls\t0\tt\n"
+            "\f_fields\n_input\t_place\t_position\t_field name\n"
+            "calls\t0\t0\t_input value\ncalls\t0\t1\tn\n",
         )
 
     # communication.4: --filter gives one input's records of a range of
@@ -184,8 +184,8 @@ class TestCommunicate(unittest.TestCase):
                 whole = run("--filter=calls", source)[1]
                 one = run("--filter=calls", "--values=1-1", "--places=0", source)[1]
                 none = run("--filter=calls", "--places=1", source)[1]
-        self.assertEqual(whole, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
-        self.assertEqual(one, "\ft\npointer\tn\n/1\t2\n")
+        self.assertEqual(whole, "\ft\n_input value\tn\n0\t1\n1\t2\n")
+        self.assertEqual(one, "\ft\n_input value\tn\n1\t2\n")
         self.assertEqual(none, "")
 
     # communication.5, communication.6: --new gives what is new, then
@@ -197,7 +197,7 @@ class TestCommunicate(unittest.TestCase):
                 run(source)
                 first = run("--new=calls", source)[1]
                 again = run("--new=calls", source)[1]
-        self.assertEqual(first, "\ft\npointer\tn\n/0\t1\n/1\t2\n")
+        self.assertEqual(first, "\ft\n_input value\tn\n0\t1\n1\t2\n")
         self.assertEqual(again, "")
 
     # A request names an input stored, and --values and --places narrow

@@ -4,6 +4,7 @@ context of what the data bank communicates."""
 __all__ = ["HOST", "change", "context", "groups", "install", "lineage", "question"]
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,20 @@ _FOLDER = ("living-memory", "anthropic", "claude_code", "raw_api_bodies")
 # The reader of the recording, the path of the module that reads it
 # (install.mtsv › hooks.5, folder.3).
 _READER = "/".join(_FOLDER[1:])
+# The data bank under the user's documents directory: the application,
+# then the path of the module that reads the recording, as an MTSV
+# output is named (install.mtsv › folder.4).
+_BANK = (*_FOLDER[:-1], f"{_FOLDER[-1]}.mtsv")
+# Where Linux gives the user's documents directory: the line of
+# user-dirs.dirs that names it, a configuration file, and the directory
+# where there is none (install.mtsv › folder.4).
+_USER_DIRS = "user-dirs.dirs"
+_DOCUMENTS_LINE = re.compile(r'^XDG_DOCUMENTS_DIR="((?:[^"\\]|\\.)*)"$')
+_DOCUMENTS = "Documents"
+_HOME = "$HOME"
+# Each folder the module creates is readable by the user alone
+# (install.mtsv › folder.1, folder.4).
+_PRIVATE = 0o700
 # The command that converts it and gives the context.
 _COMMAND = "living-memory"
 # The host's own word for adding context (install.mtsv › hooks.3).
@@ -68,11 +83,12 @@ _GROUP = [
 def change() -> str:
     """Return the change install makes, stated before it is made.
 
-    It names the folder created, the variable set and what that
-    records, that the request and response files are removed once
-    stored unless kept, the three hooks added, and that the recording
-    begins with the next session (install.mtsv › install.2, capture.3).
-    Raise OSError on Windows, where the command does not run (folder.2).
+    It names the folders created, the recording's and the data
+    bank's, the variable set and what that records, that the request
+    and response files are removed once stored unless kept, the three
+    hooks added, and that the recording begins with the next session
+    (install.mtsv › install.2, capture.3, folder.4). Raise OSError on
+    Windows, where the command does not run (folder.2).
     """
     _refuse_windows()
     folder = _folder()
@@ -80,12 +96,14 @@ def change() -> str:
         f"living-memory --install={HOST} will:\n"
         f"  create {folder}, readable by you alone, where Claude Code writes"
         " each request and response;\n"
+        f"  create {_bank()}, readable by you alone, among your documents:"
+        " the data bank that holds your memory;\n"
         f"  in {_settings()}, set {_CAPTURE}=file:{folder}, which records the"
         " full requests and responses, your prompts, tool details and tool"
         " content included, from the next session;\n"
-        "  add a Stop hook that stores that folder as MTSV in a data bank"
-        " beside it after each response, then removes the request and"
-        " response files it has stored, unless you keep them;\n"
+        "  add a Stop hook that stores that folder as MTSV in the data bank"
+        " after each response, then removes the request and response files"
+        " it has stored, unless you keep them;\n"
         "  add a SessionStart and a UserPromptSubmit hook that give Claude"
         " what the data bank communicates."
     )
@@ -109,17 +127,18 @@ def install(options: list[str]) -> None:
     options -- the options each hook runs living-memory with, as
         --keep-files where the files are kept
 
-    The recording's folder is made, then the user settings are written,
-    adding to what they hold, and replaced whole (install.mtsv ›
-    install.3-5, folder.1). Raise OSError on Windows, where the command
-    does not run (folder.2).
+    The recording's folder and the data bank's are made, then the user
+    settings are written, adding to what they hold, and replaced whole
+    (install.mtsv › install.3-5, folder.1, folder.4). Raise OSError on
+    Windows, where the command does not run (folder.2).
     """
     _refuse_windows()
-    folder = _folder()
-    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    folder, bank = _folder(), _bank()
+    _made(folder)
+    _made(bank)
     path = _settings()
     held = _json.decode(path.read_bytes()) if path.exists() else {}
-    updated = _updated(held, folder, options)
+    updated = _updated(held, (folder, bank), options)
     _rename.replace(path, _json.encode(updated, _INDENT) + b"\n")
 
 
@@ -137,7 +156,7 @@ def context(hook_input: bytes, bank: Any) -> str:
     """
     event = _json.decode(hook_input)
     names = {s["sheet name"]: s for s in mtsv.loads(bank.names())}
-    inputs = [record[0] for record in names["inputs"]["records"]]
+    inputs = [record[0] for record in names["_inputs"]["records"]]
     this = raw_api_bodies.input_of(inputs, event["session_id"])
     if event["hook_event_name"] == _START:
         sheets = _start(event, bank, names, this)
@@ -156,7 +175,7 @@ def _start(
     # compaction, the lineage of its latest request; and what is new
     # begins after the last value stored (context.1, context.2,
     # context.4).
-    counts = [(record[0], int(record[1])) for record in names["inputs"]["records"]]
+    counts = [(record[0], int(record[1])) for record in names["_inputs"]["records"]]
     dates: dict[str, list[tuple[str, int]]] = {}
     for name, values in counts:
         dates.setdefault(name.split(_SEPARATOR)[0], []).append((name, values))
@@ -165,7 +184,11 @@ def _start(
         row for name, _ in dates.get(day, []) for row in groups(_values(bank, name))
     ]
     sheets = [
-        _sheet("data bank", ["source", "reader"], [[str(_folder()), _READER]]),
+        _sheet(
+            "data bank",
+            ["source", "reader", "output"],
+            [[str(_folder()), _READER, str(_bank())]],
+        ),
         _sheet(
             "raw_api_bodies by date",
             ["date", "sessions", "requests"],
@@ -178,7 +201,7 @@ def _start(
     ]
     if this is None:
         return sheets
-    for sheet_name in ("sheets", "fields"):
+    for sheet_name in ("_sheets", "_fields"):
         own = [r for r in names[sheet_name]["records"] if r[0] == this]
         sheets.append({**names[sheet_name], "records": own})
     if event.get("source") == _COMPACT:
@@ -276,6 +299,44 @@ def _folder() -> Path:
     return _data_home().joinpath(*_FOLDER)
 
 
+def _documents() -> Path:
+    # The user's documents directory: on Linux, as the last line of
+    # user-dirs.dirs that names it gives it, a path after $HOME or an
+    # absolute one, the file kept under $XDG_CONFIG_HOME where it is an
+    # absolute path, else ~/.config; else, and on macOS, ~/Documents
+    # (install.mtsv › folder.4).
+    home = Path.home()
+    if sys.platform == "darwin":
+        return home / _DOCUMENTS
+    given = os.environ.get("XDG_CONFIG_HOME", "")
+    config = Path(given) if given and Path(given).is_absolute() else home / ".config"
+    path = config / _USER_DIRS
+    lines = path.read_text("utf-8").splitlines() if path.is_file() else []
+    found = home / _DOCUMENTS
+    for line in lines:
+        match = _DOCUMENTS_LINE.match(line.strip())
+        if match is None:
+            continue
+        value = re.sub(r"\\(.)", r"\1", match[1])
+        if value == _HOME or value.startswith(f"{_HOME}/"):
+            found = home / value[len(_HOME) :].lstrip("/")
+        elif value.startswith("/"):
+            found = Path(value)
+    return found
+
+
+def _bank() -> Path:
+    return _documents().joinpath(*_BANK)
+
+
+def _made(path: Path) -> None:
+    # Each folder of a path that does not exist is created, readable by
+    # the user alone (install.mtsv › folder.1, folder.4).
+    missing = [p for p in (path, *path.parents) if not p.exists()]
+    for one in reversed(missing):
+        one.mkdir(mode=_PRIVATE)
+
+
 def _settings() -> Path:
     # The user settings file, settings.json in CLAUDE_CONFIG_DIR where
     # it is set, else in ~/.claude (install.mtsv › capture.2).
@@ -284,14 +345,15 @@ def _settings() -> Path:
 
 
 def _updated(
-    settings: dict[str, Any], folder: Path, options: list[str]
+    settings: dict[str, Any], places: tuple[Path, Path], options: list[str]
 ) -> dict[str, Any]:
     # The capture variable set, and each hook's matcher group added, or
     # put where the first group it added before stands, the others it
     # added left out (install.mtsv › capture.1, install.3).
+    folder = places[0]
     env = {**settings.get("env", {}), _CAPTURE: f"file:{folder}"}
     hooks = dict(settings.get("hooks", {}))
-    for event, group in _groups(folder, options).items():
+    for event, group in _groups(places, options).items():
         present = hooks.get(event, [])
         own = [_own(each, folder) for each in present]
         others = [each for each, mine in zip(present, own) if not mine]
@@ -309,20 +371,23 @@ def _own(group: dict[str, Any], folder: Path) -> bool:
     )
 
 
-def _groups(folder: Path, options: list[str]) -> dict[str, dict[str, Any]]:
+def _groups(places: tuple[Path, Path], options: list[str]) -> dict[str, dict[str, Any]]:
     # Each group has no matcher, so it activates on every occurrence:
-    # Stop converts the recording in the background; SessionStart and
-    # UserPromptSubmit give the context; each names its reader
-    # (install.mtsv › hooks.1-3, hooks.5).
+    # Stop converts the recording into the data bank in the background;
+    # SessionStart and UserPromptSubmit give the context; each names its
+    # reader and the data bank, the recording's folder last
+    # (install.mtsv › hooks.1-3, hooks.5, folder.4).
+    folder, bank = places
+    output = f"--output={bank}"
     convert = {
         "type": "command",
         "command": _COMMAND,
-        "args": [*options, _FROM, str(folder)],
+        "args": [*options, _FROM, output, str(folder)],
     }
     add = {
         "type": "command",
         "command": _COMMAND,
-        "args": [*options, _FROM, _ADD_CONTEXT, str(folder)],
+        "args": [*options, _FROM, _ADD_CONTEXT, output, str(folder)],
     }
     return {
         "Stop": {"hooks": [{**convert, "async": True}]},

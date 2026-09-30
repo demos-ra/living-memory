@@ -103,7 +103,7 @@ def sheets(schema: bytes) -> list[str]:
 
 def _read(schema: bytes) -> tuple[Any, _relation.Layout]:
     # A module specification that does not conform is rejected, naming
-    # the place in its schema (spec › schema.9).
+    # the place in its schema (spec › schema.8).
     try:
         root = _schema.read(schema)
     except PlacedError as error:

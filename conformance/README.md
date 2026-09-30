@@ -164,13 +164,48 @@ value.10).
 | Case                         | Expected |
 |------------------------------|----------|
 | `field.4.not-carried`        | not carried: `"/0/t"`, `"/0/u"`, `"/0/a\tb"`, `"/0/c\nd"`, `"/0/e\ff"`, `"/0/g\rh"` |
-| `schema.*`                   | rejected: the module specification |
+| `schema.1.not-draft-07`            | rejected: the module specification |
+| `schema.1.not-json`                | rejected: the module specification |
+| `schema.2.no-title`                | rejected: the module specification |
+| `schema.3.dependency`              | rejected: the module specification |
+| `schema.3.pattern`                 | rejected: the module specification |
+| `schema.3.property`                | rejected: the module specification |
+| `schema.3.ref`                     | rejected: the module specification |
+| `schema.3.title`                   | rejected: the module specification |
+| `schema.4.lookahead`               | rejected: the module specification |
+| `schema.5.missing`                 | rejected: the module specification |
+| `schema.5.outside`                 | rejected: the module specification |
+| `schema.6.character`               | rejected: the module specification |
+| `schema.6.plain-name`              | rejected: the module specification |
+| `schema.7.all-of`                  | rejected: the module specification |
+| `schema.7.any-of`                  | rejected: the module specification |
+| `schema.7.dependency`              | rejected: the module specification |
+| `schema.7.else`                    | rejected: the module specification |
+| `schema.7.if`                      | rejected: the module specification |
+| `schema.7.not`                     | rejected: the module specification |
+| `schema.7.one-of`                  | rejected: the module specification |
+| `schema.7.then`                    | rejected: the module specification |
 | `value.4.byte-order-mark`    | rejected: value 1, pointer `""` |
 | `value.7.not-json`           | rejected: value 1, pointer `""` |
 | `value.7.invalid-utf-8`      | rejected: value 1, pointer `""` |
 | `value.8.duplicate-names`    | rejected: value 0, pointer `"/b"` |
-| `value.9.required`           | rejected: value 0, pointer `""` |
-| `value.9.dependencies`       | rejected: value 0, pointer `""` |
-| every other `value.9.*`      | rejected: value 0, pointer `"/n"` |
+| `value.9.const`                    | rejected: value 0, pointer `"/n"` |
+| `value.9.dependencies`             | rejected: value 0, pointer `""` |
+| `value.9.enum`                     | rejected: value 0, pointer `"/n"` |
+| `value.9.exclusive-maximum`        | rejected: value 0, pointer `"/n"` |
+| `value.9.exclusive-minimum`        | rejected: value 0, pointer `"/n"` |
+| `value.9.max-items`                | rejected: value 0, pointer `"/n"` |
+| `value.9.max-length`               | rejected: value 0, pointer `"/n"` |
+| `value.9.max-properties`           | rejected: value 0, pointer `"/n"` |
+| `value.9.maximum`                  | rejected: value 0, pointer `"/n"` |
+| `value.9.min-items`                | rejected: value 0, pointer `"/n"` |
+| `value.9.min-length`               | rejected: value 0, pointer `"/n"` |
+| `value.9.min-properties`           | rejected: value 0, pointer `"/n"` |
+| `value.9.minimum`                  | rejected: value 0, pointer `"/n"` |
+| `value.9.multiple-of`              | rejected: value 0, pointer `"/n"` |
+| `value.9.pattern`                  | rejected: value 0, pointer `"/n"` |
+| `value.9.required`                 | rejected: value 0, pointer `""` |
+| `value.9.type`                     | rejected: value 0, pointer `"/n"` |
+| `value.9.unique-items`             | rejected: value 0, pointer `"/n"` |
 | `value.10.deepest`           | rejected: value 1, pointer `"/p/k"` |
 | `storage.4.rejected-part`    | rejected: value 3, pointer `"/n"` |

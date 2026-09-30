@@ -13,9 +13,9 @@ class TestWrite(unittest.TestCase):
     def test_sheets_with_records(self):
         below = Relation(Segment("property", (), "a"), _key.SUBORDINATE, (), ())
         root = Relation(Segment("root", (), "t"), _key.ROOT, (), (below,))
-        placed = [Placed(root, {"pointer": "/0"}, {})]
+        placed = [Placed(root, {"_input value": "0"}, {})]
         text = module.write(Layout(root, None, {}, ()), placed)
-        self.assertEqual(text, "\ft\npointer\n/0\n")
+        self.assertEqual(text, "\ft\n_input value\n0\n")
 
     # value.2, order.1: every sheet the schema gives, in the file's
     # order, those with no record included.

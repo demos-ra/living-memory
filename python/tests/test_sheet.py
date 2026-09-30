@@ -27,8 +27,8 @@ class TestName(unittest.TestCase):
             (Segment("branch", (), "if"), "t.if"),
             (Segment("branch", (), "dependencies", "m"), "t.dependencies.m"),
             (Segment("kind", (), "pair"), "pair"),
-            (Segment("instances", (), "instances"), "instances"),
-            (Segment("runs", (), "runs"), "runs"),
+            (Segment("instances", (), "_instances"), "_instances"),
+            (Segment("runs", (), "_runs"), "_runs"),
         ]
         self.assertEqual(module.name((ROOT,)), "t")
         for segment, expected in cases:
@@ -48,13 +48,40 @@ class TestName(unittest.TestCase):
         path = (ROOT, kind, below(Segment("property", (), "l")))
         self.assertEqual(module.name(path), "pair.l")
 
+    # sheet.3: a name composed of the schema's names that begins with
+    # '_' is written with that '_' doubled, once.
+    def test_doubled(self):
+        root = Relation(Segment("root", (), "_t"), _key.ROOT, (), ())
+        self.assertEqual(module.name((root,)), "__t")
+        path = (root, below(Segment("property", (), "_l")))
+        self.assertEqual(module.name(path), "__t._l")
+        kind = below(Segment("kind", (), "_k"))
+        self.assertEqual(module.name((root, kind)), "__k")
+
 
 class TestHeader(unittest.TestCase):
-    # sheet.5: the key columns by their names, then each domain by its
-    # name.
+    # sheet.3, sheet.5: the key columns by their names, then each domain
+    # by its name, a name beginning with '_' doubled, one the
+    # specification fixes as it is.
     def test_header(self):
-        one = below(Segment("property", (), "o"), Domain("p.b", "value"))
-        self.assertEqual(module.header(one), ["parent", "pointer", "p.b"])
+        one = below(
+            Segment("property", (), "o"),
+            Domain("p.b", "value"),
+            Domain("_c", "value"),
+            Domain("_value", "value", True),
+        )
+        self.assertEqual(
+            module.header(one),
+            [
+                "_input value",
+                "_instance",
+                "_parent",
+                "_pointer",
+                "p.b",
+                "__c",
+                "_value",
+            ],
+        )
 
 
 if __name__ == "__main__":

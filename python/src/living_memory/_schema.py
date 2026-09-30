@@ -9,8 +9,8 @@ from living_memory import _json, _json_pointer, _json_schema, _separators
 from living_memory._json_pointer import PlacedError
 
 # The keywords that apply subschemas, to child locations and to the same
-# location, in the order JSON Schema Validation defines them (spec ›
-# schema.12).
+# location, in the order JSON Schema Validation presents them (spec ›
+# schema.11).
 _TAKEN = (
     "items",
     "additionalItems",
@@ -137,16 +137,16 @@ def read(schema: bytes) -> Any:
     # The schema is a JSON text and a schema of draft-07, whose root
     # schema holds a title; every name it gives a sheet or a column is
     # text a field can hold, every pattern is of the subset, and every
-    # $ref resolves within it by a JSON Pointer to a schema other than
-    # the root, and runs into no loop (spec › schema.1-9).
+    # $ref resolves within it by a JSON Pointer and runs into no loop
+    # (spec › schema.1-8).
     root = _json.decode(schema)
     if not _json_schema.validates(root, _METASCHEMA, _METASCHEMA):
         place = _json_schema.locate(root, _METASCHEMA, _METASCHEMA)
         raise PlacedError("not a schema of draft-07", place)
     if _json.primitive_type(root) != "object" or "title" not in root:
         raise PlacedError("the root schema holds no title", "")
-    _check(root, root, "")
-    _loops(root, root, "")
+    _check(root)
+    _loops(root)
     return root
 
 
@@ -154,7 +154,7 @@ def resolve(schema: Any, root: Any, at: str) -> tuple[Any, str]:
     # A $ref is read as the schema it references, at that schema's
     # pointer, its other members ignored; true is the empty schema (JSON
     # Schema, 4.3.1. JSON Schema Values and Keywords; 8.3. Schema
-    # References With "$ref"; spec › schema.11).
+    # References With "$ref"; spec › schema.10).
     while isinstance(schema, dict) and "$ref" in schema:
         schema, at = _json_schema.resolve(schema["$ref"], root)
     return ({} if schema is True else schema), at
@@ -162,7 +162,7 @@ def resolve(schema: Any, root: Any, at: str) -> tuple[Any, str]:
 
 def taken(schema: dict[str, Any], at: str) -> list[tuple[str, Any, Any, str]]:
     # A schema's subschemas are taken from its keywords in the order
-    # JSON Schema Validation defines them, and within a keyword in the
+    # JSON Schema Validation presents them, and within a keyword in the
     # order the schema writes them, each with its keyword and its place
     # in the schema: the keyword's, then its key or position; an
     # omitted items, additionalItems or additionalProperties is the
@@ -171,7 +171,7 @@ def taken(schema: dict[str, Any], at: str) -> list[tuple[str, Any, Any, str]]:
     # names applies no subschema (JSON Schema Validation, 6.4.1.
     # items; 6.4.2. additionalItems; 6.5.6. additionalProperties; 6.5.7.
     # dependencies; 6.6. Keywords for Applying Subschemas Conditionally;
-    # spec › schema.12).
+    # spec › schema.11).
     found: list[tuple[str, Any, Any]] = []
     items = schema.get("items", True)
     for keyword in _TAKEN:
@@ -208,70 +208,80 @@ def _at(at: str, keyword: str, key: str | int | None) -> str:
     return keyword_at if key is None else _json_pointer.pointer(keyword_at, key)
 
 
-def _check(schema: Any, root: Any, at: str) -> None:
-    # Each subschema is checked in turn, a failure placed by its pointer
-    # in the schema.
-    if not isinstance(schema, dict):
-        return
-    if "$ref" in schema:
-        _reference(schema["$ref"], root, _json_pointer.pointer(at, "$ref"))
-    if "title" in schema:
-        _name(schema["title"], _json_pointer.pointer(at, "title"))
-    for keyword in ("properties", "patternProperties", "dependencies"):
-        keyword_at = _json_pointer.pointer(at, keyword)
-        for key in schema.get(keyword, {}):
-            _name(key, _json_pointer.pointer(keyword_at, key))
-    if _json.primitive_type(schema.get("pattern")) == "string":
-        _placed(lambda: _json_schema.compile_pattern(schema["pattern"]), at, "pattern")
-    patterns_at = _json_pointer.pointer(at, "patternProperties")
-    for pattern in schema.get("patternProperties", {}):
-        _placed(lambda: _json_schema.compile_pattern(pattern), patterns_at, pattern)
-    for child_at, child in _json_schema.subschemas(schema, at):
-        _check(child, root, child_at)
+def _check(root: Any) -> None:
+    # Each subschema is checked in turn, in the order the schema holds
+    # them, a failure placed by its pointer in the schema; those still
+    # to check are kept in a list, so a schema of any depth of nesting
+    # is checked (spec › schema.1).
+    waiting: list[tuple[str, Any]] = [("", root)]
+    while waiting:
+        at, schema = waiting.pop()
+        if not isinstance(schema, dict):
+            continue
+        if "$ref" in schema:
+            _reference(schema["$ref"], root, _json_pointer.pointer(at, "$ref"))
+        if "title" in schema:
+            _name(schema["title"], _json_pointer.pointer(at, "title"))
+        for keyword in ("properties", "patternProperties", "dependencies"):
+            keyword_at = _json_pointer.pointer(at, keyword)
+            for key in schema.get(keyword, {}):
+                _name(key, _json_pointer.pointer(keyword_at, key))
+        if _json.primitive_type(schema.get("pattern")) == "string":
+            pattern = schema["pattern"]
+            _placed(lambda: _json_schema.compile_pattern(pattern), at, "pattern")
+        patterns_at = _json_pointer.pointer(at, "patternProperties")
+        for key in schema.get("patternProperties", {}):
+            _placed(lambda: _json_schema.compile_pattern(key), patterns_at, key)
+        waiting += reversed(_json_schema.subschemas(schema, at))
 
 
-def _loops(schema: Any, root: Any, at: str) -> None:
+def _loops(root: Any) -> None:
     # Every $ref is followed through the subschemas applied to the same
-    # instance location (spec › schema.8).
-    if isinstance(schema, dict) and "$ref" in schema:
-        _loop(schema, root, (at,))
-    for child_at, child in _json_schema.subschemas(schema, at):
-        _loops(child, root, child_at)
+    # instance location (spec › schema.7).
+    waiting: list[tuple[str, Any]] = [("", root)]
+    while waiting:
+        at, schema = waiting.pop()
+        if isinstance(schema, dict) and "$ref" in schema:
+            _loop(schema, root, at)
+        waiting += reversed(_json_schema.subschemas(schema, at))
 
 
-def _loop(schema: Any, root: Any, path: tuple[str, ...]) -> None:
+def _loop(schema: Any, root: Any, at: str) -> None:
     # A schema must not be run into an infinite loop against a schema:
     # a $ref that reaches again, at the same instance location, a
-    # schema it is applied from is placed by that $ref (JSON Schema,
-    # 8.3. Schema References With "$ref"; spec › schema.8).
-    if not isinstance(schema, dict):
-        return
-    at = path[-1]
-    if "$ref" in schema:
-        target, target_at = _json_schema.resolve(schema["$ref"], root)
-        if target_at in path:
-            ref_at = _json_pointer.pointer(at, "$ref")
-            raise PlacedError("a $ref runs its schema into a loop", ref_at)
-        _loop(target, root, (*path, target_at))
-        return
-    depth = len(_json_pointer.tokens(at))
-    for child_at, child in _json_schema.subschemas(schema, at):
-        if _json_pointer.tokens(child_at)[depth] in _SAME:
-            _loop(child, root, (*path, child_at))
+    # schema it is applied from is placed by that $ref; each schema
+    # still to follow is kept in a list with the schemas it is applied
+    # from (JSON Schema, 8.3. Schema References With "$ref"; spec ›
+    # schema.7).
+    waiting: list[tuple[Any, tuple[str, ...]]] = [(schema, (at,))]
+    while waiting:
+        schema, path = waiting.pop()
+        if not isinstance(schema, dict):
+            continue
+        at = path[-1]
+        if "$ref" in schema:
+            target, target_at = _json_schema.resolve(schema["$ref"], root)
+            if target_at in path:
+                ref_at = _json_pointer.pointer(at, "$ref")
+                raise PlacedError("a $ref runs its schema into a loop", ref_at)
+            waiting.append((target, (*path, target_at)))
+            continue
+        depth = len(_json_pointer.tokens(at))
+        for child_at, child in reversed(_json_schema.subschemas(schema, at)):
+            if _json_pointer.tokens(child_at)[depth] in _SAME:
+                waiting.append((child, (*path, child_at)))
 
 
 def _reference(reference: str, root: Any, at: str) -> None:
-    # A $ref resolves within the schema, by a JSON Pointer, to a schema
-    # other than the root, which is the sheet of the input values and no
-    # kind; its last reference token may name the kind's sheet (spec ›
-    # schema.3, schema.5, schema.6, schema.7, sheet.2).
+    # A $ref resolves within the schema, by a JSON Pointer; its last
+    # reference token, where it has one, may name the kind's sheet
+    # (spec › schema.3, schema.5, schema.6, sheet.2).
     try:
         _, ref_at = _json_schema.resolve(reference, root)
     except ValueError as error:
         raise PlacedError(str(error), at) from None
-    if ref_at == "":
-        raise PlacedError("a $ref references the root schema", at)
-    _name(_json_pointer.tokens(ref_at)[-1], at)
+    if ref_at:
+        _name(_json_pointer.tokens(ref_at)[-1], at)
 
 
 def _name(text: Any, at: str) -> None:
