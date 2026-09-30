@@ -27,10 +27,11 @@ the extension (storage.2):
 | `name.jsonl`          | the input values, in order, one JSON text per line        |
 | `name.schema.json`    | the schema the module specification supplies (schema.1)   |
 | `name.aggregate.mtsv` | the aggregate communicated at step 2 (communication.3)    |
-| `name.new.mtsv`       | what is new, communicated at step 4 (communication.5)     |
-| `name.again.mtsv`     | what is new, communicated again at step 5 (communication.6) |
-| `name.all.mtsv`       | every record, requested at step 6 (communication.4)       |
-| `name.request.mtsv`   | the records requested at step 7, where the case has one   |
+| `name.new-1.mtsv`     | what is new, communicated at step 3 (communication.5)     |
+| `name.new-2.mtsv`     | what is new, communicated at step 5 (communication.5)     |
+| `name.again.mtsv`     | what is new, communicated again at step 6 (communication.6) |
+| `name.all.mtsv`       | every record, requested at step 7 (communication.4)       |
+| `name.request.mtsv`   | the records requested at step 8, where the case has one   |
 
 An expected file with no sheet is empty, a file of no bytes.
 
@@ -41,7 +42,7 @@ An expected file with no sheet is empty, a file of no bytes.
 | `conforming/`            | cases converted whole                                   | conformance.2                    |
 | `cannot-be-represented/` | cases with text not carried, the pointers listed below  | conformance.2, field.4, field.5  |
 | `non-conforming/`        | cases rejected, as listed below                         | conformance.2, schema.9, value.7-10 |
-| `communicated/`          | cases stored by a data bank and communicated            | conformance.2, storage.1-6, communication.1-7 |
+| `communicated/`          | cases stored by a data bank and communicated            | conformance.2, storage.1-6, communication.1-6 |
 
 ## A data bank's steps
 
@@ -51,11 +52,12 @@ the middle, then the rest.
 
 1. Store part 1.
 2. Communicate the aggregate: `name.aggregate.mtsv`.
-3. Store part 2.
-4. Communicate what is new: `name.new.mtsv`.
-5. Communicate what is new again: `name.again.mtsv`.
-6. Request every sheet of the input for every value stored: `name.all.mtsv`.
-7. Where the case has one, the request its row below states: `name.request.mtsv`.
+3. Communicate what is new: `name.new-1.mtsv`.
+4. Store part 2.
+5. Communicate what is new: `name.new-2.mtsv`.
+6. Communicate what is new again: `name.again.mtsv`.
+7. Request every sheet of the input for every value stored: `name.all.mtsv`.
+8. Where the case has one, the request its row below states: `name.request.mtsv`.
 
 A range of positions includes its first and excludes its last.
 `storage.2.two-inputs` stores two inputs, `.a` then `.b`, each whole in
@@ -145,9 +147,8 @@ A case named for another rule also checks the rule it is listed under.
 | communication.2 | every expected file of `communicated/`: values as stored, records in stored order |
 | communication.3 | every `name.aggregate.mtsv`; `storage.2.two-inputs` (two inputs, in the order stored) |
 | communication.4 | every `name.all.mtsv`; `storage.3.parts` request: values 1 to 3, the sheets at places 1 and 3 (a sheet holding none of them left out) |
-| communication.5 | every `name.new.mtsv`                                             |
-| communication.6 | every `name.again.mtsv`                                           |
-| communication.7 | every `name.new.mtsv`: the aggregate at step 2 set the number communicated, so part 1 is not given again |
+| communication.5 | every `name.new-1.mtsv` (part 1) and `name.new-2.mtsv` (part 2 alone: part 1 was communicated at step 3) |
+| communication.6 | every `name.again.mtsv`; every `name.new-2.mtsv`                  |
 
 ## Expected reports and rejections
 

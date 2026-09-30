@@ -77,14 +77,13 @@ storage.2	Data about one type of observational unit is often split into files by
 storage.3	The sheets each part of an input gives, appended sheet by sheet in the file's order, are the whole input's file (value.2) [MTSV-DRAFT]; a data bank MUST hold, for each input, the relations of its MTSV file for the values stored, the parts inserted in the order the input holds them.
 storage.4	A converter writes the whole input's file or none (file.1); a data bank MUST store each value with all its records or with none, and MUST NOT keep anything of a value not wholly stored.
 storage.5	A data bank MUST convert the next part of an input from the position equal to the number of values it stores (value.2).
-storage.6	Users of a data bank are protected from having to know how its data is organized, its internal representation [CODD1970]; a data bank MUST give what it stores only by communication (communication.1-7).
+storage.6	Users of a data bank are protected from having to know how its data is organized, its internal representation [CODD1970]; a data bank MUST give what it stores only by communication (communication.1-6).
 communication.1	The array representation serves the communication of bulk data between systems [CODD1970], and the output of one tool is the input of another [WICKHAM2014]; a data bank MUST communicate what it stores as MTSV, which the receiving system reads as a parser [MTSV-DRAFT].
 communication.2	The verbs of data manipulation are filter, transform, aggregate and sort, each possibly by group [WICKHAM2014]; a data bank MUST derive what it communicates by filter and aggregate alone, and MUST NOT transform or sort: values as stored (field.1), records in stored order (order.2).
 communication.3	A data bank MUST communicate the aggregate of its storage, grouped by input, sheet and field [WICKHAM2014], as three sheets, each record beginning with its primary key (key.1): inputs, keyed by input, then values; sheets, keyed by input and place, then sheet name and records; and fields, keyed by input, place and position, then field name [MTSV-DRAFT].
 communication.4	Filtering subsets observations on a condition, by group [WICKHAM2014]; a data bank MUST communicate, on request, the records it stores of one input, of the values whose positions fall in a given range, and of the sheets asked for or else every sheet, each in its stored sheet, in its place in the order (order.1).
 communication.5	Each fact is expressed in only one place [WICKHAM2014]; a data bank MUST communicate what is new as communication.4 does, for the range from the number of values it has communicated to the number it stores.
 communication.6	A data bank MUST keep, with each input's storage, the number of values it has communicated (communication.5).
-communication.7	A data bank MUST set the number of values communicated to the number stored when it communicates the aggregate of its storage (communication.3).
 Fields
 Field	Definition
 parent	In every sheet but the sheet of the input values and the sheet of runs, the first column: the pointer of the record whose instance holds this record's, copied down (key.3) [CODD1970] [CHEN1976].
