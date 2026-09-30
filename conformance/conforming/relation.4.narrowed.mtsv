@@ -1,0 +1,12 @@
+t
+_input value	p
+0	x
+t.anyOf.u
+_input value	_instance	_parent	_pointer
+0	0		
+t.anyOf.w
+_input value	_instance	_parent	_pointer
+0	0		
+_instances
+_input value	_instance	_parent	_pointer	_type	_value
+0	2	0	/r	null	

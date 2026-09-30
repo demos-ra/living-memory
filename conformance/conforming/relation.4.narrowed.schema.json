@@ -1,0 +1,1 @@
+{"title":"t","properties":{"p":{"allOf":[{"type":"string"}]},"r":{"type":["string","null"]}},"required":["p","r"],"anyOf":[{"title":"u","type":"object"},{"title":"w","type":"object"}]}

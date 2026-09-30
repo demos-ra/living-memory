@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"p":{"$ref":"#/definitions/a%09b"}},"definitions":{"a\tb":{"type":"object"}}}

@@ -1,9 +1,0 @@
-calls
-pointer
-/0
-instances
-parent	pointer	type	value
-/0	/0/o	object	
-/0/o	/0/o/p	number	1
-/0/o	/0/o/q	array	
-/0/o/q	/0/o/q/0	number	2

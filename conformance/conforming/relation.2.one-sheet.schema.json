@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"x":{"$ref":"#/definitions/k"},"y":{"$ref":"#/definitions/k"}},"required":["x","y"],"definitions":{"k":{"title":"kind","type":"object","properties":{"v":{"type":"string"},"sub":{"$ref":"#/definitions/k"}},"required":["v"]}}}

@@ -1,9 +1,0 @@
-calls
-pointer
-/0
-calls.p.anyOf.a
-parent	pointer
-/0	/0/p
-calls.p.anyOf.a.patternProperties
-parent	pointer	value
-/0/p	/0/p/xk	1

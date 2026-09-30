@@ -1,24 +1,16 @@
-inputs
-input	values
+_inputs
+_input	_values
 storage.3.parts	2
-sheets
-input	place	sheet name
-storage.3.parts	0	calls
-storage.3.parts	1	calls.k
-storage.3.parts	2	instances
-storage.3.parts	3	runs
-fields
-input	place	position	field name
-storage.3.parts	0	0	pointer
-storage.3.parts	1	0	parent
-storage.3.parts	1	1	pointer
-storage.3.parts	1	2	value
-storage.3.parts	2	0	parent
-storage.3.parts	2	1	pointer
-storage.3.parts	2	2	type
-storage.3.parts	2	3	value
-storage.3.parts	3	0	pointer
-storage.3.parts	3	1	page
-storage.3.parts	3	2	line
-storage.3.parts	3	3	position
-storage.3.parts	3	4	value
+_sheets
+_input	_place	_sheet name
+storage.3.parts	0	t
+storage.3.parts	2	t.o
+_fields
+_input	_place	_position	_field name
+storage.3.parts	0	0	_input value
+storage.3.parts	0	1	s
+storage.3.parts	2	0	_input value
+storage.3.parts	2	1	_instance
+storage.3.parts	2	2	_parent
+storage.3.parts	2	3	_pointer
+storage.3.parts	2	4	v

@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"b":{"type":"string"},"o":{"type":"object","properties":{"s":{"type":"string"},"i":{"type":"object","properties":{"n":{"type":"number"}},"required":["n"]},"l":{"type":"array","items":{"type":"string"}}},"required":["s","i","l"]}},"required":["b","o"],"allOf":[{"type":"object","properties":{"z":{"type":"boolean"}},"required":["z"]}]}

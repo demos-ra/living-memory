@@ -1,0 +1,16 @@
+t
+_input value
+0
+1
+t.p.anyOf.b
+_input value	_instance	_parent	_pointer	s
+1	1	0	/p	z
+t.q.anyOf.u
+_input value	_instance	_parent	_pointer	a
+0	2	0	/q	y
+t.q.anyOf.w
+_input value	_instance	_parent	_pointer	b
+1	3	0	/q	w
+_instances
+_input value	_instance	_parent	_pointer	_type	_value
+0	1	0	/p	string	x

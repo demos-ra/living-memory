@@ -1,0 +1,1 @@
+{"title":"node","type":"object","properties":{"v":{"type":"string"},"next":{"$ref":"#"}},"required":["v"]}

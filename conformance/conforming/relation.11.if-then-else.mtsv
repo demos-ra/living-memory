@@ -1,13 +1,0 @@
-calls
-pointer	n
-/0	1
-/1	2
-calls.if.one
-parent	pointer	n
-/0	/0	
-calls.then.yes
-parent	pointer	n
-/0	/0	
-calls.else.no
-parent	pointer	n
-/1	/1	

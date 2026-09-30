@@ -1,9 +1,0 @@
-calls
-pointer	n
-/0	1
-calls.if
-parent	pointer	n
-/0	/0	
-calls.then
-parent	pointer	n
-/0	/0	

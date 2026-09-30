@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"p":{"type":"object","minProperties":2,"properties":{"k":{"type":"number"}}}}}

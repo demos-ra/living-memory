@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"x":{"type":["number","string"]},"y":{"type":["boolean","null"]}},"additionalProperties":false}

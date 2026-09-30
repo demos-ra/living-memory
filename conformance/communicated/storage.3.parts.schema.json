@@ -1,1 +1,1 @@
-{"title":"calls","type":"object","properties":{"k":{"type":"array","items":{"type":"number"}}},"required":["k"],"additionalProperties":{}}
+{"title":"t","type":"object","properties":{"s":{"type":"string"},"l":{"type":"array","items":{"type":"string"}},"o":{"type":"object","properties":{"v":{"type":"string"}},"required":["v"]}},"required":["s","l"]}

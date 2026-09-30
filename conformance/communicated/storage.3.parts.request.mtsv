@@ -1,4 +1,8 @@
-calls.k
-parent	pointer	value
-/1	/1/k/0	2
-/1	/1/k/1	3
+t.l
+_input value	_instance	_parent	_pointer	_value
+2	3	0	/l/0	z
+2	4	0	/l/1	w
+t.o
+_input value	_instance	_parent	_pointer	v
+1	3	0	/o	y
+2	5	0	/o	u

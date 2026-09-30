@@ -1,0 +1,22 @@
+t
+_input value
+0
+t.m
+_input value	_instance	_parent	_pointer
+0	2	0	/m/0
+t.m.items
+_input value	_instance	_parent	_pointer	_value
+0	3	2	/0	1
+0	4	2	/1	2
+t.u
+_input value	_instance	_parent	_pointer
+0	5	0	/u
+t.u.items.0
+_input value	_instance	_parent	_pointer	_value
+0	6	5	/0	a
+t.u.items.1
+_input value	_instance	_parent	_pointer	_value
+0	7	5	/1	1
+t.u.additionalItems
+_input value	_instance	_parent	_pointer	_value
+0	8	5	/2	true

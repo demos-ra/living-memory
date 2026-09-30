@@ -1,0 +1,1 @@
+{"$id":"http://example.com/elsewhere.json","title":"t","type":"object","properties":{"k":{"$ref":"#/definitions/k"}},"required":["k"],"definitions":{"k":{"type":"object","properties":{"v":{"type":"string"}},"required":["v"]}},"x-unknown":{"type":"array"}}

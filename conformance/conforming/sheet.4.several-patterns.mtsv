@@ -1,9 +1,0 @@
-calls
-pointer
-/0
-calls.patternProperties.^a
-parent	pointer	value
-/0	/0/a1	1
-calls.patternProperties.^b
-parent	pointer	value
-/0	/0/b1	x

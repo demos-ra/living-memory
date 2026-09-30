@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"p":{"anyOf":[{"type":"string"},{"type":"array","items":{"type":"number"}},{"$ref":"#/definitions/pair"}]}},"required":["p"],"additionalProperties":false,"definitions":{"pair":{"type":"object","properties":{"k":{"type":"number"}},"required":["k"],"additionalProperties":false}}}

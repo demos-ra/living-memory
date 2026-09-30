@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"oneOf":[{"$ref":"#/definitions/pair"}],"definitions":{"pair":{"type":"object","properties":{"n":{"type":"number"}},"required":["n"]}}}

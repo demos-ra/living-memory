@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"p":{"$ref":"#a"}},"definitions":{"a":{"$id":"#a","type":"object"}}}

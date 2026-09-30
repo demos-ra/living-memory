@@ -1,14 +1,14 @@
-inputs
-input	values
+_inputs
+_input	_values
 storage.2.two-inputs.a	1
 storage.2.two-inputs.b	2
-sheets
-input	place	sheet name
-storage.2.two-inputs.a	0	calls
-storage.2.two-inputs.b	0	calls
-fields
-input	place	position	field name
-storage.2.two-inputs.a	0	0	pointer
-storage.2.two-inputs.a	0	1	n
-storage.2.two-inputs.b	0	0	pointer
-storage.2.two-inputs.b	0	1	n
+_sheets
+_input	_place	_sheet name
+storage.2.two-inputs.a	0	t
+storage.2.two-inputs.b	0	t
+_fields
+_input	_place	_position	_field name
+storage.2.two-inputs.a	0	0	_input value
+storage.2.two-inputs.a	0	1	s
+storage.2.two-inputs.b	0	0	_input value
+storage.2.two-inputs.b	0	1	s

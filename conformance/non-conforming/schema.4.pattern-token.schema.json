@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"s":{"type":"string","pattern":"\\d"}},"required":["s"],"additionalProperties":false}

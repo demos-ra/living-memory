@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"p":{"$ref":"#/definitions/list/items/01"}},"required":["p"],"additionalProperties":false,"definitions":{"list":{"items":[{"type":"number"},{"type":"object"}]}}}

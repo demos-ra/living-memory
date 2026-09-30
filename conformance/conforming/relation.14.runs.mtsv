@@ -1,0 +1,10 @@
+t
+_input value	a	b
+0		
+_runs
+_input value	_instance	_page	_line	_position	_value
+0	1	0	0	0	x
+0	1	0	0	1	y
+0	1	0	1	0	z
+0	2	0	0	0	
+0	2	1	0	0	

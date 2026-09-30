@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"m":{"type":"array","items":{"type":"array","items":{"type":"number"}}},"u":{"type":"array","items":[{"type":"string"},{"type":"number"}],"additionalItems":{"type":"boolean"}}},"required":["m","u"]}

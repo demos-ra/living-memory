@@ -1,16 +1,0 @@
-calls
-pointer
-/0
-calls.t
-parent	pointer
-/0	/0/t
-calls.t.items.0
-parent	pointer	value
-/0/t	/0/t/0	1
-calls.t.items.1
-parent	pointer	value
-/0/t	/0/t/1	x
-calls.t.additionalItems
-parent	pointer	value
-/0/t	/0/t/2	true
-/0/t	/0/t/3	false

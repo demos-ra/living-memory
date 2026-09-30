@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"s":{"type":"string"}},"required":["s"],"allOf":[{"type":"object","properties":{"s":{"type":"string","minLength":1},"n":{"type":"number"}},"required":["s","n"]},{"type":"object","properties":{"n":{"type":"number"}},"required":["n"]}]}

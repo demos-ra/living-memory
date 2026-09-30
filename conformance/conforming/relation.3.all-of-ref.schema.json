@@ -1,1 +1,1 @@
-{"title":"calls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"allOf":[{"$ref":"#/definitions/extra"}],"definitions":{"extra":{"type":"object","properties":{"m":{"type":"number"}},"required":["m"]}}}
+{"title":"t","type":"object","allOf":[{"$ref":"#/definitions/b"}],"definitions":{"b":{"type":"object","properties":{"v":{"type":"string"}},"required":["v"]}}}

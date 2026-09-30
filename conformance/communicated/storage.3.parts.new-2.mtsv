@@ -1,15 +1,15 @@
-calls
-pointer
-/2
-/3
-calls.k
-parent	pointer	value
-/3	/3/k/0	4
-instances
-parent	pointer	type	value
-/2	/2/s	string	c
-/3	/3/s	string	
-runs
-pointer	page	line	position	value
-/3/s	0	0	0	d
-/3/s	0	0	1	e
+t
+_input value	s
+2	c
+3	
+t.l
+_input value	_instance	_parent	_pointer	_value
+2	3	0	/l/0	z
+2	4	0	/l/1	w
+t.o
+_input value	_instance	_parent	_pointer	v
+2	5	0	/o	u
+_runs
+_input value	_instance	_page	_line	_position	_value
+3	1	0	0	0	d
+3	1	0	0	1	e

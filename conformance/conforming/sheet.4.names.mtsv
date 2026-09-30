@@ -1,0 +1,21 @@
+t
+_input value
+0
+t.patternProperties.^a
+_input value	_instance	_parent	_pointer	_value
+0	1	0	/a1	x
+t.patternProperties.^b
+_input value	_instance	_parent	_pointer	_value
+0	2	0	/b1	1
+t.dependencies.a1
+_input value	_instance	_parent	_pointer
+0	0		
+t.anyOf.0
+_input value	_instance	_parent	_pointer
+0	0		
+t.anyOf.1
+_input value	_instance	_parent	_pointer
+0	0		
+t.oneOf
+_input value	_instance	_parent	_pointer
+0	0		

@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"p":{"type":"object","properties":{"s":{"type":"string"}},"required":["s"],"anyOf":[{"title":"u","type":"object"}]}},"required":["p"]}

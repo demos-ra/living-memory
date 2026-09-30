@@ -1,15 +1,0 @@
-calls
-pointer
-/0
-/1
-/2
-calls.p.anyOf.1
-parent	pointer	value
-/1	/1/p/0	1
-/1	/1/p/1	2
-pair
-parent	pointer	k
-/2	/2/p	3
-instances
-parent	pointer	type	value
-/0	/0/p	string	x

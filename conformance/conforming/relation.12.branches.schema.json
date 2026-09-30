@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"p":{"anyOf":[{"type":"string"},{"title":"b","type":"object","properties":{"s":{"type":"string"}},"required":["s"]}]},"q":{"anyOf":[{"title":"u","type":"object","properties":{"a":{"type":"string"}},"required":["a"]},{"title":"w","type":"object","properties":{"b":{"type":"string"}},"required":["b"]}]}},"required":["p"]}

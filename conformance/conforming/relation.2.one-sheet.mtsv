@@ -1,0 +1,8 @@
+t
+_input value
+0
+kind
+_input value	_instance	_parent	_pointer	v
+0	1	0	/x	a
+0	3	1	/sub	b
+0	5	0	/y	c

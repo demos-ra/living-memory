@@ -1,0 +1,1 @@
+{"title":"_t","type":"object","properties":{"_s":{"type":"string"},"_l":{"type":"array","items":{"type":"string"}}},"required":["_s","_l"]}

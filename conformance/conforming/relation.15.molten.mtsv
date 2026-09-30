@@ -1,0 +1,17 @@
+t
+_input value
+0
+_instances
+_input value	_instance	_parent	_pointer	_type	_value
+0	1	0	/m	object	
+0	2	1	/b	number	1
+0	3	1	/a	array	
+0	4	3	/0	boolean	true
+0	5	3	/1	null	
+0	6	3	/2	string	s
+0	7	0	/o	string	
+0	8	0	/x	number	2
+_runs
+_input value	_instance	_page	_line	_position	_value
+0	7	0	0	0	k
+0	7	0	1	0	l

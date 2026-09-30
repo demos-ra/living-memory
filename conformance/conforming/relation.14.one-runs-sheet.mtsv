@@ -1,9 +1,0 @@
-calls
-pointer	s	t
-/0		
-runs
-pointer	page	line	position	value
-/0/s	0	0	0	a
-/0/s	0	1	0	b
-/0/t	0	0	0	c
-/0/t	0	0	1	d

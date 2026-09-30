@@ -1,1 +1,0 @@
-{"title":"calls","description":"a call","$comment":"read by no rule","type":"object","properties":{"n":{"type":"number","description":"a count"}},"required":["n"],"additionalProperties":false}

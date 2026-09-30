@@ -1,0 +1,40 @@
+t
+_input value
+0
+1
+t.a
+_input value	_instance	_parent	_pointer	_value
+0	2	0	/a/0	x
+t.patternProperties
+_input value	_instance	_parent	_pointer	_value
+0	3	0	/p1	y
+t.additionalProperties
+_input value	_instance	_parent	_pointer	_value
+0	4	0	/d	z
+t.dependencies.k
+_input value	_instance	_parent	_pointer
+0	0		
+t.if.i
+_input value	_instance	_parent	_pointer
+0	0		
+t.then.h
+_input value	_instance	_parent	_pointer
+0	0		
+t.else.e
+_input value	_instance	_parent	_pointer
+1	0		
+t.oneOf.q
+_input value	_instance	_parent	_pointer
+0	0		
+1	0		
+t.anyOf.z
+_input value	_instance	_parent	_pointer
+0	0		
+1	0		
+t.anyOf.y
+_input value	_instance	_parent	_pointer
+0	0		
+t.oneOf.o
+_input value	_instance	_parent	_pointer
+0	0		
+1	0		

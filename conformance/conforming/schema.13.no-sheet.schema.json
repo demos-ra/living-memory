@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"l":{"type":"array","items":{"type":"string"},"contains":{"title":"c","type":"string"}}},"required":["l"],"not":{"title":"x","type":"object","required":["zz"]},"propertyNames":{"title":"pn","type":"string","maxLength":5},"definitions":{"d":{"title":"d","type":"object"}}}

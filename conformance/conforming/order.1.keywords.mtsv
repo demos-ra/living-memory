@@ -1,9 +1,0 @@
-calls
-pointer
-/0
-calls.a.x
-parent	pointer	value
-/0	/0/a/x/0	5
-calls.b
-parent	pointer	value
-/0	/0/b/0	7

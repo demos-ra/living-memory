@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"p":{"$ref":"#/definitions/a b"}},"required":["p"],"additionalProperties":false,"definitions":{"a b":{"type":"object"}}}

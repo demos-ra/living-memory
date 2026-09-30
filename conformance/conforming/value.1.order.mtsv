@@ -1,5 +1,5 @@
-calls
-pointer	n
-/0	3
-/1	1
-/2	2
+t
+_input value	s
+0	b
+1	a
+2	c

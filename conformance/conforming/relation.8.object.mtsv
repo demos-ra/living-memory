@@ -1,6 +1,0 @@
-calls
-pointer	a	p.b	p.q.c	d
-/0	1	true	2	4
-calls.p.l
-parent	pointer	value
-/0	/0/p/l/0	3

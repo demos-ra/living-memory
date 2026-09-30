@@ -1,0 +1,1 @@
+{"title":"t","type":"object","patternProperties":{"^a":{"type":"string"},"^b":{"type":"number"}},"dependencies":{"a1":{"type":"object"}},"anyOf":[{"type":"object"},{"type":"object"}],"oneOf":[{"type":"object"}]}

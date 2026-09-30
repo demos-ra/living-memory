@@ -1,0 +1,1 @@
+{"title":"t","type":"object","properties":{"s":{"type":"string","pattern":"^(a|b)[ab][^c][d-f]+g*h?i{2}j{1,2}k{1,}l+?m*?n??o{1}?p{1,2}?q{1,}?$"}},"required":["s"],"patternProperties":{"y":{"type":"string"}}}

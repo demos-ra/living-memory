@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"p":{"$ref":"#/definitions/alice"}},"required":["p"],"additionalProperties":false,"definitions":{"alice":{"anyOf":[{"$ref":"#/definitions/bob"}]},"bob":{"anyOf":[{"$ref":"#/definitions/alice"}]}}}

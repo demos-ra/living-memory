@@ -1,1 +1,0 @@
-{"title":"calls","type":"object","properties":{"n":{"type":"number"}},"required":["n"],"allOf":[{"title":"t","type":"object","properties":{"n":{"type":"number"},"m":{"type":"number"}},"required":["n","m"],"additionalProperties":false}]}

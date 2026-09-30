@@ -1,10 +1,0 @@
-calls
-pointer
-/0
-/1
-calls.p.anyOf.a
-parent	pointer	kind	x
-/0	/0/p	a	1
-calls.p.anyOf.b
-parent	pointer	kind	y
-/1	/1/p	b	2
